@@ -13,7 +13,7 @@
 edition = "2024"
 rust-version = "1.88"
 name = "zcash_client_sqlite"
-version = "0.22.0"
+version = "0.23.0-pre.1"
 authors = [
     "Jack Grigg <jack@z.cash>",
     "Kris Nuttycombe <kris@electriccoin.co>",
@@ -145,7 +145,7 @@ features = ["all-languages"]
 optional = true
 
 [dependencies.bip32]
-version = "=0.6.0-pre.1"
+version = "0.6"
 features = ["alloc"]
 optional = true
 default-features = false
@@ -168,7 +168,7 @@ version = "1"
 version = "0.2"
 
 [dependencies.group]
-version = "0.13"
+version = "0.14"
 
 [dependencies.hex]
 version = "0.4"
@@ -176,11 +176,11 @@ features = ["alloc"]
 default-features = false
 
 [dependencies.incrementalmerkletree]
-version = "0.8.2"
+version = "0.9"
 default-features = false
 
 [dependencies.jubjub]
-version = "0.10"
+version = "0.11"
 
 [dependencies.maybe-rayon]
 version = "0.1.0"
@@ -191,7 +191,7 @@ version = "0.11"
 default-features = false
 
 [dependencies.orchard]
-version = "0.15.0"
+version = "0.16"
 optional = true
 default-features = false
 
@@ -200,26 +200,26 @@ version = "0.2"
 optional = true
 
 [dependencies.pczt]
-version = "0.9.3"
+version = "=0.10.0-pre.1"
 default-features = false
 
 [dependencies.prost]
 version = "0.14"
 
 [dependencies.rand]
-version = "0.8"
+version = "0.10"
 default-features = false
 
 [dependencies.rand_chacha]
-version = "0.3"
+version = "0.10"
 optional = true
 
 [dependencies.rand_core]
-version = "0.6"
+version = "0.10"
 default-features = false
 
 [dependencies.rand_distr]
-version = "0.4"
+version = "0.6"
 default-features = false
 
 [dependencies.regex]
@@ -238,7 +238,7 @@ features = [
 ]
 
 [dependencies.sapling]
-version = "0.7"
+version = "0.9"
 default-features = false
 package = "sapling-crypto"
 
@@ -249,7 +249,7 @@ version = "0.2"
 version = "0.370"
 
 [dependencies.secp256k1]
-version = "0.29"
+version = "0.33"
 features = ["alloc"]
 optional = true
 default-features = false
@@ -264,7 +264,7 @@ optional = true
 default-features = false
 
 [dependencies.shardtree]
-version = "0.7"
+version = "0.8"
 features = ["legacy-api"]
 
 [dependencies.static_assertions]
@@ -287,7 +287,7 @@ version = "0.1"
 default-features = false
 
 [dependencies.transparent]
-version = "0.10.0"
+version = "=0.11.0-pre.1"
 default-features = false
 package = "zcash_transparent"
 
@@ -296,11 +296,11 @@ version = "1.1"
 features = ["v4"]
 
 [dependencies.zcash_address]
-version = "0.13.0"
+version = "=0.14.0-pre.1"
 default-features = false
 
 [dependencies.zcash_client_backend]
-version = "0.24.0"
+version = "=0.25.0-pre.1"
 features = [
     "unstable-serialization",
     "unstable-spanning-tree",
@@ -308,27 +308,27 @@ features = [
 default-features = false
 
 [dependencies.zcash_encoding]
-version = "0.4"
+version = "0.5"
 default-features = false
 
 [dependencies.zcash_keys]
-version = "0.16.1"
+version = "=0.17.0-pre.1"
 features = ["sapling"]
 default-features = false
 
 [dependencies.zcash_pool_migration]
-version = "0.1.0"
+version = "=0.2.0-pre.1"
 
 [dependencies.zcash_primitives]
-version = "0.30.1"
+version = "=0.31.0-pre.1"
 default-features = false
 
 [dependencies.zcash_protocol]
-version = "0.10.5"
+version = "=0.11.0-pre.0"
 default-features = false
 
 [dependencies.zcash_script]
-version = "0.4.3"
+version = "0.6"
 default-features = false
 
 [dependencies.zewif]
@@ -336,7 +336,7 @@ version = "1.0.0-rc.3"
 optional = true
 
 [dependencies.zip32]
-version = "0.2"
+version = "0.3"
 default-features = false
 
 [dev-dependencies.ambassador]
@@ -346,26 +346,26 @@ version = "0.4"
 version = "1.5"
 
 [dev-dependencies.bls12_381]
-version = "0.8"
+version = "0.9"
 
 [dev-dependencies.incrementalmerkletree]
-version = "0.8.2"
+version = "0.9"
 features = ["test-dependencies"]
 default-features = false
 
 [dev-dependencies.incrementalmerkletree-testing]
-version = "0.3"
+version = "0.4"
 
 [dev-dependencies.orchard]
-version = "0.15.0"
+version = "0.16"
 features = ["test-dependencies"]
 default-features = false
 
 [dev-dependencies.pasta_curves]
-version = "0.5"
+version = "0.6"
 
 [dev-dependencies.pczt]
-version = "0.9.3"
+version = "=0.10.0-pre.1"
 features = [
     "orchard",
     "tx-extractor",
@@ -375,15 +375,20 @@ default-features = false
 [dev-dependencies.proptest]
 version = ">=1,<1.7"
 
+[dev-dependencies.rand]
+version = "0.10"
+features = ["sys_rng"]
+default-features = false
+
 [dev-dependencies.rand_chacha]
-version = "0.3"
+version = "0.10"
 
 [dev-dependencies.rand_core]
-version = "0.6"
+version = "0.10"
 default-features = false
 
 [dev-dependencies.secp256k1]
-version = "0.29"
+version = "0.33"
 features = [
     "alloc",
     "rand",
@@ -391,7 +396,7 @@ features = [
 default-features = false
 
 [dev-dependencies.shardtree]
-version = "0.7"
+version = "0.8"
 features = [
     "legacy-api",
     "test-dependencies",
@@ -401,12 +406,12 @@ features = [
 version = "3.5.0"
 
 [dev-dependencies.zcash_address]
-version = "0.13.0"
+version = "=0.14.0-pre.1"
 features = ["test-dependencies"]
 default-features = false
 
 [dev-dependencies.zcash_client_backend]
-version = "0.24.0"
+version = "=0.25.0-pre.1"
 features = [
     "test-dependencies",
     "unstable-serialization",
@@ -415,19 +420,19 @@ features = [
 default-features = false
 
 [dev-dependencies.zcash_keys]
-version = "0.16.1"
+version = "=0.17.0-pre.1"
 features = ["test-dependencies"]
 default-features = false
 
 [dev-dependencies.zcash_note_encryption]
-version = "0.4.1"
+version = "0.5.1"
 
 [dev-dependencies.zcash_pool_migration]
-version = "0.1.0"
+version = "=0.2.0-pre.1"
 features = ["test-dependencies"]
 
 [dev-dependencies.zcash_primitives]
-version = "0.30.1"
+version = "=0.31.0-pre.1"
 features = [
     "test-dependencies",
     "non-standard-fees",
@@ -435,23 +440,23 @@ features = [
 default-features = false
 
 [dev-dependencies.zcash_proofs]
-version = "0.30.0"
+version = "=0.31.0-pre.1"
 features = ["bundled-prover"]
 default-features = false
 
 [dev-dependencies.zcash_protocol]
-version = "0.10.5"
+version = "=0.11.0-pre.0"
 features = ["local-consensus"]
 default-features = false
 
 [dev-dependencies.zip321]
-version = "0.9.0"
+version = "=0.10.0-pre.1"
 
 [lints.rust.unexpected_cfgs]
 level = "warn"
 priority = 0
 check-cfg = [
     "cfg(tokio_unstable)",
-    'cfg(zcash_unstable, values("nu7"))',
+    'cfg(zcash_unstable, values("nutachyon", "zip233"))',
     "cfg(live_network_tests)",
 ]

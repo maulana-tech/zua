@@ -8,7 +8,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bip0039::{English, Mnemonic};
 use nonempty::NonEmpty;
-use rand_core::OsRng;
+use rand_chacha::rand_core::SeedableRng;
+use rand_chacha::ChaCha20Rng;
 use secrecy::{ExposeSecret, SecretVec, Zeroize};
 use tokio::sync::Mutex;
 use zcash_address::ZcashAddress;
@@ -25,6 +26,13 @@ use zcash_client_backend::proto::service::{
 };
 use zcash_client_backend::sync::run;
 use zcash_client_sqlite::util::Clock;
+
+/// CSPRNG seeded from the browser (crypto.getRandomValues via getrandom).
+fn os_seeded_rng() -> ChaCha20Rng {
+    let mut seed = [0u8; 32];
+    getrandom04::fill(&mut seed).expect("browser randomness");
+    ChaCha20Rng::from_seed(seed)
+}
 use zcash_client_backend::wallet::OvkPolicy;
 use zcash_client_backend::zip321::{Payment, TransactionRequest};
 use zcash_client_sqlite::wallet::init::init_wallet_db;
@@ -52,7 +60,7 @@ impl Clock for JsClock {
     }
 }
 
-pub type Db = WalletDb<rusqlite::Connection, Network, JsClock, OsRng>;
+pub type Db = WalletDb<rusqlite::Connection, Network, JsClock, ChaCha20Rng>;
 pub type NoteRef = ReceivedNoteId;
 pub type WalletProposal = Proposal<StandardFeeRule, NoteRef>;
 type Client = tonic_web_wasm_client::Client;
@@ -65,7 +73,7 @@ pub fn open_db(network: Network, bytes: Option<&[u8]>) -> Result<Db, Error> {
         conn.deserialize_read_exact(rusqlite::MAIN_DB, bytes, bytes.len(), false)?;
     }
     rusqlite::vtab::array::load_module(&conn)?;
-    let mut db = WalletDb::from_connection(conn, network, JsClock, OsRng);
+    let mut db = WalletDb::from_connection(conn, network, JsClock, os_seeded_rng());
     init_wallet_db(&mut db, None).map_err(|e| Error::Generic(format!("wallet db migration: {e}")))?;
     Ok(db)
 }
@@ -220,6 +228,8 @@ impl Wallet {
         create_proposed_transactions::<_, _, std::convert::Infallible, _, std::convert::Infallible, _>(
             &mut *db,
             &self.network,
+            &JsClock,
+            &mut os_seeded_rng(),
             &prover,
             &prover,
             &SpendingKeys::from_unified_spending_key(usk.clone()),

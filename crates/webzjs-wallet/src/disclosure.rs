@@ -63,7 +63,7 @@ pub fn verify_action<V: DomainVersion, T>(
     k_enc: &[u8; 32],
     address: &Address,
 ) -> Result<(u64, String), &'static str> {
-    let enc = &action.encrypted_note().enc_ciphertext;
+    let enc: &[u8] = action.encrypted_note().enc_ciphertext.as_ref();
     let mut plaintext = [0u8; PLAINTEXT_LEN];
     plaintext.copy_from_slice(&enc[..PLAINTEXT_LEN]);
     ChaCha20Poly1305::new(k_enc.into())

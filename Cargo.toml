@@ -31,25 +31,25 @@ tonic-web-wasm-client = "0.8.0"
 tokio_with_wasm = { version = "0.7.1", features = ["rt", "rt-multi-thread", "sync", "macros", "time"] }
 
 ## Zcash dependencies - Using ChainSafe/librustzcash-nu61 fork with NU6.1 fixes
-zcash_keys = { version = "0.16.1", features = ["transparent-inputs", "orchard", "sapling", "unstable"] }
-zcash_client_backend = { version = "0.24.0", default-features = false, features = ["sync", "lightwalletd-tonic", "orchard"] }
-zcash_primitives = { version = "0.30.1" }
-zcash_transparent = { version = "0.10.0", default-features = false }
-zcash_address = { version = "0.13.0" }
-zcash_proofs = { version = "0.30.0", default-features = false, features = ["bundled-prover", "multicore"] }
-zip321 = { version = "0.9.0" }
-zip32 = { version = "0.2" }
-zcash_protocol = { version = "0.10.6", default-features = false }
-pczt = { version = "0.9.3", default-features = false, features = ["orchard", "sapling", "transparent"] }
-sapling = { package = "sapling-crypto", version = "0.7", default-features = false }
-bip32 = { version = "=0.6.0-pre.1", default-features = false, features = ["alloc"] }
+zcash_keys = { version = "=0.17.0-pre.1", features = ["transparent-inputs", "orchard", "sapling", "unstable"] }
+zcash_client_backend = { version = "=0.25.0-pre.1", default-features = false, features = ["sync", "lightwalletd-tonic", "orchard"] }
+zcash_primitives = { version = "=0.31.0-pre.1" }
+zcash_transparent = { version = "=0.11.0-pre.1", default-features = false }
+zcash_address = { version = "=0.14.0-pre.1" }
+zcash_proofs = { version = "=0.31.0-pre.1", default-features = false, features = ["bundled-prover", "multicore"] }
+zip321 = { version = "=0.10.0-pre.1" }
+zip32 = { version = "0.3" }
+zcash_protocol = { version = "=0.11.0-pre.0", default-features = false }
+pczt = { version = "=0.10.0-pre.1", default-features = false, features = ["orchard", "sapling", "transparent"] }
+sapling = { package = "sapling-crypto", version = "0.9", default-features = false }
+bip32 = { version = "0.6", default-features = false, features = ["alloc"] }
 ## gRPC Web dependencies
 prost = { version = "0.14", default-features = false }
 tonic = { version = "0.14", default-features = false }
 
 
 # Used in Native tests
-zcash_client_sqlite = { version = "0.22.0", default-features = false, features = ["unstable", "orchard"] }
+zcash_client_sqlite = { path = "vendor/zcash_client_sqlite", default-features = false, features = ["unstable", "orchard"] }
 
 getrandom = { version = "0.2", features = ["js"] }
 thiserror = "1.0.63"
@@ -81,7 +81,6 @@ byte-unit = { version = "5.1.4", features = ["byte"] }
 
 [patch.crates-io]
 schemerz-rusqlite = { path = "vendor/schemerz-rusqlite" }
-zcash_client_sqlite = { path = "vendor/zcash_client_sqlite" }
 # Also patching for pczt improvments
 # See: https://github.com/zcash/librustzcash/pull/1661
 # orchard = { git = "https://github.com/zcash/orchard.git", rev = "4fa6d3b549f8803016a309281404eab095d04de8" }

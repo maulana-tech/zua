@@ -59,8 +59,8 @@ zcash_proofs = { workspace = true, default-features = false, features = ["bundle
 zip321 = { workspace = true }
 zip32 = { workspace = true }
 pczt = { workspace = true, default-features = false, features = ["orchard", "sapling", "transparent"] }
-orchard = { version = "0.15.5", default-features = false }
-zcash_note_encryption = "0.4.1"
+orchard = { version = "0.16", default-features = false }
+zcash_note_encryption = "0.5.1"
 chacha20poly1305 = { version = "0.10.1", default-features = false, features = ["alloc"] }
 sapling = { workspace = true }
 bip32.workspace = true
@@ -72,7 +72,7 @@ tonic = { version = "0.14", default-features = false, features = ["codegen"] }
 tokio.workspace = true
 zcash_client_sqlite = { workspace = true }
 async-trait = "0.1"
-rand_core = { version = "0.6", features = ["getrandom"] }
+rand_chacha = "0.10"
 rusqlite = { version = "0.39", features = ["serialize"] }
 uuid = { version = "1", features = ["js"] }
 getrandom03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
@@ -107,4 +107,4 @@ serde-wasm-bindgen.workspace = true
 workspace = true
 
 [dev-dependencies]
-pasta_curves = "0.5"
+pasta_curves = "0.6"
