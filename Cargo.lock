@@ -3362,6 +3362,7 @@ version = "0.1.0"
 dependencies = [
  "bip0039",
  "bip32",
+ "chacha20poly1305",
  "console_error_panic_hook",
  "futures-util",
  "getrandom 0.2.17",
@@ -3371,6 +3372,7 @@ dependencies = [
  "js-sys",
  "nonempty",
  "orchard",
+ "pasta_curves",
  "pczt",
  "postcard",
  "prost",
@@ -3404,6 +3406,7 @@ dependencies = [
  "zcash_client_memory",
  "zcash_client_sqlite",
  "zcash_keys",
+ "zcash_note_encryption",
  "zcash_primitives",
  "zcash_proofs",
  "zcash_protocol",
