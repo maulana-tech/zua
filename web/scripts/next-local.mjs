@@ -21,7 +21,7 @@ const child = spawn(
   {
     cwd: webRoot,
     stdio: "inherit",
-    env: { ...process.env, MAWEE_BUILD_TARGET: "local" },
+    env: { ...process.env, APP_BUILD_TARGET: "local" },
   },
 );
 
