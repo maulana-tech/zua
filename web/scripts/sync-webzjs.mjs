@@ -2,7 +2,13 @@
 // native ES modules. Bundling it breaks its thread workers: they import the
 // package by directory (`../../..`), which only bundlers resolve, and webpack
 // doesn't inside workers. Those imports are pointed at the entry file here.
-import { cpSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const src = fileURLToPath(
@@ -16,14 +22,20 @@ cpSync(src, out, {
   filter: (p) => !/node_modules|\.d\.ts$|package\.json$|README/.test(p),
 });
 
+// Snippet folders are named by content hash, so find them by prefix.
+const snippet = (prefix, rest) => {
+  const dir = readdirSync(`${out}/snippets`).find((d) => d.startsWith(prefix));
+  if (!dir) throw new Error(`sync-webzjs: no ${prefix}* snippet`);
+  return `snippets/${dir}/${rest}`;
+};
 const patches = [
   [
-    "snippets/wasm-bindgen-rayon-38edf6e439f6d70d/src/workerHelpers.js",
+    snippet("wasm-bindgen-rayon-", "src/workerHelpers.js"),
     "'../../..'",
     "'../../../webzjs_wallet.js'",
   ],
   [
-    "snippets/wasm_thread-8ee53d0673203880/src/wasm32/js/web_worker_module.bundler.js",
+    snippet("wasm_thread-", "src/wasm32/js/web_worker_module.bundler.js"),
     '"../../../../../"',
     '"../../../../../webzjs_wallet.js"',
   ],

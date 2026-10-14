@@ -13,7 +13,7 @@ import {
 
 // Product facts only — no vanity metrics.
 const FACTS = [
-  { value: "Orchard", label: "Zcash's shielded pool" },
+  { value: "Ironwood", label: "Zcash's shielded pool" },
   { value: "0 seed", label: "Phrases to write down" },
   { value: "1 link", label: "For every client" },
   { value: "100%", label: "Self-custodial" },

@@ -78,17 +78,19 @@ async function verify(receipt: Receipt): Promise<Result> {
     };
   // Decrypt each disclosed output and check it against its note commitment.
   const { verifyDisclosure } = await import("../../lib/zcash/wallet");
-  const actions = new Set<number>();
+  const actions = new Set<string>();
   let total = 0n;
   const memos: string[] = [];
   for (const d of receipt.disclosures) {
-    if (actions.has(d.action))
+    const key = `${d.pool}:${d.action}`;
+    if (actions.has(key))
       return { status: "invalid", reason: "An output is listed twice." };
-    actions.add(d.action);
+    actions.add(key);
     try {
       const out = await verifyDisclosure({
         tx: raw.data,
         height: raw.height,
+        pool: d.pool,
         action: d.action,
         kEnc: d.kEnc,
         ua: receipt.recipient.ua,

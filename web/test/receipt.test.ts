@@ -17,7 +17,7 @@ const body: ReceiptBody = {
   amountZat: "80000000",
   memo: "zua:inv:AAAAAAAA12",
   recipient: { username: "dinar", ua: "u1example" },
-  disclosures: [{ action: 1, kEnc: "ab".repeat(32) }],
+  disclosures: [{ pool: "ironwood", action: 1, kEnc: "ab".repeat(32) }],
   issuedAt: "2026-10-14T00:00:00.000Z",
 };
 
@@ -41,7 +41,10 @@ describe("receipts", () => {
     const receipt = signReceipt(body, seed);
     expect(
       receiptSignatureValid(
-        { ...receipt, disclosures: [{ action: 1, kEnc: "cd".repeat(32) }] },
+        {
+          ...receipt,
+          disclosures: [{ pool: "ironwood", action: 1, kEnc: "cd".repeat(32) }],
+        },
         signingPubkeyHex(seed),
       ),
     ).toBe(false);
@@ -57,7 +60,18 @@ describe("receipts", () => {
     ).toThrow();
     expect(() =>
       parseReceipt(
-        JSON.stringify({ ...signed, disclosures: [{ action: 0, kEnc: "zz" }] }),
+        JSON.stringify({
+          ...signed,
+          disclosures: [{ pool: "sapling", action: 0, kEnc: "ab".repeat(32) }],
+        }),
+      ),
+    ).toThrow();
+    expect(() =>
+      parseReceipt(
+        JSON.stringify({
+          ...signed,
+          disclosures: [{ pool: "ironwood", action: 0, kEnc: "zz" }],
+        }),
       ),
     ).toThrow();
   });

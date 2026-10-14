@@ -47,9 +47,11 @@ sees your seed, viewing keys, balance, history, senders or amounts.
   - `src/lib/profileClaim.ts` - signed username → address claims.
   - `src/server/modules/` - `accounts`, `profiles`, `paymentLinks`, `invoices`,
     `notifications`.
-- `packages/webzjs-wallet/` - prebuilt [ChainSafe WebZjs](https://github.com/ChainSafe/WebZjs)
-  wallet (WASM), built from source with a small patch that adds
-  `propose_transfer_with_memo`.
+- `packages/webzjs-wallet/` - prebuilt wallet (WASM) from our fork of
+  [ChainSafe WebZjs](https://github.com/ChainSafe/WebZjs), ported to the
+  released NU6.3 Zcash crates: it scans and spends the **Ironwood** pool,
+  stores the wallet in `zcash_client_sqlite` on SQLite compiled to WASM, sends
+  memos, and discloses single payments for receipts.
 - `docs/superpowers/` - migration plan and design spec.
 
 ## Run locally
@@ -70,14 +72,23 @@ works out of the box. Use small amounts: the wallet library is unaudited.
 
 ### Rebuilding the wallet package
 
+Upstream WebZjs stops at NU6.1, so transactions it builds are rejected on
+today's mainnet. Our port lives on the `zua/nu63` branch of the WebZjs fork:
+
 ```sh
-git clone https://github.com/ChainSafe/WebZjs && cd WebZjs
-# apply the memo patch (propose_transfer_with_memo), then:
+cd WebZjs && git checkout zua/nu63
 brew install wasm-pack just llvm
-cargo +stable install wasm-bindgen-cli --version 0.2.100 --locked
-CC_wasm32_unknown_unknown=$(brew --prefix llvm)/bin/clang just build-wallet
+cargo +stable install wasm-bindgen-cli --version 0.2.129 --locked
+PATH=$(brew --prefix llvm)/bin:$PATH \
+CC_wasm32_unknown_unknown=$(brew --prefix llvm)/bin/clang \
+AR_wasm32_unknown_unknown=$(brew --prefix llvm)/bin/llvm-ar \
+  just build-wallet
 cp -R packages/webzjs-wallet ../zua/packages/
 ```
+
+`pnpm dev` / `pnpm build` copy the package to `web/public/webzjs`
+(`web/scripts/sync-webzjs.mjs`); the browser loads it as native ES modules so
+its thread workers resolve.
 
 ## Environment
 

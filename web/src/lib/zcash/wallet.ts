@@ -241,7 +241,11 @@ export function splitTxids(bytes: Uint8Array): string[] {
   return out;
 }
 
+export type ShieldedPool = "orchard" | "ironwood";
+
 export type Disclosure = {
+  /** Orchard-shaped bundle the output is in (Ironwood since NU6.3). */
+  pool: ShieldedPool;
   action: number;
   /** Per-note symmetric key: decrypts this one output and nothing else. */
   kEnc: string;
@@ -250,7 +254,7 @@ export type Disclosure = {
   internal: boolean;
 };
 
-/** Orchard outputs of `tx` that pay the account derived from `mnemonic`. */
+/** Orchard and Ironwood outputs of `tx` that pay the account of `mnemonic`. */
 export async function discloseOutputs(opts: {
   mnemonic: string;
   tx: Uint8Array;
@@ -270,6 +274,7 @@ export async function discloseOutputs(opts: {
 export async function verifyDisclosure(opts: {
   tx: Uint8Array;
   height: number;
+  pool: ShieldedPool;
   action: number;
   kEnc: string;
   ua: string;
@@ -280,6 +285,7 @@ export async function verifyDisclosure(opts: {
       network,
       opts.tx,
       opts.height,
+      opts.pool,
       opts.action,
       opts.kEnc,
       opts.ua,

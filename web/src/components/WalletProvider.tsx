@@ -573,7 +573,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       ).filter((d) => !d.internal);
       if (!received.length)
         throw new Error(
-          "No Orchard output in this transaction pays you. Receipts cover Orchard payments only.",
+          "No shielded (Orchard or Ironwood) output in this transaction pays you.",
         );
       return signReceipt(
         {
@@ -587,7 +587,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             .filter(Boolean)
             .join("\n"),
           recipient: { username, ua: zcash.address },
-          disclosures: received.map(({ action, kEnc }) => ({ action, kEnc })),
+          disclosures: received.map(({ pool, action, kEnc }) => ({
+            pool,
+            action,
+            kEnc,
+          })),
           issuedAt: new Date().toISOString(),
         },
         profileSigningSeed(master),

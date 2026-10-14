@@ -18,8 +18,9 @@ export function ZcashWalletTile() {
       <h2 className="dashboard-tile-title">Zcash wallet</h2>
       <p className="mt-3 max-w-xl text-sm leading-6 text-(--dash-ash)">
         Your shielded address on Zcash{" "}
-        {network === "main" ? "mainnet" : "testnet"}. It receives to the Orchard
-        pool, so payments hide the sender, recipient and amount.
+        {network === "main" ? "mainnet" : "testnet"}. Payments land in the
+        Ironwood shielded pool (NU6.3), so they hide the sender, recipient and
+        amount.
       </p>
       {zcash.address ? (
         <div className="mt-4 grid gap-3">

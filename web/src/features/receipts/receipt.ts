@@ -2,12 +2,16 @@ import { ed25519 } from "@noble/curves/ed25519.js";
 import { bytesToHex, hexToBytes } from "../../lib/crypto";
 
 // Receipt v2: the recipient signs "I received this payment" with their
-// profile key and attaches, for each Orchard output they received, that
+// profile key and attaches, for each Orchard or Ironwood output they received, that
 // output's note encryption key (K_enc). A verifier decrypts just those outputs
 // from the on-chain transaction and checks the notes against their
 // commitments, so amount and memo are proven by the chain, not just stated.
 // K_enc opens one output only; it reveals no viewing key or other payments.
-export type ReceiptDisclosure = { action: number; kEnc: string };
+export type ReceiptDisclosure = {
+  pool: "orchard" | "ironwood";
+  action: number;
+  kEnc: string;
+};
 
 export type ReceiptBody = {
   v: 2;
@@ -43,7 +47,11 @@ export function canonicalReceipt(body: ReceiptBody): string {
     amountZat,
     memo,
     recipient: { username: recipient.username, ua: recipient.ua },
-    disclosures: disclosures.map(({ action, kEnc }) => ({ action, kEnc })),
+    disclosures: disclosures.map(({ pool, action, kEnc }) => ({
+      pool,
+      action,
+      kEnc,
+    })),
     issuedAt,
   });
 }
@@ -93,7 +101,8 @@ export function parseReceipt(text: string): Receipt {
     data.disclosures.length > 16 ||
     !data.disclosures.every(
       (d) =>
-        Number.isInteger(d?.action) &&
+        (d?.pool === "orchard" || d?.pool === "ironwood") &&
+        Number.isInteger(d.action) &&
         d.action >= 0 &&
         /^[0-9a-f]{64}$/.test(d.kEnc ?? ""),
     ) ||
