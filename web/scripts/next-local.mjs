@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
-import { createRequire } from "node:module";
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -10,11 +10,15 @@ if (command !== "build" && command !== "start") {
 }
 
 const require = createRequire(import.meta.url);
-const webRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const webRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
 const declarationPath = path.join(webRoot, "next-env.d.ts");
-const declarationBefore = command === "build" && fs.existsSync(declarationPath)
-  ? fs.readFileSync(declarationPath, "utf8")
-  : null;
+const declarationBefore =
+  command === "build" && fs.existsSync(declarationPath)
+    ? fs.readFileSync(declarationPath, "utf8")
+    : null;
 const child = spawn(
   process.execPath,
   [require.resolve("next/dist/bin/next"), command, ...args],

@@ -178,6 +178,7 @@ export function InvoiceCheckout({ token }: { token: string }) {
                   <tbody>
                     {invoice.items.map((item, i) => (
                       <tr
+                        // biome-ignore lint/suspicious/noArrayIndexKey: a fixed, read-only list
                         key={`${i}-${item.description}`}
                         className="border-b border-(--dash-line)"
                       >

@@ -1092,14 +1092,6 @@ function Subsection({
   );
 }
 
-function DraftNote({ children }: { children: ReactNode }) {
-  return (
-    <div className="mb-4 border-l-2 border-gold bg-gold/10 px-5 py-4 text-sm leading-6 text-ink/75">
-      {children}
-    </div>
-  );
-}
-
 function ReviewText({ children }: { children: ReactNode }) {
   return (
     <p className="border-l-2 border-gold pl-4 font-semibold text-ink">

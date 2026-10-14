@@ -54,6 +54,7 @@ function ToastFeedback({
             }
           : undefined,
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see biome-ignore above
   }, [actionHref, actionLabel, message, title, toastId, variant]);
 
   return null;

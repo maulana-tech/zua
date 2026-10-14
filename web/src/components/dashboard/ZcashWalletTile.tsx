@@ -60,6 +60,7 @@ export function ZcashWalletTile() {
             <div className="mt-4 grid gap-3">
               <ol className="grid grid-cols-2 gap-x-6 gap-y-1 rounded-(--dash-radius-sm) border border-(--dash-line-strong) p-4 font-mono text-xs sm:grid-cols-3">
                 {words.split(" ").map((w, i) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: words can repeat; position is the identity
                   <li key={`${i}-${w}`}>
                     <span className="mr-2 text-(--dash-ash)">{i + 1}.</span>
                     {w}

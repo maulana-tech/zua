@@ -51,9 +51,8 @@ export function ReceiveDialog({
         <DialogHeader>
           <DialogTitle>Receive ZEC</DialogTitle>
           <DialogDescription>
-            Share this code or link with whoever is paying you. Any Zcash
-            wallet (like Zodl) can open it. Payments land in your shielded
-            balance.
+            Share this code or link with whoever is paying you. Any Zcash wallet
+            (like Zodl) can open it. Payments land in your shielded balance.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
