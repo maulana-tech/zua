@@ -11,7 +11,8 @@ import { DashboardPageHeader } from "./DashboardPageHeader";
 import { dashButtonPrimary, dashCell, dashLedger } from "./styles";
 
 export function HistoryDashboard() {
-  const { accountUnlocked, promptUnlock, recoveryMethod, zcash } = useWallet();
+  const { accountUnlocked, promptUnlock, recoveryMethod, zcash, issueReceipt } =
+    useWallet();
   const price = useZecPrice();
   const totals = useMemo(() => {
     let received = 0n;
@@ -27,7 +28,7 @@ export function HistoryDashboard() {
     <>
       <DashboardPageHeader
         title="History"
-        description="Every shielded payment in and out, decrypted on this device."
+        description="Every shielded payment in and out, decrypted on this device. Download a signed receipt for any payment you received."
       />
       {accountUnlocked ? (
         <div className="grid gap-4">
@@ -58,6 +59,20 @@ export function HistoryDashboard() {
                 loading={
                   zcash.status === "loading" || zcash.status === "syncing"
                 }
+                onReceipt={(tx) => {
+                  const receipt = issueReceipt(tx);
+                  if (!receipt) return;
+                  const url = URL.createObjectURL(
+                    new Blob([JSON.stringify(receipt, null, 2)], {
+                      type: "application/json",
+                    }),
+                  );
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `zua-receipt-${tx.txid.slice(0, 12)}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
               />
             </div>
           </div>

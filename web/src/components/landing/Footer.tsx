@@ -17,6 +17,7 @@ const COLUMNS: {
   {
     title: "Resources",
     links: [
+      { label: "Verify a receipt", href: "/verify" },
       { label: "Privacy policy", href: "/privacy" },
       { label: "Zcash", href: "https://z.cash" },
       { label: "Zodl wallet", href: "https://zodl.com" },

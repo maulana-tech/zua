@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownLeft, ArrowUpRight, Repeat } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, FileCheck2, Repeat } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { HISTORY_PATH } from "../../lib/auth-routes";
@@ -49,6 +49,7 @@ export function ActivityFeed({
   showFilters = true,
   showSeeAll = false,
   title = "Activity",
+  onReceipt,
 }: {
   history: WalletTx[];
   loading: boolean;
@@ -56,6 +57,8 @@ export function ActivityFeed({
   showFilters?: boolean;
   showSeeAll?: boolean;
   title?: string;
+  /** Offers a signed receipt for received, mined payments. */
+  onReceipt?: (tx: WalletTx) => void;
 }) {
   const [tab, setTab] = useState<Tab>("All");
   const rows = useMemo(() => {
@@ -152,20 +155,35 @@ export function ActivityFeed({
                 </span>
               </>
             );
+            const receipt =
+              onReceipt && tx.kind === "received" && tx.height !== null ? (
+                <button
+                  type="button"
+                  onClick={() => onReceipt(tx)}
+                  className={`ml-2 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-(--dash-ash) hover:bg-(--dash-tint) hover:text-(--dash-fg) ${dashFocus}`}
+                  aria-label="Download signed receipt"
+                  title="Download signed receipt"
+                >
+                  <FileCheck2 className="size-4" aria-hidden="true" />
+                </button>
+              ) : null;
             return (
-              <li key={tx.txid}>
-                {url ? (
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`flex items-center gap-3 py-3 ${dashFocus}`}
-                  >
-                    {body}
-                  </a>
-                ) : (
-                  <div className="flex items-center gap-3 py-3">{body}</div>
-                )}
+              <li key={tx.txid} className="flex items-center">
+                <div className="min-w-0 flex-1">
+                  {url ? (
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`flex items-center gap-3 py-3 ${dashFocus}`}
+                    >
+                      {body}
+                    </a>
+                  ) : (
+                    <div className="flex items-center gap-3 py-3">{body}</div>
+                  )}
+                </div>
+                {receipt}
               </li>
             );
           })}

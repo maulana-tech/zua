@@ -16,6 +16,7 @@ import {
   findInvoicePayments,
   findRequestPayments,
 } from "../features/invoices/settle";
+import { type Receipt, signReceipt } from "../features/receipts/receipt";
 import { DASHBOARD_PATH, SIGN_IN_PATH } from "../lib/auth-routes";
 import {
   decryptMaster,
@@ -116,6 +117,8 @@ type WalletState = {
   openBox: <T>(box: Sealed) => T | null;
   /** This account's messaging public key; null while locked. */
   messagingPubkey: () => string | null;
+  /** Signed receipt for a received, mined payment; null while locked. */
+  issueReceipt: (tx: WalletTx) => Receipt | null;
 };
 
 const EMPTY_ZCASH: ZcashState = {
@@ -551,6 +554,28 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const issueReceipt = useCallback(
+    (tx: WalletTx): Receipt | null => {
+      const master = masterRef.current;
+      if (!master || !username || !zcash.address || tx.height === null)
+        return null;
+      return signReceipt(
+        {
+          v: 1,
+          network,
+          txid: tx.txid,
+          height: tx.height,
+          amountZat: tx.value.toString(),
+          memo: tx.memos.join("\n"),
+          recipient: { username, ua: zcash.address },
+          issuedAt: new Date().toISOString(),
+        },
+        profileSigningSeed(master),
+      );
+    },
+    [username, zcash.address],
+  );
+
   const closeRecoveryModal = useCallback(() => {
     // Choosing a method is mandatory for a new account; unlocking can wait.
     setRecoveryModal((current) => (current === "choose" ? current : null));
@@ -626,6 +651,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       revealMnemonic,
       openBox,
       messagingPubkey,
+      issueReceipt,
     }),
     [
       authenticated,
@@ -662,6 +688,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       revealMnemonic,
       openBox,
       messagingPubkey,
+      issueReceipt,
     ],
   );
 

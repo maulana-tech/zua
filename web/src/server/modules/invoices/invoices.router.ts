@@ -11,7 +11,10 @@ import {
   protectedProcedure,
   publicProcedure,
 } from "../../trpc";
-import { notifyInvoicePaid } from "../notifications/notifications.service";
+import {
+  emailInvoiceClient,
+  notifyInvoicePaid,
+} from "../notifications/notifications.service";
 import { requireUsername } from "../profiles/profiles.service";
 import {
   InvoiceClosedError,
@@ -20,6 +23,7 @@ import {
 } from "./invoices.errors";
 import {
   createInvoice,
+  invoiceClientEmail,
   listInvoices,
   publicInvoice,
   reportPayment,
@@ -65,8 +69,12 @@ export const invoicesRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const owner = await requireUsername(ctx.privyUserId);
       const result = await reportPayment(owner, input).catch(mapError);
-      if (result.becamePaid)
+      if (result.becamePaid) {
         void notifyInvoicePaid(ctx.privyUserId, result.invoice).catch(() => {});
+        void invoiceClientEmail(input.id)
+          .then((email) => email && emailInvoiceClient(result.invoice, email))
+          .catch(() => {});
+      }
       return result.invoice;
     }),
   public: publicProcedure

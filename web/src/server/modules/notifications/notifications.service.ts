@@ -62,6 +62,39 @@ export function notifyInvoicePaid(userId: string, invoice: InvoiceView) {
 }
 
 /**
+ * Receipt email to the invoice's client, if they left an address. The client
+ * is not a user, so there are no settings; the event log keeps it to one email.
+ */
+export async function emailInvoiceClient(
+  invoice: InvoiceView,
+  clientEmail: string,
+) {
+  const env = getServerEnv();
+  if (!env.RESEND_API_KEY) return;
+  if (
+    !(await recordNotificationLog(
+      `invoice-client:${invoice.id}`,
+      clientEmail,
+      "invoicePaid",
+    ))
+  )
+    return;
+  const appUrl = env.APP_URL || "http://localhost:3000";
+  const content = {
+    title: `Invoice ${invoice.number} is paid`,
+    message: `Thanks for your payment of ${invoice.totalZec} ZEC to @${invoice.username}. Your receipt is ready to download.`,
+    actionLabel: "View receipt",
+    actionUrl: `${appUrl}/i/${invoice.token}`,
+  };
+  await sendEmail({
+    to: clientEmail,
+    subject: `Receipt for invoice ${invoice.number}`,
+    html: buildEmailHtml(content),
+    text: buildEmailText(content),
+  });
+}
+
+/**
  * A payer pressed "I've paid" on a payment page. No amount, address or txid:
  * the server never learns those, and the email must not leak them either.
  */
