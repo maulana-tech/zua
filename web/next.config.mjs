@@ -35,8 +35,9 @@ const localBuild = process.env.APP_BUILD_TARGET === "local";
 const nextConfig = {
   async headers() {
     // Cross-origin isolation lets the Zcash wallet (WebZjs) prove on several
-    // threads. Only the signed-in app routes get it: login (Privy) happens on
-    // public pages, which stay unisolated. Without it the wallet falls back
+    // threads. Only the signed-in app routes (and /verify, which checks
+    // receipts with it) get it: login (Privy) happens on public pages, which
+    // stay unisolated. Without it the wallet falls back
     // to one thread.
     const isolated = [
       { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
@@ -50,12 +51,15 @@ const nextConfig = {
       "invoices",
       "requests",
       "settings",
+      "verify",
     ];
     return [
       ...appRoutes.flatMap((route) => [
         { source: `/${route}`, headers: isolated },
         { source: `/${route}/:path*`, headers: isolated },
       ]),
+      // Wallet workers (public/webzjs) must match the isolated page's COEP.
+      { source: "/webzjs/:path*", headers: isolated },
       {
         source: "/i/:path*",
         headers: [

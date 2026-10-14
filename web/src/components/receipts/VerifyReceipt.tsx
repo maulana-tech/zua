@@ -8,7 +8,7 @@ import {
   receiptSignatureValid,
 } from "../../features/receipts/receipt";
 import { verifyClaim } from "../../lib/profileClaim";
-import { latestHeight, transactionHeight } from "../../lib/zcash/lightwalletd";
+import { latestHeight, rawTransaction } from "../../lib/zcash/lightwalletd";
 import {
   explorerTxUrl,
   lightwalletdUrl,
@@ -19,7 +19,7 @@ import { api } from "../../trpc/client";
 import { dashButtonSecondary } from "../dashboard/styles";
 
 type Result =
-  | { status: "verified"; confirmations: number }
+  | { status: "verified"; confirmations: number; memo: string }
   | { status: "invalid"; reason: string }
   | { status: "unavailable"; reason: string };
 
@@ -52,22 +52,13 @@ async function verify(receipt: Receipt): Promise<Result> {
       reason:
         "The signature doesn't match. The receipt was edited or not issued by this user.",
     };
+  let raw: Awaited<ReturnType<typeof rawTransaction>>;
+  let tip: number;
   try {
-    const [height, tip] = await Promise.all([
-      transactionHeight(lightwalletdUrl, receipt.txid),
+    [raw, tip] = await Promise.all([
+      rawTransaction(lightwalletdUrl, receipt.txid),
       latestHeight(lightwalletdUrl),
     ]);
-    if (height === null)
-      return {
-        status: "invalid",
-        reason: "This transaction isn't on the Zcash blockchain.",
-      };
-    if (height !== receipt.height)
-      return {
-        status: "invalid",
-        reason: `The transaction is in block ${height}, not ${receipt.height} as the receipt says.`,
-      };
-    return { status: "verified", confirmations: Math.max(0, tip - height + 1) };
   } catch (e) {
     return {
       status: "unavailable",
@@ -75,6 +66,58 @@ async function verify(receipt: Receipt): Promise<Result> {
         e instanceof Error ? e.message : "Couldn't reach the Zcash network.",
     };
   }
+  if (!raw)
+    return {
+      status: "invalid",
+      reason: "This transaction isn't on the Zcash blockchain.",
+    };
+  if (raw.height !== receipt.height)
+    return {
+      status: "invalid",
+      reason: `The transaction is in block ${raw.height}, not ${receipt.height} as the receipt says.`,
+    };
+  // Decrypt each disclosed output and check it against its note commitment.
+  const { verifyDisclosure } = await import("../../lib/zcash/wallet");
+  const actions = new Set<number>();
+  let total = 0n;
+  const memos: string[] = [];
+  for (const d of receipt.disclosures) {
+    if (actions.has(d.action))
+      return { status: "invalid", reason: "An output is listed twice." };
+    actions.add(d.action);
+    try {
+      const out = await verifyDisclosure({
+        tx: raw.data,
+        height: raw.height,
+        action: d.action,
+        kEnc: d.kEnc,
+        ua: receipt.recipient.ua,
+      });
+      total += out.value;
+      if (out.memo) memos.push(out.memo);
+    } catch {
+      return {
+        status: "invalid",
+        reason: `Output ${d.action} of this transaction doesn't pay @${receipt.recipient.username} the way the receipt says.`,
+      };
+    }
+  }
+  if (total.toString() !== receipt.amountZat)
+    return {
+      status: "invalid",
+      reason: `The chain shows ${zatToZec(total)} ZEC to this recipient, not ${zatToZec(BigInt(receipt.amountZat))} ZEC.`,
+    };
+  const memo = memos.join("\n");
+  if (memo !== receipt.memo)
+    return {
+      status: "invalid",
+      reason: "The memo on the receipt doesn't match the one on chain.",
+    };
+  return {
+    status: "verified",
+    confirmations: Math.max(0, tip - raw.height + 1),
+    memo,
+  };
 }
 
 export function VerifyReceipt() {
@@ -114,9 +157,11 @@ export function VerifyReceipt() {
         Check a payment receipt
       </h1>
       <p className="mt-3 max-w-xl text-sm leading-6 text-(--dash-ash)">
-        Choose the receipt JSON you were given. We check the recipient&apos;s
-        signature against their public profile and confirm the transaction on
-        the Zcash blockchain. Nothing is uploaded.
+        Choose the receipt JSON you were given. Your browser fetches the
+        shielded transaction, decrypts only the outputs the receipt opens and
+        checks them against the Zcash blockchain, then checks the
+        recipient&apos;s signature against their public profile. Nothing is
+        uploaded.
       </p>
       <label
         className="mt-6 grid gap-2 text-sm font-semibold"
@@ -181,7 +226,7 @@ export function VerifyReceipt() {
                 </dd>
               </div>
               <div>
-                <dt className="text-(--dash-ash)">Amount stated</dt>
+                <dt className="text-(--dash-ash)">Amount (proven on chain)</dt>
                 <dd className="mt-1 tabular-nums">
                   {zatToZec(BigInt(receipt.amountZat))} ZEC
                 </dd>
@@ -210,15 +255,16 @@ export function VerifyReceipt() {
                   )}
                 </dd>
               </div>
-              {receipt.memo ? (
+              {result.memo ? (
                 <div className="sm:col-span-2">
-                  <dt className="text-(--dash-ash)">Memo</dt>
-                  <dd className="mt-1 break-words">{receipt.memo}</dd>
+                  <dt className="text-(--dash-ash)">Memo (proven on chain)</dt>
+                  <dd className="mt-1 break-words">{result.memo}</dd>
                 </div>
               ) : null}
               <p className="text-xs text-(--dash-ash) sm:col-span-2">
-                The transaction is shielded, so its amount is stated by the
-                recipient&apos;s signature rather than read from the chain.
+                The transaction stays shielded. This receipt opens only the
+                outputs listed in it: the sender, the recipient&apos;s other
+                payments and their balance stay private.
               </p>
             </dl>
           ) : null}

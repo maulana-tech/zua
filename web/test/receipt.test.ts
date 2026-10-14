@@ -10,13 +10,14 @@ import { profileSigningSeed } from "../src/lib/zcash/seed";
 
 const seed = profileSigningSeed(new Uint8Array(32).fill(9));
 const body: ReceiptBody = {
-  v: 1,
+  v: 2,
   network: "main",
   txid: "2ec22f3bd413a2f8a2d9a2f4aa9ccdbc8bbde77186ce47a3549beee114917a88",
   height: 3517165,
   amountZat: "80000000",
   memo: "zua:inv:AAAAAAAA12",
   recipient: { username: "dinar", ua: "u1example" },
+  disclosures: [{ action: 1, kEnc: "ab".repeat(32) }],
   issuedAt: "2026-10-14T00:00:00.000Z",
 };
 
@@ -36,10 +37,28 @@ describe("receipts", () => {
     const other = profileSigningSeed(new Uint8Array(32).fill(8));
     expect(receiptSignatureValid(receipt, signingPubkeyHex(other))).toBe(false);
   });
+  it("fails when a disclosure key is swapped", () => {
+    const receipt = signReceipt(body, seed);
+    expect(
+      receiptSignatureValid(
+        { ...receipt, disclosures: [{ action: 1, kEnc: "cd".repeat(32) }] },
+        signingPubkeyHex(seed),
+      ),
+    ).toBe(false);
+  });
   it("rejects malformed files", () => {
     expect(() => parseReceipt("nope")).toThrow();
     expect(() =>
       parseReceipt(JSON.stringify({ ...body, sigHex: "x" })),
+    ).toThrow();
+    const signed = signReceipt(body, seed);
+    expect(() =>
+      parseReceipt(JSON.stringify({ ...signed, disclosures: [] })),
+    ).toThrow();
+    expect(() =>
+      parseReceipt(
+        JSON.stringify({ ...signed, disclosures: [{ action: 0, kEnc: "zz" }] }),
+      ),
     ).toThrow();
   });
 });

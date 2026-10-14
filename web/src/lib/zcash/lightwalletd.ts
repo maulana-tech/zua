@@ -104,13 +104,14 @@ export async function latestHeight(base: string): Promise<number> {
 }
 
 /**
- * Looks a transaction up by its display txid (as explorers show it).
- * Returns the mined height, or null if lightwalletd doesn't know it.
+ * Fetches a transaction by its display txid (as explorers show it).
+ * Returns the raw bytes and mined height, or null if lightwalletd doesn't
+ * know it or it isn't mined yet.
  */
-export async function transactionHeight(
+export async function rawTransaction(
   base: string,
   txid: string,
-): Promise<number | null> {
+): Promise<{ data: Uint8Array; height: number } | null> {
   if (!/^[0-9a-f]{64}$/.test(txid)) throw new Error("Invalid transaction id.");
   // TxFilter.hash is the txid in internal byte order (reversed display hex).
   const hash = Uint8Array.from(txid.match(/../g) ?? [], (h) =>
@@ -122,9 +123,13 @@ export async function transactionHeight(
   message.set(hash, 2);
   try {
     const raw = await call(base, "GetTransaction", message);
+    const data = raw.get(1);
     const height = raw.get(2);
-    return typeof height === "bigint" && height > 0n && height < 2n ** 63n
-      ? Number(height)
+    return data instanceof Uint8Array &&
+      typeof height === "bigint" &&
+      height > 0n &&
+      height < 2n ** 63n
+      ? { data, height: Number(height) }
       : null;
   } catch (e) {
     if (/not found|no such|invalid/i.test(String(e))) return null;

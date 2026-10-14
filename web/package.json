@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/sync-webzjs.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/sync-webzjs.mjs",
     "build": "next build",
     "build:local": "node scripts/next-local.mjs build",
     "lint": "next lint",

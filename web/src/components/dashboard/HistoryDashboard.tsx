@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { formatUsd, useZecPrice } from "../../features/zcash/useZecPrice";
 import { unlockLabel } from "../../lib/passkey";
 import { zatToZec } from "../../lib/zcash/units";
@@ -14,6 +14,8 @@ export function HistoryDashboard() {
   const { accountUnlocked, promptUnlock, recoveryMethod, zcash, issueReceipt } =
     useWallet();
   const price = useZecPrice();
+  const [receiptError, setReceiptError] = useState("");
+  const [receiptBusy, setReceiptBusy] = useState(false);
   const totals = useMemo(() => {
     let received = 0n;
     let sent = 0n;
@@ -28,7 +30,7 @@ export function HistoryDashboard() {
     <>
       <DashboardPageHeader
         title="History"
-        description="Every shielded payment in and out, decrypted on this device. Download a signed receipt for any payment you received."
+        description="Every shielded payment in and out, decrypted on this device. Download a receipt for any payment you received: it proves the amount on chain without revealing your other payments."
       />
       {accountUnlocked ? (
         <div className="grid gap-4">
@@ -52,6 +54,15 @@ export function HistoryDashboard() {
               <dd className="mt-3 text-2xl tabular-nums">{totals.count}</dd>
             </div>
           </dl>
+          {receiptBusy ? (
+            <p className="text-sm text-(--dash-ash)" aria-live="polite">
+              Building receipt from the chain…
+            </p>
+          ) : receiptError ? (
+            <p className="text-sm text-destructive" role="alert">
+              {receiptError}
+            </p>
+          ) : null}
           <div className={dashLedger}>
             <div className={dashCell}>
               <ActivityFeed
@@ -59,9 +70,23 @@ export function HistoryDashboard() {
                 loading={
                   zcash.status === "loading" || zcash.status === "syncing"
                 }
-                onReceipt={(tx) => {
-                  const receipt = issueReceipt(tx);
-                  if (!receipt) return;
+                onReceipt={async (tx) => {
+                  if (receiptBusy) return;
+                  setReceiptError("");
+                  setReceiptBusy(true);
+                  let receipt: Awaited<ReturnType<typeof issueReceipt>>;
+                  try {
+                    receipt = await issueReceipt(tx);
+                  } catch (e) {
+                    setReceiptError(
+                      e instanceof Error
+                        ? e.message
+                        : "Couldn't build the receipt.",
+                    );
+                    return;
+                  } finally {
+                    setReceiptBusy(false);
+                  }
                   const url = URL.createObjectURL(
                     new Blob([JSON.stringify(receipt, null, 2)], {
                       type: "application/json",

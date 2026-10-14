@@ -1,8 +1,18 @@
 /* tslint:disable */
 /* eslint-disable */
+/**
+ * For every Orchard action in `tx` that pays the account derived from
+ * `seed_phrase`, returns `{ action, kEnc, value, memo }` as a JSON array.
+ * The seed only lives for the duration of the call.
+ */
+export function orchard_disclose(network: string, seed_phrase: string, account_hd_index: number, tx: Uint8Array, height: number): string;
+/**
+ * Verifies a disclosure: decrypts action `action_index` of `tx` with `k_enc`,
+ * rebuilds the note for `recipient_ua` and checks it against the on-chain
+ * note commitment. Returns `{ value, memo }` as JSON, or an error.
+ */
+export function orchard_verify_disclosure(network: string, tx: Uint8Array, height: number, action_index: number, k_enc_hex: string, recipient_ua: string): string;
 export function start(): void;
-export function initThreadPool(num_threads: number): Promise<any>;
-export function wbg_rayon_start_worker(receiver: number): void;
 /**
  * Generate a new BIP39 24-word seed phrase
  *
@@ -29,6 +39,8 @@ export function pczt_sign(network: string, pczt: Pczt, usk: UnifiedSpendingKey, 
  * Entry point for web workers
  */
 export function wasm_thread_entry_point(ptr: number): void;
+export function initThreadPool(num_threads: number): Promise<any>;
+export function wbg_rayon_start_worker(receiver: number): void;
 /**
  * The status of a transaction
  */
@@ -611,6 +623,8 @@ export class wbg_rayon_PoolBuilder {
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
+  readonly orchard_disclose: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number, number, number];
+  readonly orchard_verify_disclosure: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number, number, number];
   readonly __wbg_proposal_free: (a: number, b: number) => void;
   readonly __wbg_transactionhistoryentry_free: (a: number, b: number) => void;
   readonly transactionhistoryentry_txid: (a: number) => [number, number];
@@ -718,10 +732,10 @@ export interface InitOutput {
   readonly __wbindgen_free: (a: number, b: number, c: number) => void;
   readonly __wbindgen_export_7: WebAssembly.Table;
   readonly __externref_table_dealloc: (a: number) => void;
-  readonly closure1462_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure1461_externref_shim: (a: number, b: number, c: any) => void;
   readonly _dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__hd36cc01afe29005f: (a: number, b: number) => void;
-  readonly closure1537_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure2974_externref_shim: (a: number, b: number, c: any, d: any) => void;
+  readonly closure1528_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure3114_externref_shim: (a: number, b: number, c: any, d: any) => void;
   readonly __wbindgen_thread_destroy: (a?: number, b?: number, c?: number) => void;
   readonly __wbindgen_start: (a: number) => void;
 }

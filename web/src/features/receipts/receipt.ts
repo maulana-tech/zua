@@ -1,26 +1,40 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { bytesToHex, hexToBytes } from "../../lib/crypto";
 
-// Receipt v1: the recipient states "I received this payment" and signs it
-// with their profile key. A verifier checks the signature against the
-// recipient's published profile and that the transaction is on chain. It does
-// not prove the shielded amount (that would need a viewing key).
+// Receipt v2: the recipient signs "I received this payment" with their
+// profile key and attaches, for each Orchard output they received, that
+// output's note encryption key (K_enc). A verifier decrypts just those outputs
+// from the on-chain transaction and checks the notes against their
+// commitments, so amount and memo are proven by the chain, not just stated.
+// K_enc opens one output only; it reveals no viewing key or other payments.
+export type ReceiptDisclosure = { action: number; kEnc: string };
+
 export type ReceiptBody = {
-  v: 1;
+  v: 2;
   network: "main" | "test";
   txid: string; // display order, as explorers show it
   height: number;
   amountZat: string;
   memo: string;
   recipient: { username: string; ua: string };
+  disclosures: ReceiptDisclosure[];
   issuedAt: string;
 };
 
 export type Receipt = ReceiptBody & { sigHex: string };
 
 export function canonicalReceipt(body: ReceiptBody): string {
-  const { v, network, txid, height, amountZat, memo, recipient, issuedAt } =
-    body;
+  const {
+    v,
+    network,
+    txid,
+    height,
+    amountZat,
+    memo,
+    recipient,
+    disclosures,
+    issuedAt,
+  } = body;
   return JSON.stringify({
     v,
     network,
@@ -29,6 +43,7 @@ export function canonicalReceipt(body: ReceiptBody): string {
     amountZat,
     memo,
     recipient: { username: recipient.username, ua: recipient.ua },
+    disclosures: disclosures.map(({ action, kEnc }) => ({ action, kEnc })),
     issuedAt,
   });
 }
@@ -67,12 +82,21 @@ export function parseReceipt(text: string): Receipt {
     throw new Error("This file isn't a receipt (invalid JSON).");
   }
   if (
-    data?.v !== 1 ||
+    data?.v !== 2 ||
     !/^[0-9a-f]{64}$/.test(data.txid ?? "") ||
     !Number.isInteger(data.height) ||
     !/^\d+$/.test(data.amountZat ?? "") ||
     typeof data.recipient?.username !== "string" ||
     typeof data.recipient?.ua !== "string" ||
+    !Array.isArray(data.disclosures) ||
+    data.disclosures.length === 0 ||
+    data.disclosures.length > 16 ||
+    !data.disclosures.every(
+      (d) =>
+        Number.isInteger(d?.action) &&
+        d.action >= 0 &&
+        /^[0-9a-f]{64}$/.test(d.kEnc ?? ""),
+    ) ||
     !/^[0-9a-f]{128}$/.test(data.sigHex ?? "")
   )
     throw new Error("This file isn't a valid receipt.");

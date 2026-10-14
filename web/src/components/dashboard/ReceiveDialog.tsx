@@ -14,7 +14,7 @@ import {
 import { Input } from "../ui/input";
 import { QrPanel } from "../zcash/QrPanel";
 
-/** Point-of-sale style receive: optional amount and note baked into the QR. */
+/** Request a specific amount: optional amount and note baked into a ZIP-321 QR/link. */
 export function ReceiveDialog({
   open,
   onClose,
@@ -51,8 +51,9 @@ export function ReceiveDialog({
         <DialogHeader>
           <DialogTitle>Receive ZEC</DialogTitle>
           <DialogDescription>
-            Show this code to the payer. Any Zcash wallet (like Zodl) can scan
-            it. Payments land in your shielded balance.
+            Share this code or link with whoever is paying you. Any Zcash
+            wallet (like Zodl) can open it. Payments land in your shielded
+            balance.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">

@@ -215,6 +215,80 @@ function takeFromExternrefTable0(idx) {
     wasm.__externref_table_dealloc(idx);
     return value;
 }
+/**
+ * For every Orchard action in `tx` that pays the account derived from
+ * `seed_phrase`, returns `{ action, kEnc, value, memo }` as a JSON array.
+ * The seed only lives for the duration of the call.
+ * @param {string} network
+ * @param {string} seed_phrase
+ * @param {number} account_hd_index
+ * @param {Uint8Array} tx
+ * @param {number} height
+ * @returns {string}
+ */
+export function orchard_disclose(network, seed_phrase, account_hd_index, tx, height) {
+    let deferred5_0;
+    let deferred5_1;
+    try {
+        const ptr0 = passStringToWasm0(network, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(seed_phrase, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passArray8ToWasm0(tx, wasm.__wbindgen_malloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.orchard_disclose(ptr0, len0, ptr1, len1, account_hd_index, ptr2, len2, height);
+        var ptr4 = ret[0];
+        var len4 = ret[1];
+        if (ret[3]) {
+            ptr4 = 0; len4 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred5_0 = ptr4;
+        deferred5_1 = len4;
+        return getStringFromWasm0(ptr4, len4);
+    } finally {
+        wasm.__wbindgen_free(deferred5_0, deferred5_1, 1);
+    }
+}
+
+/**
+ * Verifies a disclosure: decrypts action `action_index` of `tx` with `k_enc`,
+ * rebuilds the note for `recipient_ua` and checks it against the on-chain
+ * note commitment. Returns `{ value, memo }` as JSON, or an error.
+ * @param {string} network
+ * @param {Uint8Array} tx
+ * @param {number} height
+ * @param {number} action_index
+ * @param {string} k_enc_hex
+ * @param {string} recipient_ua
+ * @returns {string}
+ */
+export function orchard_verify_disclosure(network, tx, height, action_index, k_enc_hex, recipient_ua) {
+    let deferred6_0;
+    let deferred6_1;
+    try {
+        const ptr0 = passStringToWasm0(network, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArray8ToWasm0(tx, wasm.__wbindgen_malloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(k_enc_hex, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(recipient_ua, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len3 = WASM_VECTOR_LEN;
+        const ret = wasm.orchard_verify_disclosure(ptr0, len0, ptr1, len1, height, action_index, ptr2, len2, ptr3, len3);
+        var ptr5 = ret[0];
+        var len5 = ret[1];
+        if (ret[3]) {
+            ptr5 = 0; len5 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred6_0 = ptr5;
+        deferred6_1 = len5;
+        return getStringFromWasm0(ptr5, len5);
+    } finally {
+        wasm.__wbindgen_free(deferred6_0, deferred6_1, 1);
+    }
+}
 
 function _assertClass(instance, klass) {
     if (!(instance instanceof klass)) {
@@ -234,22 +308,6 @@ function passArrayJsValueToWasm0(array, malloc) {
 
 export function start() {
     wasm.start();
-}
-
-/**
- * @param {number} num_threads
- * @returns {Promise<any>}
- */
-export function initThreadPool(num_threads) {
-    const ret = wasm.initThreadPool(num_threads);
-    return ret;
-}
-
-/**
- * @param {number} receiver
- */
-export function wbg_rayon_start_worker(receiver) {
-    wasm.wbg_rayon_start_worker(receiver);
 }
 
 /**
@@ -312,8 +370,24 @@ export function wasm_thread_entry_point(ptr) {
     wasm.wasm_thread_entry_point(ptr);
 }
 
+/**
+ * @param {number} num_threads
+ * @returns {Promise<any>}
+ */
+export function initThreadPool(num_threads) {
+    const ret = wasm.initThreadPool(num_threads);
+    return ret;
+}
+
+/**
+ * @param {number} receiver
+ */
+export function wbg_rayon_start_worker(receiver) {
+    wasm.wbg_rayon_start_worker(receiver);
+}
+
 function __wbg_adapter_62(arg0, arg1, arg2) {
-    wasm.closure1462_externref_shim(arg0, arg1, arg2);
+    wasm.closure1461_externref_shim(arg0, arg1, arg2);
 }
 
 function __wbg_adapter_67(arg0, arg1) {
@@ -321,11 +395,11 @@ function __wbg_adapter_67(arg0, arg1) {
 }
 
 function __wbg_adapter_70(arg0, arg1, arg2) {
-    wasm.closure1537_externref_shim(arg0, arg1, arg2);
+    wasm.closure1528_externref_shim(arg0, arg1, arg2);
 }
 
-function __wbg_adapter_408(arg0, arg1, arg2, arg3) {
-    wasm.closure2974_externref_shim(arg0, arg1, arg2, arg3);
+function __wbg_adapter_403(arg0, arg1, arg2, arg3) {
+    wasm.closure3114_externref_shim(arg0, arg1, arg2, arg3);
 }
 
 /**
@@ -2105,7 +2179,7 @@ function __wbg_get_imports() {
                 const a = state0.a;
                 state0.a = 0;
                 try {
-                    return __wbg_adapter_408(a, state0.b, arg0, arg1);
+                    return __wbg_adapter_403(a, state0.b, arg0, arg1);
                 } finally {
                     state0.a = a;
                 }
@@ -2455,24 +2529,24 @@ function __wbg_get_imports() {
         const ret = false;
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper3694 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 1463, __wbg_adapter_62);
+    imports.wbg.__wbindgen_closure_wrapper3669 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 1462, __wbg_adapter_62);
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper3696 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 1463, __wbg_adapter_62);
+    imports.wbg.__wbindgen_closure_wrapper3671 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 1462, __wbg_adapter_62);
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper3737 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 1481, __wbg_adapter_67);
+    imports.wbg.__wbindgen_closure_wrapper3707 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 1476, __wbg_adapter_67);
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper3880 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 1538, __wbg_adapter_70);
+    imports.wbg.__wbindgen_closure_wrapper3845 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 1529, __wbg_adapter_70);
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper3882 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 1538, __wbg_adapter_70);
+    imports.wbg.__wbindgen_closure_wrapper3847 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 1529, __wbg_adapter_70);
         return ret;
     };
     imports.wbg.__wbindgen_debug_string = function(arg0, arg1) {

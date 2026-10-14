@@ -1,5 +1,7 @@
 /* tslint:disable */
 /* eslint-disable */
+export const orchard_disclose: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number, number, number];
+export const orchard_verify_disclosure: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number, number, number];
 export const __wbg_proposal_free: (a: number, b: number) => void;
 export const __wbg_transactionhistoryentry_free: (a: number, b: number) => void;
 export const transactionhistoryentry_txid: (a: number) => [number, number];
@@ -107,9 +109,9 @@ export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) =>
 export const __wbindgen_free: (a: number, b: number, c: number) => void;
 export const __wbindgen_export_7: WebAssembly.Table;
 export const __externref_table_dealloc: (a: number) => void;
-export const closure1462_externref_shim: (a: number, b: number, c: any) => void;
+export const closure1461_externref_shim: (a: number, b: number, c: any) => void;
 export const _dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__hd36cc01afe29005f: (a: number, b: number) => void;
-export const closure1537_externref_shim: (a: number, b: number, c: any) => void;
-export const closure2974_externref_shim: (a: number, b: number, c: any, d: any) => void;
+export const closure1528_externref_shim: (a: number, b: number, c: any) => void;
+export const closure3114_externref_shim: (a: number, b: number, c: any, d: any) => void;
 export const __wbindgen_thread_destroy: (a?: number, b?: number, c?: number) => void;
 export const __wbindgen_start: (a: number) => void;

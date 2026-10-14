@@ -58,7 +58,7 @@ export function ActivityFeed({
   showSeeAll?: boolean;
   title?: string;
   /** Offers a signed receipt for received, mined payments. */
-  onReceipt?: (tx: WalletTx) => void;
+  onReceipt?: (tx: WalletTx) => void | Promise<void>;
 }) {
   const [tab, setTab] = useState<Tab>("All");
   const rows = useMemo(() => {

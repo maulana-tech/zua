@@ -26,6 +26,9 @@ export function PrivyAppProvider({ children }: { children: ReactNode }) {
           ethereum: { createOnLogin: "off" },
           solana: { createOnLogin: "off" },
         },
+        // No EVM/Solana wallet connectors: they're unused and the Coinbase
+        // SDK errors under the COOP header the wallet routes need.
+        externalWallets: { disableAllExternalWallets: true },
       }}
     >
       {children}

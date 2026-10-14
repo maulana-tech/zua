@@ -43,7 +43,7 @@ import {
   open as openSealed,
   type Sealed,
 } from "../lib/sealedBox";
-import { network } from "../lib/zcash/network";
+import { lightwalletdUrl, network } from "../lib/zcash/network";
 import {
   messagingSecret,
   mnemonicFromMaster,
@@ -118,7 +118,8 @@ type WalletState = {
   /** This account's messaging public key; null while locked. */
   messagingPubkey: () => string | null;
   /** Signed receipt for a received, mined payment; null while locked. */
-  issueReceipt: (tx: WalletTx) => Receipt | null;
+  /** Builds a receipt that proves amount and memo on chain; throws on failure. */
+  issueReceipt: (tx: WalletTx) => Promise<Receipt>;
 };
 
 const EMPTY_ZCASH: ZcashState = {
@@ -555,19 +556,38 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   );
 
   const issueReceipt = useCallback(
-    (tx: WalletTx): Receipt | null => {
+    async (tx: WalletTx): Promise<Receipt> => {
       const master = masterRef.current;
-      if (!master || !username || !zcash.address || tx.height === null)
-        return null;
+      if (!master || !username || !zcash.address)
+        throw new Error("Unlock your account first.");
+      const { rawTransaction } = await import("../lib/zcash/lightwalletd");
+      const { discloseOutputs } = await import("../lib/zcash/wallet");
+      const raw = await rawTransaction(lightwalletdUrl, tx.txid);
+      if (!raw) throw new Error("This payment isn't mined yet.");
+      const received = (
+        await discloseOutputs({
+          mnemonic: mnemonicFromMaster(master),
+          tx: raw.data,
+          height: raw.height,
+        })
+      ).filter((d) => !d.internal);
+      if (!received.length)
+        throw new Error(
+          "No Orchard output in this transaction pays you. Receipts cover Orchard payments only.",
+        );
       return signReceipt(
         {
-          v: 1,
+          v: 2,
           network,
           txid: tx.txid,
-          height: tx.height,
-          amountZat: tx.value.toString(),
-          memo: tx.memos.join("\n"),
+          height: raw.height,
+          amountZat: received.reduce((sum, d) => sum + d.value, 0n).toString(),
+          memo: received
+            .map((d) => d.memo)
+            .filter(Boolean)
+            .join("\n"),
           recipient: { username, ua: zcash.address },
+          disclosures: received.map(({ action, kEnc }) => ({ action, kEnc })),
           issuedAt: new Date().toISOString(),
         },
         profileSigningSeed(master),

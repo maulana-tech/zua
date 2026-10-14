@@ -10,7 +10,11 @@ let modulePromise: Promise<typeof WebZjs> | null = null;
 
 export function loadWebZjs(): Promise<typeof WebZjs> {
   modulePromise ??= (async () => {
-    const z = await import("@chainsafe/webzjs-wallet");
+    // Served from public/webzjs (scripts/sync-webzjs.mjs), not bundled: its
+    // thread workers only resolve as native ES modules.
+    const z: typeof WebZjs = await import(
+      /* webpackIgnore: true */ `${location.origin}/webzjs/webzjs_wallet.js`
+    );
     await z.default();
     // Threads need cross-origin isolation (COOP/COEP); without it, prove on
     // one thread rather than failing.
@@ -63,7 +67,6 @@ function txKind(raw: unknown): WalletTx["kind"] {
 
 export class ZcashWallet {
   private constructor(
-    private readonly z: typeof WebZjs,
     private readonly inner: WebZjs.WebWallet,
     readonly accountId: number,
   ) {}
@@ -86,7 +89,7 @@ export class ZcashWallet {
         );
         const summary = await inner.get_wallet_summary();
         const id = firstAccountId(summary);
-        if (id !== null) return new ZcashWallet(z, inner, id);
+        if (id !== null) return new ZcashWallet(inner, id);
       } catch {
         // Corrupt or incompatible cache: fall through to a fresh account.
       }
@@ -104,7 +107,7 @@ export class ZcashWallet {
       0,
       opts.birthday,
     );
-    return new ZcashWallet(z, inner, id);
+    return new ZcashWallet(inner, id);
   }
 
   /** Current chain tip from lightwalletd (used to pick a birthday). */
@@ -236,4 +239,51 @@ export function splitTxids(bytes: Uint8Array): string[] {
     out.push(Array.from(id, (b) => b.toString(16).padStart(2, "0")).join(""));
   }
   return out;
+}
+
+export type Disclosure = {
+  action: number;
+  /** Per-note symmetric key: decrypts this one output and nothing else. */
+  kEnc: string;
+  value: bigint;
+  memo: string;
+  internal: boolean;
+};
+
+/** Orchard outputs of `tx` that pay the account derived from `mnemonic`. */
+export async function discloseOutputs(opts: {
+  mnemonic: string;
+  tx: Uint8Array;
+  height: number;
+}): Promise<Disclosure[]> {
+  const z = await loadWebZjs();
+  const rows = JSON.parse(
+    z.orchard_disclose(network, opts.mnemonic, 0, opts.tx, opts.height),
+  ) as (Omit<Disclosure, "value"> & { value: string })[];
+  return rows.map((r) => ({ ...r, value: BigInt(r.value) }));
+}
+
+/**
+ * Decrypts output `action` of `tx` with `kEnc` and checks the rebuilt note
+ * against its on-chain commitment. Throws when the disclosure is false.
+ */
+export async function verifyDisclosure(opts: {
+  tx: Uint8Array;
+  height: number;
+  action: number;
+  kEnc: string;
+  ua: string;
+}): Promise<{ value: bigint; memo: string }> {
+  const z = await loadWebZjs();
+  const out = JSON.parse(
+    z.orchard_verify_disclosure(
+      network,
+      opts.tx,
+      opts.height,
+      opts.action,
+      opts.kEnc,
+      opts.ua,
+    ),
+  ) as { value: string; memo: string };
+  return { value: BigInt(out.value), memo: out.memo };
 }
