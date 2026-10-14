@@ -1,4 +1,4 @@
-const CACHE = "meaw-offline-v1";
+const CACHE = "zua-offline-v1";
 const OFFLINE = "/offline.html";
 
 self.addEventListener("install", (event) => {
@@ -13,7 +13,7 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter((key) => key.startsWith("meaw-offline-") && key !== CACHE).map((key) => caches.delete(key)));
+    await Promise.all(keys.filter((key) => key.startsWith("zua-offline-") && key !== CACHE).map((key) => caches.delete(key)));
     await self.clients.claim();
   })());
 });
@@ -25,6 +25,6 @@ self.addEventListener("fetch", (event) => {
   // Account HTML, notes and API responses never enter the PWA cache.
   event.respondWith(fetch(request).catch(async () => {
     const cache = await caches.open(CACHE);
-    return await cache.match(OFFLINE) ?? new Response("Meaw is offline. Reconnect and reload to continue.", { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+    return await cache.match(OFFLINE) ?? new Response("Zua is offline. Reconnect and reload to continue.", { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } });
   }));
 });

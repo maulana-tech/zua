@@ -2,60 +2,44 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Meaw is a private USDC payments app on Monad (testnet). Payers deposit into a shielded pool via payment links; recipients scan, decrypt and spend notes with zero-knowledge proofs generated in the browser. See `README.md` for the product/privacy model and `docs/` (GitBook) for deeper reference — `docs/local-setup.md` covers first-time setup.
+Zua is a shielded ZEC payments app on Zcash. Users get a @username, payment links and invoices that any Zcash wallet can pay (ZIP-321 QR codes). The wallet runs in the browser (WebZjs, WASM); keys derive from a passkey or PIN and never leave the page. See `README.md` for the product/privacy model and `docs/superpowers/` for the migration plan and design spec.
 
 ## Commands
 
-pnpm workspace (`web`, `contracts`). `monad-zk/` (npm) and `indexer/` (own pnpm lockfile) are standalone packages.
+pnpm workspace (`web`, `packages/*`).
 
 ```sh
 pnpm install
 pnpm dev                                  # Next.js on :3000
 pnpm --filter web test                    # vitest run
-pnpm --filter web exec vitest run test/notes.test.ts   # single test file
-pnpm --filter web exec vitest run -t "name"            # single test by name
-pnpm --filter web lint                    # next lint (eslint)
+pnpm --filter web exec vitest run test/zcashLib.test.ts   # single test file
+pnpm --filter web exec vitest run -t "name"               # single test by name
 pnpm --filter web biome:check             # biome lint+format check (biome:fix to apply)
+pnpm --filter web exec tsc --noEmit       # typecheck
 pnpm --filter web build
 pnpm --filter web migrate:up              # migrate-mongo, reads web/.env.local (also migrate:status/down/create)
-
-pnpm contract:test                        # Hardhat tests — generate real proofs from web/public/zk
-pnpm --filter contracts abis              # compile + regenerate web/src/lib/abi.ts
-DEPLOYER_PRIVATE_KEY=0x... pnpm deploy:testnet   # deploys a pool, writes review candidates to .deploy-candidates/
-ASSET=AUSD pnpm deploy:testnet            # adds a pool for AUSD/USDT0/MUSD next to USDC (TOKEN_ADDRESS, else a mock on testnet)
-
-monad-zk/build.sh                         # needs circom 2 + snarkjs; dev-only trusted setup
-cd indexer && pnpm codegen && pnpm dev     # Envio HyperIndex (Node >= 22); pnpm test / pnpm typecheck
 ```
 
 ## Architecture
 
-### Generated artifacts — don't hand-edit
-- `web/src/lib/abi.ts` ← `contracts/scripts/export-abis.cjs` (run `pnpm --filter contracts abis` after changing contract ABIs).
-- `contracts/src/verifiers/*.sol` ← `contracts/scripts/export-verifiers.cjs`, generated from `web/public/zk/*.zkey`.
-- `web/public/zk/*` (wasm, zkey, verification keys) ← `monad-zk/build.sh`, which also re-runs the verifier export.
+### Zcash wallet (client)
+- `packages/webzjs-wallet/` is a prebuilt ChainSafe WebZjs package (WASM, ~60 MB) with a local patch adding `propose_transfer_with_memo`. Don't hand-edit; rebuild from source (see README).
+- `web/src/lib/zcash/`: `wallet.ts` (WebZjs wrapper: open/sync/status/history/send, init once per page), `seed.ts` (master → BIP39 seed, wallet-DB key, profile signing seed via HKDF with `KEY_NS`), `zip321.ts`, `memo.ts` (`zua:<kind>:<id>` tags), `units.ts` (zatoshi), `address.ts`, `walletStore.ts` (AES-GCM wallet DB cache in IndexedDB).
+- `web/src/components/WalletProvider.tsx` owns the session: Privy login → passkey/PIN unlock → master in a ref → wallet open + periodic sync → invoice settlement (`features/invoices/settle.ts`). Seeds, masters and viewing keys stay in page memory; never send them to the server or persist them unencrypted.
+- `web/src/lib/brand.ts` holds `APP_NAME`, `KEY_NS` and `MEMO_PREFIX`. Changing `KEY_NS` after launch changes every user's wallet.
+- Threads need cross-origin isolation: `next.config.mjs` sets COOP/COEP on the signed-in app routes only (login stays on unisolated pages); without isolation the wallet proves on one thread.
 
-The browser prover, Solidity verifiers and contract tests must all use the same zkeys. Changing a `.circom` file means: `monad-zk/build.sh` → redeploy contracts → update env addresses.
-
-### Contracts (`contracts/src`)
-- `MaweeRegistry` — `@username` → owner address, Poseidon note public key, x25519 viewing key.
-- `MaweePool` — holds USDC, Poseidon Merkle tree of note commitments, verifies Groth16 proofs for deposit / withdraw / transfer, records nullifiers. Encrypted note metadata is emitted in `Deposit` events.
-
-### Web (`web/`, Next.js 15 App Router, React 19, Tailwind 4, tRPC 11, MongoDB)
-- **Client-side crypto is the core**: `src/lib/` holds key derivation (`keys.ts`, `passkey.ts` — Mera PRF passkey → HKDF namespaced keys), note scanning/decryption (`notes.ts`), proving (`prover.ts`, snarkjs + `public/zk`), and flow logic (`deposit.ts`, `withdraw.ts`, `transfer.ts`, `disclosure.ts`). Note secrets live in page memory only — never persist them to localStorage or the server.
-- **Server** (`src/server`): tRPC `appRouter` in `root.ts`; each domain is a module in `server/modules/<name>/` split into `*.router.ts` (maps domain errors → `TRPCError`), `*.service.ts` (logic), `*.schema.ts` (zod I/O), `*.errors.ts` (error classes). Follow this split when adding modules. `protectedProcedure` requires a verified Privy access token (Bearer header or `privy-token` cookie, see `context.ts`).
-- **Env**: public vars validated in `src/env.ts` (`NEXT_PUBLIC_*`), server-only in `src/env.server.ts` (imports `server-only`). Add new vars to the zod schema and `.env.example`. `NEXT_PUBLIC_*` are baked at Docker build time (see `.github/workflows/deploy.yml` build-args).
-- **Auth routing**: `web/src/middleware.ts` + `src/lib/auth-routes.ts` gate `(dashboard)` routes on Privy cookies, bouncing to `/refresh` when only a session cookie exists. Keep middleware beside `src/app` so Next.js discovers it.
-- **Pool mirror / indexing**: `/api/cron/pool-indexer` (Bearer `CRON_SECRET`) calls `syncPoolIndex` in the deposits service to mirror Deposit events and nullifiers into MongoDB via `eth_getLogs` (chunked by `MONAD_LOGS_BLOCK_RANGE`). If `ENVIO_GRAPHQL_URL` is set, scanning and stats read from the Envio indexer (`server/lib/envio.ts`) instead. A chain/pool address change auto-clears and rebuilds the mirror.
-- **Gasless relay**: with `RELAYER_PRIVATE_KEY` set, users sign (permit / EIP-712, `lib/typedData.ts`, `lib/useGasless.ts`) and `server/modules/relay` + `server/lib/relayer.ts` submit and pay gas.
-- **MongoDB schema changes** go in `web/migrations/` (migrate-mongo); production runs them as the `migrate` compose service before `web` starts.
+### Server
+- tRPC `appRouter` in `src/server/root.ts`; modules in `src/server/modules/<name>/` split into `*.router.ts` (maps domain errors → `TRPCError`), `*.service.ts`, `*.schema.ts`, `*.errors.ts`. Modules: `accounts` (PIN escrow, passkey record), `profiles` (signed @username → UA claims, verified with `lib/profileClaim.ts`), `paymentLinks`, `invoices` (status reported by the owner's wallet), `notifications`.
+- `protectedProcedure` requires a verified Privy access token (Bearer header or `privy-token` cookie, see `context.ts`). Privy is login only (embedded wallets off).
+- Env: public vars in `src/env.ts` (`NEXT_PUBLIC_*`), server-only in `src/env.server.ts`. Add new vars to the zod schema and `web/.env.example`.
+- MongoDB schema changes go in `web/migrations/` (ESM migrate-mongo). `MONGODB_URI` must include a database name.
+- Auth routing: `web/src/middleware.ts` + `src/lib/auth-routes.ts` gate the app routes on Privy cookies.
 
 ### Tests (`web/test`)
-Vitest, `node` environment by default (`DepositForm.test.tsx` uses happy-dom; add others to `environmentMatchGlobs` in `vitest.config.ts` if needed). `server-only` is stubbed; `@` aliases `web/src`. Use `test/renderWithTRPC.tsx` to render components that call tRPC.
-
-### Deployment
-Push to `main` → GitHub Actions builds the root `Dockerfile` image to GHCR and SSH-deploys `docker-compose.yml` (migrate → web → pool-indexer loop hitting the cron route every 60s, behind Caddy) to a Lightsail box. `ops/mongodb/` has the VPS MongoDB setup.
+Vitest, `node` environment by default; component tests use `// @vitest-environment happy-dom`. `server-only` is stubbed; `@` aliases `web/src`.
 
 ## Conventions
 - Formatting: Biome (2-space, double quotes, organized imports).
-- Commit messages in this repo are short imperative sentences (e.g. "Add gasless relay so users never need MON"), occasionally `feat:` prefixed.
+- Commit messages in Indonesian, short and imperative, no co-author trailer.
+- The repo has no git remote right now; commit locally and don't push unless asked.

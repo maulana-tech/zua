@@ -10,8 +10,8 @@ describe("Email Transport and Templates", () => {
 
   beforeEach(() => {
     vi.stubEnv("RESEND_API_KEY", "re_test_key");
-    vi.stubEnv("EMAIL_FROM", "Meaw <test@meaw.xyz>");
-    vi.stubEnv("APP_URL", "https://app.meaw.xyz");
+    vi.stubEnv("EMAIL_FROM", "Zua <test@zua.example>");
+    vi.stubEnv("APP_URL", "https://app.zua.example");
   });
 
   afterEach(() => {
@@ -22,16 +22,16 @@ describe("Email Transport and Templates", () => {
   it("builds clean HTML without crypto leaks and includes unsubscribe link", () => {
     const html = buildEmailHtml({
       title: "Invoice Paid",
-      message: "Invoice INV-001 has been settled: 250 USDC.",
+      message: "Invoice INV-001 has been settled: 0.8 ZEC.",
       actionLabel: "View Invoices",
-      actionUrl: "https://app.meaw.xyz/invoices",
-      unsubscribeUrl: "https://app.meaw.xyz/unsubscribe/abc123token",
+      actionUrl: "https://app.zua.example/invoices",
+      unsubscribeUrl: "https://app.zua.example/unsubscribe/abc123token",
     });
 
     expect(html).toContain("Invoice Paid");
-    expect(html).toContain("Invoice INV-001 has been settled: 250 USDC.");
-    expect(html).toContain("https://app.meaw.xyz/invoices");
-    expect(html).toContain("https://app.meaw.xyz/unsubscribe/abc123token");
+    expect(html).toContain("Invoice INV-001 has been settled: 0.8 ZEC.");
+    expect(html).toContain("https://app.zua.example/invoices");
+    expect(html).toContain("https://app.zua.example/unsubscribe/abc123token");
     expect(html).not.toContain("0x");
   });
 
@@ -49,23 +49,23 @@ describe("Email Transport and Templates", () => {
   it("builds clean plain text template", () => {
     const textWithActions = buildEmailText({
       title: "Invoice Paid",
-      message: "Invoice INV-001 has been settled: 250 USDC.",
+      message: "Invoice INV-001 has been settled: 0.8 ZEC.",
       actionLabel: "View Invoices",
-      actionUrl: "https://app.meaw.xyz/invoices",
-      unsubscribeUrl: "https://app.meaw.xyz/unsubscribe/abc123token",
+      actionUrl: "https://app.zua.example/invoices",
+      unsubscribeUrl: "https://app.zua.example/unsubscribe/abc123token",
     });
 
     expect(textWithActions).toBe(
-      "MEAW - Invoice Paid\n\nInvoice INV-001 has been settled: 250 USDC.\n\nView Invoices: https://app.meaw.xyz/invoices\n\nUnsubscribe: https://app.meaw.xyz/unsubscribe/abc123token",
+      "ZUA - Invoice Paid\n\nInvoice INV-001 has been settled: 0.8 ZEC.\n\nView Invoices: https://app.zua.example/invoices\n\nUnsubscribe: https://app.zua.example/unsubscribe/abc123token",
     );
 
     const textSimple = buildEmailText({
       title: "Invoice Paid",
-      message: "Invoice INV-001 has been settled: 250 USDC.",
+      message: "Invoice INV-001 has been settled: 0.8 ZEC.",
     });
 
     expect(textSimple).toBe(
-      "MEAW - Invoice Paid\n\nInvoice INV-001 has been settled: 250 USDC.",
+      "ZUA - Invoice Paid\n\nInvoice INV-001 has been settled: 0.8 ZEC.",
     );
   });
 
@@ -108,7 +108,7 @@ describe("Email Transport and Templates", () => {
           "Content-Type": "application/json",
         }),
         body: JSON.stringify({
-          from: "Meaw <test@meaw.xyz>",
+          from: "Zua <test@zua.example>",
           to: "client@example.com",
           subject: "Test Subject",
           html: "<p>Hello</p>",
@@ -138,7 +138,7 @@ describe("Email Transport and Templates", () => {
       "https://api.resend.com/emails",
       expect.objectContaining({
         body: JSON.stringify({
-          from: "Meaw <hello@meaw.xyz>",
+          from: "Zua <onboarding@resend.dev>",
           to: "client@example.com",
           subject: "Test Subject",
           html: "<p>Hello</p>",

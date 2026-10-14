@@ -1,9 +1,9 @@
-// Passkey-derived privacy keys (Mera PRF).
+// Passkey-derived account master (WebAuthn PRF via Mera).
 //
-// One passkey ceremony with a Mawee-specific PRF salt yields 32 bytes that
+// One passkey ceremony with a Zua-specific PRF salt yields 32 bytes that
 // depend only on the passkey, the relying party (this site) and the salt.
-// We HKDF that into the account master, from which keys.ts derives the
-// Poseidon note secret and the x25519 viewing key. Nothing secret is stored
+// We HKDF that into the account master, from which lib/zcash/seed.ts derives
+// the Zcash wallet seed and the profile signing key. Nothing secret is stored
 // anywhere: the same synced passkey re-derives the same keys on any device.
 
 import {
@@ -18,11 +18,11 @@ import { sha256, sha512 } from "@noble/hashes/sha2.js";
 const utf8 = (s: string) => new TextEncoder().encode(s);
 
 /**
- * PRF salt namespace for the Mawee privacy master. Distinct from Mera's
+ * PRF salt namespace for the Zua account master. Distinct from Mera's
  * default salt, so the same passkey used elsewhere yields unrelated output.
  */
-export const MASTER_PRF_SALT = sha256(utf8("mawee.prf.privacy-master.v1"));
-const MASTER_INFO = utf8("mawee.master.passkey.v1");
+export const MASTER_PRF_SALT = sha256(utf8("zua.prf.master.v1"));
+const MASTER_INFO = utf8("zua.master.passkey.v1");
 
 export type PasskeyRecord = {
   credentialId: string;
@@ -47,7 +47,7 @@ export async function createPasskeyMaster(options: {
   webAuthnClient?: WebAuthnClient;
 }): Promise<{ master: Uint8Array; record: PasskeyRecord }> {
   const result = await createPasskeyWithPrfOutput({
-    rp: { id: options.rpId ?? currentRpId(), name: "Meaw" },
+    rp: { id: options.rpId ?? currentRpId(), name: "Zua" },
     user: { name: options.userName, displayName: options.userName },
     prfSalt: MASTER_PRF_SALT,
     webAuthnClient: options.webAuthnClient,
@@ -93,7 +93,7 @@ export async function unlockPasskeyMaster(options: {
 export class PasskeyMismatchError extends Error {
   constructor() {
     super(
-      "This passkey doesn't belong to your Meaw account. Choose the passkey you created for Meaw.",
+      "This passkey doesn't belong to your Zua account. Choose the passkey you created for Zua.",
     );
     this.name = "PasskeyMismatchError";
   }

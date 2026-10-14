@@ -80,7 +80,7 @@
   --color-ed-line: rgba(245, 243, 234, 0.16);
   --color-ed-gold: #b78a34;
 
-  /* Landing page: deep space + Monad violet nebula. */
+  /* Landing page palette. */
   --color-void: #050507;
   --color-void-2: #0c0b14;
   --color-starlight: #f4f2ff;
@@ -124,7 +124,7 @@
   }
 }
 
-@keyframes mawee-step-progress {
+@keyframes step-progress {
   from {
     transform: scaleX(0);
   }
@@ -133,7 +133,7 @@
   }
 }
 
-@keyframes mawee-mock-in {
+@keyframes mock-in {
   from {
     opacity: 0;
     transform: translateY(12px) scale(0.98);
@@ -922,42 +922,42 @@ body:has(.landing-paper) {
   --hairline-stroke: 1;
 }
 
-/* Meaw mascot. steps() keeps the motion as chunky as the pixels. */
-.meaw-mascot .meaw-cat {
+/* Zua mascot. steps() keeps the motion as chunky as the pixels. */
+.mascot .mascot-cat {
   transform-origin: 50% 100%;
 }
-.meaw-mascot[data-mood="idle"] .meaw-cat {
-  animation: meaw-breathe 2.4s steps(1) infinite;
+.mascot[data-mood="idle"] .mascot-cat {
+  animation: mascot-breathe 2.4s steps(1) infinite;
 }
-.meaw-mascot[data-mood="loading"] .meaw-cat {
-  animation: meaw-hop 0.7s steps(1) infinite;
+.mascot[data-mood="loading"] .mascot-cat {
+  animation: mascot-hop 0.7s steps(1) infinite;
 }
-.meaw-mascot[data-mood="success"] .meaw-cat {
+.mascot[data-mood="success"] .mascot-cat {
   animation:
-    meaw-gulp 0.5s steps(1) 0.75s 2,
-    meaw-breathe 2.4s steps(1) 1.8s infinite;
+    mascot-gulp 0.5s steps(1) 0.75s 2,
+    mascot-breathe 2.4s steps(1) 1.8s infinite;
 }
-.meaw-mascot .meaw-coin {
+.mascot .mascot-coin {
   translate: -50% 0;
   opacity: 0;
-  animation: meaw-coin-drop 0.9s cubic-bezier(0.5, 0, 0.9, 0.6) 0.1s forwards;
+  animation: mascot-coin-drop 0.9s cubic-bezier(0.5, 0, 0.9, 0.6) 0.1s forwards;
 }
-@keyframes meaw-breathe {
+@keyframes mascot-breathe {
   50% {
     transform: scaleY(1.04);
   }
 }
-@keyframes meaw-hop {
+@keyframes mascot-hop {
   50% {
     transform: translateY(-10%);
   }
 }
-@keyframes meaw-gulp {
+@keyframes mascot-gulp {
   50% {
     transform: scale(1.08, 0.94);
   }
 }
-@keyframes meaw-coin-drop {
+@keyframes mascot-coin-drop {
   0% {
     opacity: 1;
     transform: translateY(-140%) scale(1);
@@ -972,8 +972,8 @@ body:has(.landing-paper) {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .meaw-mascot .meaw-cat,
-  .meaw-mascot .meaw-coin {
+  .mascot .mascot-cat,
+  .mascot .mascot-coin {
     animation: none;
   }
 }

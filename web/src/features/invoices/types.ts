@@ -8,7 +8,7 @@ export type InvoiceLine = {
 
 /** What the owner and the public invoice page see. */
 export type InvoiceView = {
-  id: string; // memo id: the payer's memo is `zapp:inv:<id>`
+  id: string; // memo id: the payer's memo is `zua:inv:<id>`
   token: string;
   username: string;
   ua: string;

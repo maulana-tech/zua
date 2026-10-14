@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { InstallMeaw } from "../src/features/pwa/InstallMeaw";
+import { InstallApp } from "../src/features/pwa/InstallApp";
 import { clearInstallPrompt } from "../src/features/pwa/installPrompt";
 import { ServiceWorkerRegistration } from "../src/features/pwa/ServiceWorkerRegistration";
 
@@ -43,8 +43,8 @@ describe("PWA registration", () => {
       userChoice: Promise.resolve({ outcome: "accepted" }),
     });
     fireEvent(window, event);
-    render(<InstallMeaw />);
-    expect(screen.getByRole("button", { name: "Install Meaw" })).toBeVisible();
+    render(<InstallApp />);
+    expect(screen.getByRole("button", { name: "Install Zua" })).toBeVisible();
   });
   it("registers the root worker without caching the worker script", () => {
     render(<ServiceWorkerRegistration />);

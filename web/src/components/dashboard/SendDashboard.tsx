@@ -12,7 +12,7 @@ import { isShielded } from "../../lib/zcash/address";
 import { MAX_MEMO_BYTES, memoBytes } from "../../lib/zcash/memo";
 import { explorerTxUrl } from "../../lib/zcash/network";
 import { zatToZec, zecToZat } from "../../lib/zcash/units";
-import { MeawMascot } from "../MeawMascot";
+import { Mascot } from "../Mascot";
 import { Input } from "../ui/input";
 import { useWallet } from "../WalletProvider";
 import { DashboardNotice } from "./DashboardNotice";
@@ -155,7 +155,7 @@ export function SendDashboard() {
         <section className={`${dashCell} p-6`} aria-label="Payment details">
           {stage === "done" ? (
             <div className="grid justify-items-start gap-4 py-6">
-              <MeawMascot mood="success" size={72} />
+              <Mascot mood="success" size={72} />
               <h2 className="text-2xl tracking-tight">Sent {amount} ZEC</h2>
               <p className="text-sm text-(--dash-ash)">
                 {recipient?.username ? `To @${recipient.username}. ` : ""}It

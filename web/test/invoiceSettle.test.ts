@@ -45,8 +45,8 @@ describe("findInvoicePayments", () => {
   it("sums partial payments tagged for an open invoice", () => {
     const result = findInvoicePayments(
       [
-        tx("a", 40_000_000n, ["zapp:inv:AAAAAAAA12"]),
-        tx("b", 60_000_000n, ["zapp:inv:AAAAAAAA12 thanks"]),
+        tx("a", 40_000_000n, ["zua:inv:AAAAAAAA12"]),
+        tx("b", 60_000_000n, ["zua:inv:AAAAAAAA12 thanks"]),
       ],
       [invoice("AAAAAAAA12")],
     );
@@ -58,10 +58,10 @@ describe("findInvoicePayments", () => {
   it("ignores sends, other tags, void invoices and unchanged totals", () => {
     const result = findInvoicePayments(
       [
-        tx("a", -5n, ["zapp:inv:AAAAAAAA12"], "sent"),
-        tx("b", 5n, ["zapp:link:AAAAAAAA12"]),
-        tx("c", 5n, ["zapp:inv:BBBBBBBB12"]),
-        tx("d", 7n, ["zapp:inv:CCCCCCCC12"]),
+        tx("a", -5n, ["zua:inv:AAAAAAAA12"], "sent"),
+        tx("b", 5n, ["zua:link:AAAAAAAA12"]),
+        tx("c", 5n, ["zua:inv:BBBBBBBB12"]),
+        tx("d", 7n, ["zua:inv:CCCCCCCC12"]),
       ],
       [
         invoice("AAAAAAAA12"),

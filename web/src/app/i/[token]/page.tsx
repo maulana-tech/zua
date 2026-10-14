@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { InvoiceCheckout } from "../../../components/invoices/InvoiceCheckout";
 
 export const metadata: Metadata = {
-  title: "Invoice | Meaw",
+  title: "Invoice | Zua",
   robots: { index: false, follow: false },
   referrer: "no-referrer",
 };

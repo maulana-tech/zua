@@ -4,7 +4,7 @@ import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { DitherField } from "../landing/DitherField";
 
 type DashboardMode = "light" | "dark";
-const STORAGE_KEY = "mawee.dashboard.mode";
+const STORAGE_KEY = "zua.dashboard.mode";
 
 // Dither colours per mode: paper + signal blue, or ink + a deep blue that
 // stays quiet behind light text.

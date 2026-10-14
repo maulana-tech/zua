@@ -4,7 +4,6 @@ import { hmac } from "@noble/hashes/hmac.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { describe, expect, it } from "vitest";
 import { bytesToHex, hexToBytes } from "../src/lib/crypto";
-import { deriveNoteSecrets } from "../src/lib/keys";
 import {
   createPasskeyMaster,
   MASTER_PRF_SALT,
@@ -12,6 +11,7 @@ import {
   passkeyErrorMessage,
   unlockPasskeyMaster,
 } from "../src/lib/passkey";
+import { mnemonicFromMaster } from "../src/lib/zcash/seed";
 
 /**
  * A fake platform authenticator with a synced keychain: each passkey holds a
@@ -64,10 +64,10 @@ function fakeKeychain(options: { prf?: boolean } = {}) {
   return { passkeys, device };
 }
 
-const RP = "mawee.xyz";
+const RP = "zua.example";
 
-describe("passkey-derived privacy keys (Mera PRF)", () => {
-  it("re-derives the same note and viewing keys on a second device", async () => {
+describe("passkey-derived account master (PRF)", () => {
+  it("re-derives the same Zcash wallet on a second device", async () => {
     const keychain = fakeKeychain();
     const laptop = keychain.device();
     const phone = keychain.device(); // same synced passkeys, fresh browser
@@ -84,10 +84,9 @@ describe("passkey-derived privacy keys (Mera PRF)", () => {
     });
 
     expect(bytesToHex(restored)).toBe(bytesToHex(created.master));
-    const a = deriveNoteSecrets(created.master);
-    const b = deriveNoteSecrets(restored);
-    expect(b.ownerSecret).toBe(a.ownerSecret);
-    expect(bytesToHex(b.viewSk)).toBe(bytesToHex(a.viewSk));
+    expect(mnemonicFromMaster(restored)).toBe(
+      mnemonicFromMaster(created.master),
+    );
     // Only public metadata leaves the device.
     expect(Object.keys(created.record).sort()).toEqual([
       "credentialId",
@@ -95,7 +94,7 @@ describe("passkey-derived privacy keys (Mera PRF)", () => {
     ]);
   });
 
-  it("uses a Meaw-specific salt and HKDF, not the raw PRF output", async () => {
+  it("uses a Zua-specific salt and HKDF, not the raw PRF output", async () => {
     const seen: Uint8Array[] = [];
     const keychain = fakeKeychain();
     const base = keychain.device();
@@ -175,7 +174,7 @@ describe("passkey-derived privacy keys (Mera PRF)", () => {
         rpId: RP,
         webAuthnClient: lying,
       }),
-    ).rejects.toThrow("doesn't belong to your Meaw account");
+    ).rejects.toThrow("doesn't belong to your Zua account");
   });
 
   it("explains authenticators without PRF support", async () => {

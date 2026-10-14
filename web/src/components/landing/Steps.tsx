@@ -37,13 +37,13 @@ const STEPS: {
   {
     icon: QrCode,
     title: "Share it with clients",
-    body: "Send the link or show the QR code. Clients pay USDC from any EVM wallet — no Meaw account, no gas.",
+    body: "Send the link or show the QR code. Clients pay ZEC from any Zcash wallet, with no Zua account needed.",
     mock: PayMock,
   },
   {
     icon: ArrowDownToLine,
     title: "Withdraw privately",
-    body: "Move your balance to any wallet whenever you like. Nobody can trace it back to the payment that funded it.",
+    body: "Send to another @username or cash out to any Zcash address. Shielded payments reveal nothing about the payment that funded them.",
     mock: WithdrawMock,
   },
 ];
@@ -220,7 +220,7 @@ export function Steps() {
                         style={{
                           animation: paused
                             ? "none"
-                            : `mawee-step-progress ${AUTO_ADVANCE_MS}ms linear forwards`,
+                            : `step-progress ${AUTO_ADVANCE_MS}ms linear forwards`,
                           transform: paused ? "scaleX(1)" : undefined,
                         }}
                       />
@@ -245,7 +245,7 @@ export function Steps() {
             />
             <div
               key={active}
-              className="w-full max-w-[420px] motion-safe:animate-[mawee-mock-in_500ms_ease-out]"
+              className="w-full max-w-[420px] motion-safe:animate-[mock-in_500ms_ease-out]"
             >
               <Mock />
             </div>
@@ -256,7 +256,7 @@ export function Steps() {
   );
 }
 
-/* ---- product mocks (decorative copies of real Mawee screens) ---------------- */
+/* ---- product mocks (decorative copies of real Zua screens) ---------------- */
 
 function MockWindow({
   title,
@@ -306,13 +306,13 @@ function Row({
 
 function ClaimMock() {
   return (
-    <MockWindow title="meaw.xyz">
+    <MockWindow title="zua">
       <p className="text-lg font-normal">Claim your username</p>
       <p className="mt-1 text-sm text-starlight/55">
         This becomes your payment link.
       </p>
       <div className="mt-5 flex items-center rounded-none border border-violet/60 bg-void px-3.5 py-3 font-landing text-sm">
-        <span className="text-starlight/45">meaw.xyz/pay/</span>
+        <span className="text-starlight/45">zua/pay/</span>
         <span className="text-starlight">dinar</span>
         <span className="ml-0.5 h-4 w-px bg-violet motion-safe:animate-pulse" />
       </div>
@@ -392,11 +392,11 @@ function FauxQr() {
 
 function PayMock() {
   return (
-    <MockWindow title="meaw.xyz/pay/dinar">
+    <MockWindow title="zua/pay/dinar">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm text-starlight/55">Pay @dinar</p>
-          <p className="mt-1 text-3xl font-normal">300.00 USDC</p>
+          <p className="mt-1 text-3xl font-normal">0.80 ZEC</p>
           <p className="mt-1 text-sm text-starlight/55">Logo design</p>
         </div>
         <div className="rounded-none bg-white p-2">
@@ -408,7 +408,7 @@ function PayMock() {
           label="Paying from"
           value={
             <>
-              <Wallet className="size-3.5" /> 0x5A0b…9c4c
+              <Wallet className="size-3.5" /> Zodl
             </>
           }
         />
@@ -417,13 +417,13 @@ function PayMock() {
           label="Network fee"
           value={
             <>
-              <Zap className="size-3.5 text-violet" /> Covered
+              <Zap className="size-3.5 text-violet" /> &lt; $0.01
             </>
           }
         />
       </div>
       <div className="mt-5 rounded-none bg-indigo-glow py-3 text-center text-sm font-medium">
-        Pay 300 USDC
+        Pay 0.80 ZEC
       </div>
     </MockWindow>
   );
@@ -431,7 +431,7 @@ function PayMock() {
 
 function WithdrawMock() {
   return (
-    <MockWindow title="Meaw · Withdraw">
+    <MockWindow title="Zua · Withdraw">
       <p className="text-sm text-starlight/55">Private balance</p>
       <p className="mt-1 text-3xl font-normal">$1,240.50</p>
       <ul className="mt-4 grid gap-1.5">

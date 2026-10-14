@@ -13,7 +13,7 @@ import {
 import { useRef, useState } from "react";
 import { payUrl } from "../../lib/paymentLinks";
 import { trpc } from "../../trpc/react";
-import { MeawMascot } from "../MeawMascot";
+import { Mascot } from "../Mascot";
 import { DashboardPageHeader } from "./DashboardPageHeader";
 import { LinkEditorDialog, type PaymentLink } from "./LinkEditorDialog";
 import { PaymentQrDialog } from "./PaymentQrDialog";
@@ -102,7 +102,7 @@ export function LinksDashboard({
         )}
         {links.data?.length === 0 ? (
           <div className={`${dashCell} flex items-center gap-4 p-6`}>
-            <MeawMascot size={48} />
+            <Mascot size={48} />
             <p className="text-sm text-(--dash-ash)">
               Create links for products, retainers or tips. Each one carries a
               private tag so you know what was paid.

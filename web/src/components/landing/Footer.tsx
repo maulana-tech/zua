@@ -8,7 +8,7 @@ const COLUMNS: {
   {
     title: "Product",
     links: [
-      { label: "Why Meaw", href: "#why" },
+      { label: "Why Zua", href: "#why" },
       { label: "How it works", href: "#how" },
       { label: "Who it's for", href: "#who" },
       { label: "FAQ", href: "#faq" },
@@ -17,18 +17,9 @@ const COLUMNS: {
   {
     title: "Resources",
     links: [
-      {
-        label: "Docs",
-        href: "https://amelias-organization-20.gitbook.io/mawee/",
-      },
       { label: "Privacy policy", href: "/privacy" },
-    ],
-  },
-  {
-    title: "Community",
-    links: [
-      { label: "X (Twitter)", href: "https://x.com/maweexyz" },
-      { label: "Discord", href: "https://discord.gg/mawee" },
+      { label: "Zcash", href: "https://z.cash" },
+      { label: "Zodl wallet", href: "https://zodl.com" },
     ],
   },
 ];
@@ -41,14 +32,14 @@ export function Footer() {
           <a
             href="#top"
             className="inline-flex items-center gap-2.5 text-starlight hover:text-starlight"
-            aria-label="Meaw home"
+            aria-label="Zua home"
           >
-            <Image src="/assets/mawee.svg" alt="" width={28} height={28} />
-            <span className="text-xl font-medium tracking-tight">Meaw</span>
+            <Image src="/assets/zua.svg" alt="" width={28} height={28} />
+            <span className="text-xl font-medium tracking-tight">Zua</span>
           </a>
           <p className="mt-4 max-w-[36ch] text-sm leading-relaxed text-starlight/55">
-            Private USDC payment links on Monad. Private by default, provable on
-            demand.
+            Shielded ZEC payment links and invoices on Zcash. Private by
+            default, provable on demand.
           </p>
         </div>
         <nav
@@ -83,7 +74,7 @@ export function Footer() {
         <a href="/privacy" className="hover:text-starlight/80">
           Privacy policy
         </a>
-        <span>© {new Date().getFullYear()} Meaw. All rights reserved.</span>
+        <span>© {new Date().getFullYear()} Zua. All rights reserved.</span>
       </Frame>
     </footer>
   );

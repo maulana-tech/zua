@@ -65,11 +65,11 @@ export async function renderInvoicePdf(
   doc.setFillColor(INVOICE_PDF_PALETTE.obsidian);
   doc.rect(0, 0, pageWidth, 8, "F");
 
-  // Wordmark "meaw"
+  // Wordmark "zua"
   doc.setFont("helvetica", "bold");
   doc.setFontSize(24);
   doc.setTextColor(INVOICE_PDF_PALETTE.obsidian);
-  doc.text("meaw", MARGIN, 52);
+  doc.text("zua", MARGIN, 52);
 
   // Document Title (INVOICE or PAYMENT RECEIPT)
   const titleText = isPaid ? "PAYMENT RECEIPT" : "INVOICE";
@@ -285,12 +285,17 @@ export async function renderInvoicePdf(
     ? `${options.origin}/i/${invoice.token}`
     : `/i/${invoice.token}`;
   doc.text(`Pay or verify online: ${checkoutUrl}`, MARGIN, footerY + 18);
-  doc.text(`${APP_NAME} • Shielded Payments`, pageWidth - MARGIN, footerY + 18, {
-    align: "right",
-  });
+  doc.text(
+    `${APP_NAME} • Shielded Payments`,
+    pageWidth - MARGIN,
+    footerY + 18,
+    {
+      align: "right",
+    },
+  );
 
   doc.text(
-    `Invoice issued on ${APP_NAME}. Pay to the shielded address with memo zapp:inv:${invoice.id}.`,
+    `Invoice issued on ${APP_NAME}. Pay to the shielded address with memo zua:inv:${invoice.id}.`,
     MARGIN,
     footerY + 30,
   );

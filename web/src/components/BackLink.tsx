@@ -4,7 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-// Goes back to the previous Meaw page when there is one; a visitor who landed
+// Goes back to the previous Zua page when there is one; a visitor who landed
 // here from outside (a shared link, an email) goes to `fallback` instead.
 export function BackLink({
   fallback = "/",

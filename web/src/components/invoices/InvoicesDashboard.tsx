@@ -18,7 +18,7 @@ import {
   dashFocus,
   dashIconButton,
 } from "../dashboard/styles";
-import { MeawMascot } from "../MeawMascot";
+import { Mascot } from "../Mascot";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -89,7 +89,7 @@ export function InvoicesDashboard() {
         <section
           className={`${dashCell} border border-(--dash-line-solid) p-8`}
         >
-          <MeawMascot mood="idle" />
+          <Mascot mood="idle" />
           <h2 className="mt-5 text-xl">Your first invoice starts here</h2>
           <p className="mt-2 max-w-md text-sm leading-6 text-(--dash-ash)">
             Set a total in ZEC and share the link. Your client pays with any

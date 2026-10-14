@@ -16,7 +16,7 @@ function worker() {
   const cache = { put: vi.fn(), match: vi.fn(async () => offline) };
   const caches = {
     open: vi.fn(async () => cache),
-    keys: vi.fn(async () => ["meaw-offline-v0", "another-app"]),
+    keys: vi.fn(async () => ["zua-offline-v0", "another-app"]),
     delete: vi.fn(async () => true),
   };
   const fetch = vi.fn(async () => new Response("live page"));
@@ -25,7 +25,7 @@ function worker() {
     readFileSync(new URL("../public/sw.js", import.meta.url), "utf8"),
     {
       self: {
-        location: { origin: "https://meaw.test" },
+        location: { origin: "https://zua.test" },
         clients: { claim },
         addEventListener: (
           name: string,
@@ -44,7 +44,7 @@ function worker() {
     const respondWith = vi.fn();
     handlers.fetch({
       request: {
-        url: `https://meaw.test${path}`,
+        url: `https://zua.test${path}`,
         method: "GET",
         mode: "navigate",
         ...overrides,
@@ -109,7 +109,7 @@ describe("PWA offline privacy boundary", () => {
     expect(response.status).toBe(503);
     expect(w.cache.match).not.toHaveBeenCalled();
   });
-  it("removes only older Meaw offline caches on activation", async () => {
+  it("removes only older Zua offline caches on activation", async () => {
     const w = worker();
     let work: Promise<void> | undefined;
     w.handlers.activate({
@@ -118,7 +118,7 @@ describe("PWA offline privacy boundary", () => {
       },
     });
     await work;
-    expect(w.caches.delete).toHaveBeenCalledWith("meaw-offline-v0");
+    expect(w.caches.delete).toHaveBeenCalledWith("zua-offline-v0");
     expect(w.caches.delete).not.toHaveBeenCalledWith("another-app");
     expect(w.claim).toHaveBeenCalledOnce();
   });

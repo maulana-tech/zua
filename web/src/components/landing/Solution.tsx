@@ -4,22 +4,22 @@ import { Frame } from "./primitives";
 const REASONS = [
   {
     title: "Private by default",
-    body: "Every payment becomes an encrypted note in a shared pool. Anyone can see that a deposit happened — not who it was for.",
+    body: "Every payment is a shielded Zcash transaction. The blockchain records that something happened, not who paid whom or how much.",
     Figure: Vault,
   },
   {
     title: "Provable when it matters",
-    body: "Export a receipt for any single payment for your accountant, bank, or tax office, without revealing the rest.",
+    body: "Invoices turn paid on their own and come with a PDF receipt for your accountant, without revealing the rest of your history.",
     Figure: Loupe,
   },
   {
     title: "Your passkey is the key",
-    body: "Your private keys are rebuilt from your passkey on each device. No seed phrase, and nothing secret stored with us.",
+    body: "Your Zcash wallet is rebuilt from your passkey on each device. No seed phrase to write down, and nothing secret stored with us.",
     Figure: Padlock,
   },
   {
-    title: "No gas, no friction",
-    body: "Meaw covers network fees. Your client signs once with the wallet they already use, and you never need to hold MON.",
+    title: "Works with any Zcash wallet",
+    body: "Payment links and invoices use the standard Zcash payment-request format, so clients pay with Zodl or any wallet they already have.",
     Figure: Relay,
   },
 ] as const;
@@ -39,7 +39,7 @@ export function Solution() {
               id="why-title"
               className="text-[clamp(1.9rem,2.8vw,2.6rem)] font-normal tracking-tight lg:sticky lg:top-28"
             >
-              Why Meaw
+              Why Zua
             </h2>
           </div>
           <div>

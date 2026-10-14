@@ -13,8 +13,8 @@ import {
 
 // Product facts only — no vanity metrics.
 const FACTS = [
-  { value: "~0.8s", label: "Finality on Monad" },
-  { value: "0 MON", label: "Gas for you or your client" },
+  { value: "Orchard", label: "Zcash's shielded pool" },
+  { value: "0 seed", label: "Phrases to write down" },
   { value: "1 link", label: "For every client" },
   { value: "100%", label: "Self-custodial" },
 ] as const;
@@ -35,14 +35,14 @@ export function Hero() {
               id="hero-title"
               className="text-[clamp(2.6rem,6.2vw,5.4rem)] font-normal leading-[1.02] tracking-[-0.02em]"
             >
-              Get paid in USDC.
+              Get paid in ZEC.
               <br />
               Keep your income private.
             </h1>
             <p className="mt-7 max-w-[56ch] text-base leading-relaxed text-starlight/80 sm:text-lg">
-              Share one payment link. Your client pays in USDC on Monad, and the
-              money lands in a private balance only you can see — with a receipt
-              you can show your accountant whenever you need it.
+              Share one payment link or invoice. Your client pays from any Zcash
+              wallet, and the money lands in a shielded balance only you can
+              see. Zcash hides who paid, who was paid and how much.
             </p>
             <div className="mt-9 flex flex-wrap gap-3">
               {authenticated ? (
@@ -64,9 +64,9 @@ export function Hero() {
             </div>
           </div>
 
-          <nav aria-label="Explore Meaw" className="hidden lg:block">
+          <nav aria-label="Explore Zua" className="hidden lg:block">
             <MonoLabel className="block border-b border-starlight/70 pb-3 text-starlight/85">
-              Explore Meaw
+              Explore Zua
             </MonoLabel>
             <ul className="list-none">
               {LANDING_SECTIONS.map((section) => (

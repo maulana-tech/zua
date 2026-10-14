@@ -20,26 +20,10 @@ describe("route middleware", () => {
       true,
     );
   });
-  it("runs authentication middleware for the Requests route group", () => {
-    expect(
-      unstable_doesMiddlewareMatch({
-        config,
-        nextConfig: {},
-        url: "/requests",
-      }),
-    ).toBe(true);
-    expect(
-      unstable_doesMiddlewareMatch({
-        config,
-        nextConfig: {},
-        url: "/requests/notes",
-      }),
-    ).toBe(true);
-  });
   it.each([
     "/dashboard",
     "/links",
-    "/withdraw",
+    "/send",
     "/history",
     "/invoices",
   ])("redirects unsigned users away from %s", (pathname) => {

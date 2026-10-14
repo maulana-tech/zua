@@ -73,11 +73,11 @@ describe("UnsubscribePage", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "You will no longer receive payment notification emails from Meaw.",
+        "You will no longer receive payment notification emails from Zua.",
       ),
     ).toBeInTheDocument();
 
-    const returnLink = screen.getByRole("link", { name: "Return to Meaw" });
+    const returnLink = screen.getByRole("link", { name: "Return to Zua" });
     expect(returnLink).toBeInTheDocument();
     expect(returnLink).toHaveAttribute("href", "/dashboard");
   });
@@ -96,7 +96,7 @@ describe("UnsubscribePage", () => {
       ),
     ).toBeInTheDocument();
 
-    const returnLink = screen.getByRole("link", { name: "Return to Meaw" });
+    const returnLink = screen.getByRole("link", { name: "Return to Zua" });
     expect(returnLink).toBeInTheDocument();
     expect(returnLink).toHaveAttribute("href", "/dashboard");
   });

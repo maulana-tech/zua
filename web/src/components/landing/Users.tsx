@@ -36,7 +36,7 @@ const AUDIENCES: {
   {
     icon: Store,
     title: "Online stores",
-    body: "Take stablecoin payments and keep your books to yourself.",
+    body: "Take ZEC payments and keep your books to yourself.",
     keepsPrivate: "Your sales volume",
   },
   {
@@ -76,8 +76,8 @@ export function Users() {
           </div>
           <p className="max-w-[48ch] self-end text-lg leading-relaxed text-graphite/75">
             If your invoices land on a public blockchain, so does your business.
-            Meaw gives you the speed of stablecoin payments without turning
-            your income into public data.
+            Zua gives you crypto payments without turning your income into
+            public data.
           </p>
         </div>
 

@@ -11,9 +11,9 @@ export default function NotFound() {
     <DashboardBackground>
       <DashboardShell contentClassName="flex min-h-svh flex-col items-center">
         <header className="flex min-w-0 items-center pt-4">
-          <Link href="/" aria-label="Meaw home" className="block size-14">
+          <Link href="/" aria-label="Zua home" className="block size-14">
             <Image
-              src="/assets/mawee-white.svg"
+              src="/assets/zua-white.svg"
               alt=""
               width={56}
               height={56}

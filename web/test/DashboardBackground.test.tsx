@@ -49,7 +49,7 @@ describe("DashboardBackground", () => {
 
     expect(screen.getByRole("button", { name: "dark" })).toBeInTheDocument();
     expect(document.documentElement.dataset.dashMode).toBe("dark");
-    expect(window.localStorage.getItem("mawee.dashboard.mode")).toBe("dark");
+    expect(window.localStorage.getItem("zua.dashboard.mode")).toBe("dark");
   });
 
   it("uses ink on paper (and paper on ink in dark mode), without gradients", () => {

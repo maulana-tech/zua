@@ -3,7 +3,7 @@
 import { Loader, ShieldAlert, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
 import { dashButtonSecondary } from "../../../components/dashboard/styles";
-import { MeawMascot } from "../../../components/MeawMascot";
+import { Mascot } from "../../../components/Mascot";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { QrPanel } from "../../../components/zcash/QrPanel";
@@ -137,7 +137,7 @@ export function PayView({
             className="grid justify-items-center gap-3 py-6 text-center"
             role="status"
           >
-            <MeawMascot mood="success" size={72} tone="white" />
+            <Mascot mood="success" size={72} tone="white" />
             <h2 className="text-xl font-semibold">
               Thanks! @{username} has been told.
             </h2>

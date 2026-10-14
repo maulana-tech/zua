@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { use, useEffect, useRef, useState } from "react";
 import { dashButtonPrimary } from "@/components/dashboard/styles";
-import { MeawMascot } from "@/components/MeawMascot";
+import { Mascot } from "@/components/Mascot";
 import { trpc } from "@/trpc/react";
 
 export default function UnsubscribePage({
@@ -33,7 +33,7 @@ export default function UnsubscribePage({
 
   return (
     <main className="mx-auto w-full max-w-md rounded-(--dash-radius) border border-(--dash-line-solid) bg-(--dash-surface) p-8 text-center text-(--dash-fg)">
-      <MeawMascot
+      <Mascot
         mood={status === "pending" ? "loading" : "idle"}
         size={64}
         className="mx-auto mb-5"
@@ -50,13 +50,13 @@ export default function UnsubscribePage({
         {status === "pending"
           ? "Updating your notification preferences…"
           : status === "success"
-            ? "You will no longer receive payment notification emails from Meaw."
+            ? "You will no longer receive payment notification emails from Zua."
             : "This unsubscribe link is invalid or has already been processed."}
       </p>
 
       <div className="mt-6 flex justify-center">
         <Link href="/dashboard" className={dashButtonPrimary}>
-          Return to Meaw
+          Return to Zua
         </Link>
       </div>
     </main>

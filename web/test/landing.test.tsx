@@ -13,7 +13,10 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 import { FinalCta } from "../src/components/landing/FinalCta";
 import { Hero } from "../src/components/landing/Hero";
 
-const wallet = (address = "") => ({ address, signIn: mocks.signIn });
+const wallet = (authenticated = false) => ({
+  authenticated,
+  signIn: mocks.signIn,
+});
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -24,7 +27,7 @@ describe("landing hero", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /get paid in usdc\. keep your income private\./i,
+        name: /get paid in zec\. keep your income private\./i,
       }),
     ).toBeInTheDocument();
     await userEvent.click(
@@ -37,7 +40,7 @@ describe("landing hero", () => {
   });
 
   it("sends signed-in visitors to their dashboard instead", () => {
-    mocks.useWallet.mockReturnValue(wallet("0xabc"));
+    mocks.useWallet.mockReturnValue(wallet(true));
     render(<Hero />);
     expect(
       screen.getByRole("link", { name: "Open your dashboard" }),
@@ -51,8 +54,8 @@ describe("landing hero", () => {
     mocks.useWallet.mockReturnValue(wallet());
     render(<Hero />);
     for (const label of [
-      "Finality on Monad",
-      "Gas for you or your client",
+      "Zcash's shielded pool",
+      "Phrases to write down",
       "For every client",
       "Self-custodial",
     ]) {

@@ -10,9 +10,8 @@ out/
 dist/
 
 *.wasm
-# ...but the circom circuit artifacts under web/public are runtime assets that
-# must ship to the deployed app, not build output.
-!web/public/zk/*.wasm
+# The Zcash wallet (WebZjs) build is vendored and must ship with the app.
+!packages/webzjs-wallet/*.wasm
 
 .claude
 .superstack/
@@ -20,13 +19,6 @@ coverage/
 
 *.tsbuildinfo
 .vercel
-.env*
-!.env.example
-!.env.production.example
 
 backups/
-# local-only
-monad-zk/build/
-docs/monad-hackathon/
 design-ref/
-.deploy-candidates/

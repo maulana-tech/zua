@@ -1,7 +1,7 @@
 # Spesifikasi Desain: App Pembayaran Shielded di Zcash (ZECATHON)
 
 Status: **Draf v1**, 14 Oktober 2026
-Codename kerja: **`[APP]`** (nama final belum ditentukan, lihat §17)
+Codename kerja: **`Zua`** (nama final belum ditentukan, lihat §17)
 Target: ZECATHON, track **Shielded Payments** (deadline 28 Oktober 2026, perlu dikonfirmasi)
 
 Dokumen ini adalah spesifikasi untuk **app baru**, bukan lanjutan Meaw. Meaw (Monad)
@@ -12,7 +12,7 @@ database dan deploy semuanya baru.
 
 ## 1. Ringkasan produk
 
-**[APP]** adalah aplikasi untuk freelancer dan bisnis kecil supaya bisa **ditagih
+**Zua** adalah aplikasi untuk freelancer dan bisnis kecil supaya bisa **ditagih
 dan dibayar dalam ZEC secara shielded**, dengan pengalaman seperti app pembayaran
 biasa:
 
@@ -31,7 +31,7 @@ biasa:
 
 ### Kenapa cocok dengan track Shielded Payments
 Track ini meminta "money that moves without publishing who paid whom", termasuk
-point of sale, payroll, remittance dan subscriptions. [APP] menutup alur
+point of sale, payroll, remittance dan subscriptions. Zua menutup alur
 **invoice → bayar → terima → cash out** sepenuhnya di pool Orchard, dengan UX
 untuk orang yang bukan pengguna crypto.
 
@@ -124,7 +124,7 @@ untuk orang yang bukan pengguna crypto.
 2. **Server bodoh soal uang:** server hanya menyimpan data publik (username, UA,
    birthday) dan metadata yang memang dibuat user (link, invoice). Status Paid
    *dilaporkan* oleh pemilik.
-3. **Interoperabilitas:** payer tidak harus memakai [APP]; standarnya ZIP-321.
+3. **Interoperabilitas:** payer tidak harus memakai Zua; standarnya ZIP-321.
 4. **Fail safe:** kalau server mati, dana tetap aman dan bisa dipulihkan di Zodl
    dengan mnemonic yang diturunkan dari passkey (§7.4).
 
@@ -149,7 +149,7 @@ untuk orang yang bukan pengguna crypto.
 ### Struktur repo (monorepo pnpm)
 
 ```
-[app]/
+zua/
 ├─ apps/web/                     # Next.js
 │  ├─ src/app/                   # routes (§11)
 │  ├─ src/components/            # UI
@@ -170,8 +170,8 @@ untuk orang yang bukan pengguna crypto.
 ## 7. Desain kunci
 
 ### 7.1 Sumber master (32 byte)
-- **Passkey (utama):** WebAuthn PRF dengan salt `sha256("[app].prf.master.v1")`
-  menghasilkan output PRF, lalu `master = HKDF-SHA256(prf, info="[app].master.v1")`.
+- **Passkey (utama):** WebAuthn PRF dengan salt `sha256("zua.prf.master.v1")`
+  menghasilkan output PRF, lalu `master = HKDF-SHA256(prf, info="zua.master.v1")`.
 - **PIN (cadangan/perangkat tanpa PRF):** `master` acak 32 byte, dienkripsi dengan
   kunci dari `Argon2id(PIN, salt, m=19456, t=2, p=1)` + AES-GCM. **Blob escrow**
   disimpan di server; PIN tidak pernah dikirim.
@@ -182,11 +182,11 @@ untuk orang yang bukan pengguna crypto.
 
 | Kunci | Derivasi | Disimpan? |
 |---|---|---|
-| Seed Zcash | `entropy = HKDF(master, "[app].zcash.seed.v1", 32)` → **BIP39 24 kata** | Tidak (memori) |
+| Seed Zcash | `entropy = HKDF(master, "zua.zcash.seed.v1", 32)` → **BIP39 24 kata** | Tidak (memori) |
 | USK / UFVK / UA | ZIP-32 dari seed, akun index 0 (di WebZjs) | UFVK hanya di DB wallet terenkripsi; **UA** publik di server |
-| Kunci DB wallet | `HKDF(master, "[app].walletdb.v1", 32)` → AES-256-GCM | Tidak |
-| Kunci tanda tangan profil | `Ed25519(seed = HKDF(master, "[app].profile-sign.v1", 32))` | Pubkey publik di server |
-| Kunci enkripsi pesan app (request) | `X25519(HKDF(master, "[app].msg.v1", 32))` | Pubkey publik di server |
+| Kunci DB wallet | `HKDF(master, "zua.walletdb.v1", 32)` → AES-256-GCM | Tidak |
+| Kunci tanda tangan profil | `Ed25519(seed = HKDF(master, "zua.profile-sign.v1", 32))` | Pubkey publik di server |
+| Kunci enkripsi pesan app (request) | `X25519(HKDF(master, "zua.msg.v1", 32))` | Pubkey publik di server |
 
 ### 7.3 Birthday height
 Saat akun dibuat, client mengambil `latestBlock` dari lightwalletd. `birthday =
@@ -198,7 +198,7 @@ sebelum birthday.
   seed yang sama, dan **sync ulang** dari birthday.
 - **Export ke Zodl** (Settings → "Back up to a Zcash wallet"): tampilkan 24 kata
   setelah re-autentikasi, dengan peringatan. Ini menjamin dana tidak terkunci
-  di [APP].
+  di Zua.
 
 ### 7.5 Aturan keras
 - Seed, USK dan mnemonic **tidak pernah** dikirim ke server, ditulis ke log, atau
@@ -246,7 +246,7 @@ type WalletTx = {
 
 ### 8.3 Persistensi DB wallet
 - Setelah setiap sync atau kirim: `exportDb()` → AES-GCM(dbKey) → IndexedDB
-  (`[app]-wallet/<userId>`).
+  (`zua-wallet/<userId>`).
 - Saat unlock, DB didekripsi lalu sync lanjut dari tinggi terakhir.
 - Kalau dekripsi gagal atau DB rusak: hapus, lalu sync ulang dari birthday.
 
@@ -268,14 +268,14 @@ zcash:<UA>?amount=<ZEC desimal>&memo=<base64url(UTF-8)>&label=<urlencoded>&messa
 
 - `amount` maksimal 8 desimal, tanpa nol di belakang (`0.8`, bukan `0.80000000`).
 - `memo` hanya untuk alamat shielded (UA Orchard), maksimal 512 byte sebelum encode.
-- `label` = `@username di [APP]`, `message` = judul invoice/link.
+- `label` = `@username di Zua`, `message` = judul invoice/link.
 - Parser untuk menerima URI dari QR (fitur Send: scan QR payer lain).
 - Test vector diambil dari spesifikasi ZIP-321.
 
 ### 8.6 Format memo (`src/lib/zcash/memo.ts`)
 
 ```
-[app]:<kind>:<id>[:<v>]
+zua:<kind>:<id>[:<v>]
 kind ∈ { inv, link, req, tip }
 id   = base62, 10–16 karakter, unik
 v    = versi format (opsional, default 1)
@@ -604,8 +604,8 @@ Validasi penting:
 ### Publik (`src/env.ts`)
 | Nama | Contoh |
 |---|---|
-| `NEXT_PUBLIC_APP_NAME` | `[APP]` |
-| `NEXT_PUBLIC_APP_URL` | `https://[app].xyz` |
+| `NEXT_PUBLIC_APP_NAME` | `Zua` |
+| `NEXT_PUBLIC_APP_URL` | `https://zua.xyz` |
 | `NEXT_PUBLIC_ZCASH_NETWORK` | `main` |
 | `NEXT_PUBLIC_LIGHTWALLETD_URL` | `https://zcash-mainnet.chainsafe.dev` |
 | `NEXT_PUBLIC_ZCASH_EXPLORER_TX_URL` | `https://mainnet.zcashexplorer.app/transactions/{txid}` |

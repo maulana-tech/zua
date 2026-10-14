@@ -18,7 +18,7 @@ import { api } from "../../trpc/client";
 import { BackLink } from "../BackLink";
 import { DashboardBackground } from "../dashboard/DashboardBackground";
 import { dashButtonSecondary, dashCell } from "../dashboard/styles";
-import { MeawMascot } from "../MeawMascot";
+import { Mascot } from "../Mascot";
 import { QrPanel } from "../zcash/QrPanel";
 
 export const invoiceDate = (value: string) =>
@@ -83,7 +83,7 @@ export function InvoiceCheckout({ token }: { token: string }) {
             <BackLink />
             <Link href="/" aria-label={`${APP_NAME} home`}>
               <Image
-                src="/assets/mawee-white.svg"
+                src="/assets/zua-white.svg"
                 alt={APP_NAME}
                 width={40}
                 height={40}
@@ -230,7 +230,7 @@ export function InvoiceCheckout({ token }: { token: string }) {
             >
               {invoice.status === "paid" ? (
                 <div className="grid justify-items-start gap-3" role="status">
-                  <MeawMascot mood="success" size={72} />
+                  <Mascot mood="success" size={72} />
                   <h2 className="text-xl">Paid. Thank you!</h2>
                   <p className="text-sm text-(--dash-ash)">
                     @{invoice.username}&apos;s wallet found your payment.

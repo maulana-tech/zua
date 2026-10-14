@@ -3,43 +3,39 @@ import { publicEnvSchema } from "../src/env";
 import { serverEnvSchema } from "../src/env.server";
 
 describe("environment schemas", () => {
-  it("normalizes public defaults and typed numeric values", () => {
+  it("defaults to Zcash mainnet through the ChainSafe proxy", () => {
+    const parsed = publicEnvSchema.parse({ NODE_ENV: "test" });
+    expect(parsed.NEXT_PUBLIC_ZCASH_NETWORK).toBe("main");
+    expect(parsed.NEXT_PUBLIC_LIGHTWALLETD_URL).toBe(
+      "https://zcash-mainnet.chainsafe.dev",
+    );
+    expect(parsed.NEXT_PUBLIC_MIN_CONFIRMATIONS).toBe(3);
+  });
+
+  it("parses typed values and rejects malformed ones", () => {
     const parsed = publicEnvSchema.parse({
-      NODE_ENV: "test",
-      NEXT_PUBLIC_POOL_DEPTH: "24",
-      NEXT_PUBLIC_MONAD_RPC_URL: "",
-      NEXT_PUBLIC_USDC_MINTABLE: "true",
+      NEXT_PUBLIC_ZCASH_NETWORK: "test",
+      NEXT_PUBLIC_MIN_CONFIRMATIONS: "10",
+      NEXT_PUBLIC_LIGHTWALLETD_URL: "",
     });
-
-    expect(parsed.NEXT_PUBLIC_POOL_DEPTH).toBe(24);
-    expect(parsed.NEXT_PUBLIC_MONAD_RPC_URL).toBeUndefined();
-    expect(parsed.NEXT_PUBLIC_MONAD_CHAIN_ID).toBe(10143);
-    expect(parsed.NEXT_PUBLIC_USDC_DECIMALS).toBe(6);
-    expect(parsed.NEXT_PUBLIC_USDC_MINTABLE).toBe(true);
-  });
-
-  it("rejects malformed public URLs, addresses and numeric ranges", () => {
+    expect(parsed.NEXT_PUBLIC_ZCASH_NETWORK).toBe("test");
+    expect(parsed.NEXT_PUBLIC_MIN_CONFIRMATIONS).toBe(10);
     expect(() =>
-      publicEnvSchema.parse({ NEXT_PUBLIC_MONAD_RPC_URL: "not-a-url" }),
+      publicEnvSchema.parse({ NEXT_PUBLIC_ZCASH_NETWORK: "regtest" }),
     ).toThrow();
     expect(() =>
-      publicEnvSchema.parse({ NEXT_PUBLIC_MAWEE_POOL_ADDRESS: "0x1234" }),
+      publicEnvSchema.parse({ NEXT_PUBLIC_LIGHTWALLETD_URL: "not-a-url" }),
     ).toThrow();
     expect(() =>
-      publicEnvSchema.parse({ NEXT_PUBLIC_POOL_DEPTH: "0" }),
+      publicEnvSchema.parse({ NEXT_PUBLIC_MIN_CONFIRMATIONS: "0" }),
     ).toThrow();
   });
 
-  it("keeps blank optional secrets absent and validates server numbers", () => {
+  it("keeps blank optional secrets absent", () => {
     const parsed = serverEnvSchema.parse({
       NODE_ENV: "test",
       PRIVY_APP_SECRET: "  ",
     });
     expect(parsed.PRIVY_APP_SECRET).toBeUndefined();
-    expect(parsed.MONAD_LOGS_BLOCK_RANGE).toBe(100);
-
-    expect(() =>
-      serverEnvSchema.parse({ MONAD_LOGS_BLOCK_RANGE: "0" }),
-    ).toThrow();
   });
 });

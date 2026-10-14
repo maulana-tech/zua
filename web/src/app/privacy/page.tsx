@@ -6,9 +6,9 @@ import type { ReactNode } from "react";
 import { Footer } from "@/components/landing/Footer";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | Meaw",
+  title: "Privacy Policy | Zua",
   description:
-    "Learn how Meaw collects, uses, protects, and shares personal data.",
+    "Learn how Zua collects, uses, protects, and shares personal data.",
 };
 
 const SECTIONS = [
@@ -56,7 +56,7 @@ const purposeRows = [
   [
     "Carry out identity/business verification and determine passport eligibility",
     "Verification submissions, results, business relationships, and case records",
-    "[IDENTIFY THE BASIS FOR EACH CHECK; CITE ANY APPLICABLE LEGAL OBLIGATION. DO NOT ASSUME ALL KYC IS LEGALLY MANDATED FOR MAWEE.]",
+    "[IDENTIFY THE BASIS FOR EACH CHECK; CITE ANY APPLICABLE LEGAL OBLIGATION. DO NOT ASSUME ALL KYC IS LEGALLY MANDATED FOR ZUA.]",
   ],
   [
     "Publish a Business Passport at an authorized user's request",
@@ -100,38 +100,38 @@ const providerRows = [
   [
     "Sumsub",
     "Configured identity and business verification; verification submissions, technical information, and results.",
-    "Processor for checks performed on Meaw’s instructions; independent controller for specified own-purpose processing described in its notice.",
+    "Processor for checks performed on Zua’s instructions; independent controller for specified own-purpose processing described in its notice.",
     "[CONFIRM CONTRACTED ENTITY, ENABLED CHECKS, DATA REGION, AND TRANSFER SAFEGUARDS]",
   ],
   [
-    "Monad network and RPC providers",
-    "Submitting and reading Monad transactions; public blockchain transactions, addresses, amounts, and encrypted note data.",
-    "Public network and infrastructure services; Meaw separately processes its own payment-session records.",
+    "Zcash network and lightwalletd providers",
+    "Syncing the wallet and broadcasting Zcash transactions; your IP address and the blocks your wallet requests. Shielded transaction contents stay encrypted.",
+    "Public network and infrastructure services; Zua separately processes its own payment-session records.",
     "Public blockchain information is distributed across network participants. [CONFIRM RPC PROVIDER, SERVICE TERMS, AND OFF-CHAIN PROCESSING LOCATIONS]",
   ],
   [
     "Application hosting",
-    "Meaw-operated application services deployed to a virtual private server; service requests, account data, and operational information.",
-    "Meaw controls application processing; the infrastructure provider’s role is governed by the hosting arrangement.",
+    "Zua-operated application services deployed to a virtual private server; service requests, account data, and operational information.",
+    "Zua controls application processing; the infrastructure provider’s role is governed by the hosting arrangement.",
     "[CONFIRM VPS PROVIDER, SERVER COUNTRY/REGION, AND TRANSFER SAFEGUARDS]",
   ],
   [
     "Database hosting",
     "MongoDB storage for account, payment, verification, and operational records.",
-    "Meaw controls database processing. MongoDB identifies the database technology, not necessarily the hosting provider.",
+    "Zua controls database processing. MongoDB identifies the database technology, not necessarily the hosting provider.",
     "[CONFIRM SELF-HOSTED OR MANAGED DATABASE, HOSTING PROVIDER, REGION, AND SAFEGUARDS]",
   ],
   [
     "Operational logs and backups",
     "Application/container logs and database recovery copies. Deployment configuration uses size-based log rotation; backup arrangements require confirmation.",
-    "Meaw manages operational processing; any external storage provider’s role depends on the actual arrangement.",
+    "Zua manages operational processing; any external storage provider’s role depends on the actual arrangement.",
     "[CONFIRM LOG ACCESS, BACKUP PROVIDER/LOCATION, RETENTION, AND SAFEGUARDS]",
   ],
   [
     "Google Gmail — company contact mailbox",
     "Support and privacy correspondence sent to ptpentahelixsistemterpercaya@gmail.com, including sender details, messages, and attachments.",
     "Email service supporting the company contact mailbox; applicable account terms determine the provider’s responsibilities.",
-    "[CONFIRM ACCOUNT TERMS AND TRANSFER ARRANGEMENTS; CONFIRM THE SEPARATE MAWEE-DOMAIN EMAIL HOST]",
+    "[CONFIRM ACCOUNT TERMS AND TRANSFER ARRANGEMENTS; CONFIRM THE SEPARATE ZUA-DOMAIN EMAIL HOST]",
   ],
 ] as const;
 
@@ -193,11 +193,11 @@ export default function PrivacyPolicyPage() {
           </div>
           <Link
             href="/"
-            aria-label="Meaw home"
+            aria-label="Zua home"
             className="shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-linen"
           >
             <Image
-              src="/assets/mawee-white.svg"
+              src="/assets/zua-white.svg"
               alt=""
               width={72}
               height={72}
@@ -215,7 +215,7 @@ export default function PrivacyPolicyPage() {
               Privacy Policy
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-olive-deep sm:text-lg">
-              How Meaw processes personal data across accounts, payments,
+              How Zua processes personal data across accounts, payments,
               verification, and Business Passport services.
             </p>
             <dl className="mt-10 flex flex-col gap-4 border-t border-line pt-6 text-sm sm:flex-row sm:gap-12">
@@ -263,11 +263,10 @@ export default function PrivacyPolicyPage() {
               <p>
                 This Privacy Policy explains how{" "}
                 <strong>PT PENTAHELIX SISTEM TERPERCAYA</strong>, trading as{" "}
-                <strong>Meaw</strong> (&quot;Meaw,&quot; &quot;we,&quot;
+                <strong>Zua</strong> (&quot;Zua,&quot; &quot;we,&quot;
                 &quot;us,&quot; or &quot;our&quot;), processes personal data
-                when you use mawee.xyz and our related account, payment,
-                verification, and Business Passport services (the
-                &quot;Services&quot;).
+                when you use Zua and our related account, payment, verification,
+                and Business Passport services (the &quot;Services&quot;).
               </p>
               <p>
                 The entity responsible for determining the purposes and means of
@@ -308,10 +307,10 @@ export default function PrivacyPolicyPage() {
                 route is available to every user.
               </p>
               <p>
-                Meaw uses privacy technologies to reduce unnecessary public
+                Zua uses privacy technologies to reduce unnecessary public
                 exposure of payment information. These technologies do not
                 guarantee anonymity or prevent all links between accounts,
-                identities, and transactions. Information visible to Meaw or a
+                identities, and transactions. Information visible to Zua or a
                 service provider can differ from information visible on a public
                 blockchain.
               </p>
@@ -352,7 +351,7 @@ export default function PrivacyPolicyPage() {
                 </p>
                 <p>
                   Sumsub collects and processes verification submissions through
-                  the configured verification flow. Meaw receives and stores
+                  the configured verification flow. Zua receives and stores
                   verification metadata, including applicant and case
                   identifiers, status, check timestamps, rejection labels,
                   associated-person references and roles, and moderation
@@ -364,7 +363,7 @@ export default function PrivacyPolicyPage() {
                 </p>
                 <p>
                   Documents and selfies submitted through Sumsub are handled in
-                  its verification environment. This does not mean that Meaw
+                  its verification environment. This does not mean that Zua
                   receives only a yes/no result or can never process information
                   contained in a verification case.
                 </p>
@@ -379,7 +378,7 @@ export default function PrivacyPolicyPage() {
                   configured checks.
                 </p>
                 <p>
-                  Meaw does not use verification documents or biometric
+                  Zua does not use verification documents or biometric
                   information for advertising. Where separate consent is
                   required for biometric processing, it must be obtained before
                   that processing begins. Required notices explain the relevant
@@ -399,7 +398,7 @@ export default function PrivacyPolicyPage() {
                   An automated flag or screening match does not by itself
                   establish wrongdoing. Not every screening or
                   transaction-monitoring product offered by a provider is
-                  necessarily enabled for Meaw.
+                  necessarily enabled for Zua.
                 </p>
               </Subsection>
               <Subsection title="Wallet, payment, and blockchain information">
@@ -415,13 +414,13 @@ export default function PrivacyPolicyPage() {
                   customer information, such as contact details, and may
                   generate records linking a user or username with a payment
                   amount and transaction reference. Some session information is
-                  encrypted in storage but can be decrypted by Meaw&apos;s
+                  encrypted in storage but can be decrypted by Zua&apos;s
                   service to operate the transaction.
                 </p>
               </Subsection>
               <Subsection title="Wallet recovery and device storage">
                 <p>
-                  For the supported recovery flow, Meaw stores an encrypted
+                  For the supported recovery flow, Zua stores an encrypted
                   wallet recovery master together with the salt and
                   key-derivation parameters needed for recovery. The application
                   uses your recovery credentials to perform the relevant
@@ -479,8 +478,7 @@ export default function PrivacyPolicyPage() {
                 director, beneficial owner, or another person, you must have
                 appropriate authority or another lawful basis to provide it and
                 give them the relevant privacy information. This does not remove
-                Meaw&apos;s own responsibility to provide notices where
-                required.
+                Zua&apos;s own responsibility to provide notices where required.
               </p>
             </PolicySection>
 
@@ -517,13 +515,13 @@ export default function PrivacyPolicyPage() {
               title="Verification through Sumsub"
             >
               <p>
-                Meaw integrates with Sumsub for the identity and business
+                Zua integrates with Sumsub for the identity and business
                 verification checks configured for the relevant product. The
                 verification flow identifies the information required and
                 presents the relevant notices and consents before submission.
               </p>
               <p>
-                For processing undertaken on Meaw&apos;s instructions, the
+                For processing undertaken on Zua&apos;s instructions, the
                 respective responsibilities are governed by our agreement with
                 the provider. Sumsub may also act as an independent controller
                 for particular processing described in its applicable notice.
@@ -546,7 +544,7 @@ export default function PrivacyPolicyPage() {
               </p>
               <p>
                 Sumsub&apos;s SDK handles provider consent collection within its
-                supported flow. Meaw remains responsible for its own applicable
+                supported flow. Zua remains responsible for its own applicable
                 transparency and consent requirements. Where required,
                 additional notices or consent are presented separately.
                 Acceptance records must be available to demonstrate the relevant
@@ -556,7 +554,7 @@ export default function PrivacyPolicyPage() {
                 If you decline information or consent necessary for a particular
                 check, that check may not be completed and the associated
                 feature or passport may be unavailable. This does not
-                automatically mean that every Meaw service is unavailable.
+                automatically mean that every Zua service is unavailable.
               </p>
             </PolicySection>
 
@@ -566,9 +564,9 @@ export default function PrivacyPolicyPage() {
               title="Business Passport and public profiles"
             >
               <p>
-                The current Business Passport is a Meaw-issued
+                The current Business Passport is a Zua-issued
                 identity-verification status displayed through a hosted public
-                page. Sumsub performs configured checks; Meaw applies its
+                page. Sumsub performs configured checks; Zua applies its
                 credential policy to determine eligibility.
               </p>
               <p>
@@ -605,7 +603,7 @@ export default function PrivacyPolicyPage() {
               <p>
                 Eligibility is reassessed over time. A passport may become
                 unavailable when unpublished, suspended, stale, or expired.
-                Unpublishing removes public availability through Meaw&apos;s
+                Unpublishing removes public availability through Zua&apos;s
                 passport response; it does not delete internal verification
                 records or remove copies already held by others.
               </p>
@@ -624,7 +622,7 @@ export default function PrivacyPolicyPage() {
             >
               <p>
                 Public blockchain records are replicated by independent network
-                participants. Meaw cannot generally erase, amend, or control
+                participants. Zua cannot generally erase, amend, or control
                 their copies.
               </p>
               <p>
@@ -639,14 +637,14 @@ export default function PrivacyPolicyPage() {
               <p>
                 Privacy mechanisms can reduce particular links between
                 transactions but do not conceal every amount or all activity.
-                Meaw and enabled payment providers may hold off-chain records
+                Zua and enabled payment providers may hold off-chain records
                 that connect accounts or business information with transactions.
               </p>
               <p>
                 Do not add identification numbers, private keys, recovery
                 credentials, or unnecessary personal information to public
                 transaction fields. Ordinary identity verification does not
-                require you to give Meaw or Sumsub your wallet seed phrase or
+                require you to give Zua or Sumsub your wallet seed phrase or
                 private key.
               </p>
             </PolicySection>
@@ -672,7 +670,7 @@ export default function PrivacyPolicyPage() {
               <p>
                 Share disclosures only with recipients you intend to receive
                 them. A recipient can retain or redistribute a downloaded
-                export. Meaw cannot revoke copies already received. The bundle
+                export. Zua cannot revoke copies already received. The bundle
                 does not contain the wallet owner secret or recovery master.
               </p>
             </PolicySection>
@@ -734,8 +732,8 @@ export default function PrivacyPolicyPage() {
               <p>
                 Third parties acting independently may process information under
                 their own notices. Their independent role does not remove
-                Meaw&apos;s responsibility for disclosures or processing under
-                Meaw&apos;s control.
+                Zua&apos;s responsibility for disclosures or processing under
+                Zua&apos;s control.
               </p>
             </PolicySection>
 
@@ -745,7 +743,7 @@ export default function PrivacyPolicyPage() {
               title="Advertising and sale of information"
             >
               <p>
-                Meaw does not sell personal data for monetary consideration or
+                Zua does not sell personal data for monetary consideration or
                 use KYC documents, biometric information, private payment
                 records, or non-public financial history for third-party
                 behavioral advertising.
@@ -811,14 +809,14 @@ export default function PrivacyPolicyPage() {
               <p>
                 Unpublishing or suspending a passport does not itself delete
                 verification data. Deletion requests are assessed across
-                Meaw&apos;s records and information processed on our behalf by
+                Zua&apos;s records and information processed on our behalf by
                 providers. Provider-independent processing may require a
                 separate request or explanation of the provider&apos;s
                 obligations.
               </p>
               <p>
                 Public blockchain records and copies independently retained by
-                disclosure recipients are not generally deletable by Meaw. We
+                disclosure recipients are not generally deletable by Zua. We
                 explain these limits when responding to relevant requests.
               </p>
             </PolicySection>
@@ -833,7 +831,7 @@ export default function PrivacyPolicyPage() {
                 involved. The architecture includes encrypted recovery records
                 and encrypted fields for some payment-session information, but
                 this does not mean that every record is encrypted in every
-                location or inaccessible to Meaw.
+                location or inaccessible to Zua.
               </p>
               <p>
                 No online service, device, or cryptographic system guarantees
@@ -857,7 +855,7 @@ export default function PrivacyPolicyPage() {
               <p>
                 Configured verification processes use automated checks, which
                 may include document checks, facial matching, liveness, and
-                screening. Meaw also applies credential eligibility rules based
+                screening. Zua also applies credential eligibility rules based
                 on verification results and their freshness. These can prevent
                 publication, require further information, or make an existing
                 passport unavailable.
@@ -994,7 +992,7 @@ export default function PrivacyPolicyPage() {
               <p>
                 If additional jurisdiction-specific notices or rights apply, we
                 provide the necessary information for those services and users.
-                This Policy does not itself establish that Meaw offers services
+                This Policy does not itself establish that Zua offers services
                 in the EEA, United Kingdom, United States, or every other
                 jurisdiction.
               </p>
@@ -1013,7 +1011,7 @@ export default function PrivacyPolicyPage() {
               </p>
               <p>For questions, requests, or complaints, contact:</p>
               <address className="not-italic">
-                <strong>Meaw Privacy Team</strong>
+                <strong>Zua Privacy Team</strong>
                 <br />
                 PT PENTAHELIX SISTEM TERPERCAYA
                 <br />
@@ -1031,7 +1029,7 @@ export default function PrivacyPolicyPage() {
 
             <div className="mt-16 border-t border-line pt-8">
               <a
-                href="mailto:hello@mawee.xyz"
+                href="mailto:[CONTACT EMAIL]"
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-ed-dark bg-ed-dark px-3 text-center text-sm font-semibold tracking-[0.02em] !text-ed-cream transition-opacity hover:!text-ed-cream hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ed-dark focus-visible:ring-offset-2 focus-visible:ring-offset-paper sm:px-5"
               >
                 <Mail className="size-4" aria-hidden="true" />
@@ -1116,7 +1114,7 @@ function ContactLinks() {
       <a href="mailto:ptpentahelixsistemterpercaya@gmail.com">
         ptpentahelixsistemterpercaya@gmail.com
       </a>{" "}
-      / <a href="mailto:hello@mawee.xyz">hello@mawee.xyz</a>
+      / <a href="mailto:[CONTACT EMAIL]">[CONTACT EMAIL]</a>
     </>
   );
 }

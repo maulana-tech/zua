@@ -29,7 +29,7 @@ describe("NotFound", () => {
       "href",
       "/",
     );
-    expect(screen.getByRole("link", { name: "Meaw home" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Zua home" })).toHaveAttribute(
       "href",
       "/",
     );

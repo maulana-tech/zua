@@ -4,8 +4,8 @@ import { type Db, MongoClient } from "mongodb";
 // Real-Mongo tests run against a uniquely named, disposable database on the
 // local server (never the configured application database). Dispose drops
 // only a database this helper created.
-const PREFIX = "mawee_test_";
-const URI = process.env.MAWEE_TEST_MONGODB_URI ?? "mongodb://localhost:27017";
+const PREFIX = "zua_test_";
+const URI = process.env.ZUA_TEST_MONGODB_URI ?? "mongodb://localhost:27017";
 
 export type IsolatedDb = {
   db: Db;

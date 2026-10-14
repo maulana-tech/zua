@@ -53,11 +53,11 @@ describe("zip321", () => {
   it("round-trips UTF-8 memos and omits the amount when open", () => {
     const uri = buildPaymentUri({
       address: SPEC_ADDR,
-      memo: "zapp:inv:7Kq2mZp9Xa ☕",
+      memo: "zua:inv:7Kq2mZp9Xa ☕",
       label: "@dinar",
     });
     expect(uri).not.toContain("amount=");
-    expect(parsePaymentUri(uri).memo).toBe("zapp:inv:7Kq2mZp9Xa ☕");
+    expect(parsePaymentUri(uri).memo).toBe("zua:inv:7Kq2mZp9Xa ☕");
     expect(parsePaymentUri(uri).label).toBe("@dinar");
   });
   it("refuses multi-payment and unknown required params", () => {
@@ -71,13 +71,13 @@ describe("zip321", () => {
 describe("memo tags", () => {
   it("formats and parses app tags, tolerating trailing text", () => {
     const tag = formatMemoTag({ kind: "inv", id: "7Kq2mZp9Xa" });
-    expect(tag).toBe("zapp:inv:7Kq2mZp9Xa");
+    expect(tag).toBe("zua:inv:7Kq2mZp9Xa");
     expect(parseMemoTag(`${tag} thanks!`)).toEqual({
       kind: "inv",
       id: "7Kq2mZp9Xa",
     });
     expect(parseMemoTag("thanks for the logo")).toBeNull();
-    expect(parseMemoTag("zapp:xyz:7Kq2mZp9Xa")).toBeNull();
+    expect(parseMemoTag("zua:xyz:7Kq2mZp9Xa")).toBeNull();
   });
   it("makes random base62 ids", () => {
     expect(newMemoId()).toMatch(/^[0-9A-Za-z]{12}$/);

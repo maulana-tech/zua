@@ -1,12 +1,10 @@
 // @vitest-environment node
 
-import { ownerPk, R, toBE32, viewPubkey } from "../src/lib/crypto";
 import {
   assertPin,
   DEFAULT_KDF,
   decryptMaster,
   deriveMasterFromPrf,
-  deriveNoteSecrets,
   deserializeEscrow,
   encryptMaster,
   randomMaster,
@@ -15,6 +13,7 @@ import {
   verifyEscrowPin,
 } from "../src/lib/keys";
 import { BadPinError } from "../src/lib/pin-errors";
+import { mnemonicFromMaster } from "../src/lib/zcash/seed";
 
 const PRF = new Uint8Array(32).fill(0x11);
 
@@ -45,29 +44,6 @@ describe("deriveMasterFromPrf", () => {
     );
     expect(otherPin).not.toEqual(base);
     expect(otherPrf).not.toEqual(base);
-  });
-});
-
-describe("deriveNoteSecrets", () => {
-  it("derives an in-field owner secret and a usable view key, deterministically", () => {
-    const master = deriveMasterFromPrf(PRF, "123456");
-    const a = deriveNoteSecrets(master);
-    const b = deriveNoteSecrets(master);
-
-    expect(a.ownerSecret).toBe(b.ownerSecret);
-    expect(a.ownerSecret).toBeGreaterThan(0n);
-    expect(a.ownerSecret).toBeLessThan(R);
-    expect(a.viewSk).toEqual(b.viewSk);
-    expect(a.viewSk.length).toBe(32);
-    // view secret is a valid x25519 key (public key derives without throwing).
-    expect(viewPubkey(a.viewSk).length).toBe(32);
-  });
-
-  it("yields different secrets for different masters", () => {
-    const s1 = deriveNoteSecrets(deriveMasterFromPrf(PRF, "111111"));
-    const s2 = deriveNoteSecrets(deriveMasterFromPrf(PRF, "222222"));
-    expect(s1.ownerSecret).not.toBe(s2.ownerSecret);
-    expect(s1.viewSk).not.toEqual(s2.viewSk);
   });
 });
 
@@ -106,22 +82,16 @@ describe("escrow rotation", () => {
     expect(() => verifyEscrowPin(current, "654321")).toThrow(BadPinError);
   }, 20_000);
 
-  it("re-wraps the same master and derived keys with fresh salt and ciphertext", async () => {
+  it("re-wraps the same master and wallet seed with fresh salt and ciphertext", () => {
     const master = randomMaster();
     const current = serializeEscrow(encryptMaster(master, "123456"));
-    const before = deriveNoteSecrets(master);
+    const before = mnemonicFromMaster(master);
 
     const rotated = rotateEscrow(current, "123456", "654321");
     const recovered = decryptMaster(deserializeEscrow(rotated), "654321");
-    const after = deriveNoteSecrets(recovered);
 
     expect(recovered).toEqual(master);
-    expect(after.ownerSecret).toBe(before.ownerSecret);
-    expect(after.viewSk).toEqual(before.viewSk);
-    expect(toBE32(await ownerPk(after.ownerSecret))).toEqual(
-      toBE32(await ownerPk(before.ownerSecret)),
-    );
-    expect(viewPubkey(after.viewSk)).toEqual(viewPubkey(before.viewSk));
+    expect(mnemonicFromMaster(recovered)).toBe(before);
     expect(rotated.masterSaltHex).not.toBe(current.masterSaltHex);
     expect(rotated.encryptedMasterHex).not.toBe(current.encryptedMasterHex);
     expect(() => decryptMaster(deserializeEscrow(rotated), "123456")).toThrow();

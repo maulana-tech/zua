@@ -3,7 +3,7 @@
 import { Check, ChevronRight, Copy, ExternalLink, QrCode } from "lucide-react";
 import Link from "next/link";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { InstallMeaw } from "../../features/pwa/InstallMeaw";
+import { InstallApp } from "../../features/pwa/InstallApp";
 import { LINKS_PATH } from "../../lib/auth-routes";
 import { APP_NAME } from "../../lib/brand";
 import { unlockLabel } from "../../lib/passkey";
@@ -47,7 +47,7 @@ export function Dashboard() {
         description="Your shielded ZEC balance, payment link and recent activity."
       />
 
-      <InstallMeaw />
+      <InstallApp />
 
       {needsUsername ? (
         <div className="mb-4 flex flex-col gap-4 rounded-(--dash-radius) border border-(--dash-line-solid) bg-(--dash-surface) p-5 sm:flex-row sm:items-center sm:justify-between">

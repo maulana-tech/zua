@@ -9,10 +9,10 @@ import { ServiceWorkerRegistration } from "../features/pwa/ServiceWorkerRegistra
 import { TRPCReactProvider } from "../trpc/react";
 
 export const metadata: Metadata = {
-  title: "Meaw: private USDC payments",
+  title: "Zua: shielded Zcash payments",
   description:
-    "Confidential USDC payment links on Monad. Private by default, provable on demand.",
-  appleWebApp: { capable: true, title: "Meaw", statusBarStyle: "default" },
+    "Get paid in ZEC with a link or invoice. Shielded by Zcash: private by default, provable on demand.",
+  appleWebApp: { capable: true, title: "Zua", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

@@ -33,7 +33,7 @@ export function buildEmailHtml(params: EmailContent): string {
   <table align="center" width="100%" style="max-width:540px;background-color:#1d1b16;border:1px solid #33312c;border-radius:10px;padding:32px;border-collapse:separate;">
     <tr>
       <td style="padding-bottom:24px;border-bottom:1px solid #33312c;">
-        <span style="font-size:18px;font-weight:700;letter-spacing:0.05em;color:#faf7f0;">MEAW</span>
+        <span style="font-size:18px;font-weight:700;letter-spacing:0.05em;color:#faf7f0;">ZUA</span>
       </td>
     </tr>
     <tr>
@@ -67,7 +67,7 @@ export function buildEmailHtml(params: EmailContent): string {
 }
 
 export function buildEmailText(params: EmailContent): string {
-  const parts = [`MEAW - ${params.title}`, "", params.message];
+  const parts = [`ZUA - ${params.title}`, "", params.message];
   if (params.actionLabel && params.actionUrl) {
     parts.push("", `${params.actionLabel}: ${params.actionUrl}`);
   }
@@ -85,7 +85,7 @@ export async function sendEmail(
     return { ok: false, reason: "not_configured" };
   }
 
-  const from = env.EMAIL_FROM || "Meaw <hello@meaw.xyz>";
+  const from = env.EMAIL_FROM || "Zua <onboarding@resend.dev>";
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 5000);
 

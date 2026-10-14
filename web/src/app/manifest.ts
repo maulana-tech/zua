@@ -3,9 +3,9 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "Meaw",
-    short_name: "Meaw",
-    description: "Private stablecoin payments on Monad.",
+    name: "Zua",
+    short_name: "Zua",
+    description: "Shielded ZEC payment links and invoices.",
     start_url: "/dashboard",
     scope: "/",
     display: "standalone",

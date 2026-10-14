@@ -5,39 +5,39 @@ import { Frame, MonoLabel } from "./primitives";
 
 const FAQ_ITEMS = [
   {
-    question: "Do my clients need to use Meaw?",
+    question: "Do my clients need to use Zua?",
     answer:
-      "No. They open your link and pay in USDC from the wallet they already use, like MetaMask. They only sign — Meaw covers the network fee.",
+      "No. They open your link and scan the QR code with any Zcash wallet, like Zodl. The network fee is a fraction of a cent.",
   },
   {
     question: "What stays private?",
     answer:
-      "Who paid you, how much you've earned, and your payment history. Each payment becomes an encrypted note that only your keys can read. Two things stay visible on-chain: that a payment entered the pool, and the amount and destination when you withdraw.",
+      "Who paid you, how much, and your whole payment history. Shielded Zcash transactions encrypt the sender, recipient, amount and memo, so only your keys can read them. If you cash out to a transparent address (for example an exchange), that one payment becomes public.",
   },
   {
     question: "Can I still prove I received a payment?",
     answer:
-      "Yes. Export a receipt for any single payment. It proves that payment happened — for your accountant, bank, auditor, or tax office — without revealing any of your other payments.",
+      "Yes. Every invoice has a PDF receipt once it is paid, with the transaction id, so your accountant can check that single payment without seeing the rest.",
   },
   {
     question: "What happens if I lose my phone or laptop?",
     answer:
-      "Sign in on a new device. If you chose a passkey, unlock with the same passkey (synced by iCloud Keychain, Google Password Manager, or 1Password) and your balance reappears. If you chose a PIN, enter your PIN.",
+      "Sign in on a new device and unlock with the same synced passkey or your PIN; your wallet syncs back from the blockchain. You can also export your 24 words to any Zcash wallet as a backup.",
   },
   {
-    question: "How is Meaw different from a crypto mixer?",
+    question: "How is Zua different from a crypto mixer?",
     answer:
-      "Mixers hide where money came from with no practical way to prove a single transaction. Meaw is built for business: routine payments stay private, and you can prove any specific payment whenever you need to.",
+      "Zua is not a mixer. It uses Zcash's built-in shielded pool, the same privacy every Zcash wallet has, and adds what a business needs on top: usernames, payment links, invoices and receipts.",
   },
   {
     question: "Why not just use a new wallet for every payment?",
     answer:
-      "It gets unmanageable fast, and moving funds between those wallets still reveals the pattern on a public blockchain. Meaw gives you one link and one balance, with privacy built in.",
+      "It gets unmanageable fast, and moving funds between those wallets still reveals the pattern on a public blockchain. Zua gives you one link and one balance, with privacy built in.",
   },
   {
-    question: "Why Monad?",
+    question: "Why Zcash?",
     answer:
-      "Monad is fully EVM-compatible with sub-second finality and low fees, so a private payment settles almost instantly and the zero-knowledge proof checks stay cheap enough for everyday payments.",
+      "Zcash has the most battle-tested shielded payments: zero-knowledge proofs (Halo 2, no trusted setup) hide every detail of a payment, and wallets like Zodl already speak the same payment-request format Zua uses.",
   },
 ] as const;
 

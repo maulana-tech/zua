@@ -8,7 +8,7 @@ import { parseMemoTag, sanitizeMemo } from "../../lib/zcash/memo";
 import { explorerTxUrl } from "../../lib/zcash/network";
 import { zatToZec } from "../../lib/zcash/units";
 import type { WalletTx } from "../../lib/zcash/wallet";
-import { MeawMascot } from "../MeawMascot";
+import { Mascot } from "../Mascot";
 import { dashFocus } from "./styles";
 
 const TABS = ["All", "Received", "Sent"] as const;
@@ -114,7 +114,7 @@ export function ActivityFeed({
         </ul>
       ) : rows.length === 0 ? (
         <div className="py-10">
-          <MeawMascot size={56} className="mb-4" />
+          <Mascot size={56} className="mb-4" />
           <p className="max-w-sm text-sm leading-6 text-(--dash-ash)">
             {tab === "All"
               ? "No payments yet. Share your payment link to receive your first."

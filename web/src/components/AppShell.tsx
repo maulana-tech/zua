@@ -108,10 +108,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           <DashboardShell contentClassName="flex min-h-svh max-w-3xl flex-col">
             <header className="grid min-w-0 grid-cols-[1fr_auto_1fr] items-center">
               <BackLink className="justify-self-start" />
-              <Link href="/" aria-label="Meaw home">
+              <Link href="/" aria-label="Zua home">
                 <Image
-                  src="/assets/mawee-white.svg"
-                  alt="Meaw"
+                  src="/assets/zua-white.svg"
+                  alt="Zua"
                   width={40}
                   height={40}
                   className="size-16"
