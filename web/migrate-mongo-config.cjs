@@ -1,6 +1,6 @@
 const config = {
   mongodb: {
-    url: process.env.MONGODB_URI || "mongodb://localhost:27017/mawee",
+    url: process.env.MONGODB_URI || "mongodb://localhost:27017/zcash-app",
     databaseName: undefined,
     options: {},
   },

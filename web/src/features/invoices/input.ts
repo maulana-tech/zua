@@ -1,13 +1,14 @@
 import { z } from "zod";
+import { zecToZat } from "../../lib/zcash/units";
 import type { InvoiceState } from "./types";
+
+const MAX_ZAT = 21_000_000n * 100_000_000n;
 
 const unitPrice = z
   .string()
   .trim()
-  .regex(
-    /^\d{1,14}(\.\d{1,6})?$/,
-    "Use a nonnegative price with up to 6 decimal places.",
-  );
+  .regex(/^\d{1,8}(\.\d{1,8})?$/, "Use a ZEC price with up to 8 decimals.");
+
 const line = z
   .object({
     description: z.string().trim().min(1).max(200),
@@ -15,33 +16,28 @@ const line = z
     unitPrice,
   })
   .strict();
-export function invoicePriceUnits(value: string): bigint {
-  const [whole, fraction = ""] = value.split(".");
-  return BigInt(whole) * 1_000_000n + BigInt(fraction.padEnd(6, "0"));
-}
+
 export function invoiceTotal(
   items: { quantity: number; unitPrice: string }[],
 ): bigint {
   return items.reduce(
-    (total, item) =>
-      total + BigInt(item.quantity) * invoicePriceUnits(item.unitPrice),
+    (total, item) => total + BigInt(item.quantity) * zecToZat(item.unitPrice),
     0n,
   );
 }
+
 export const invoiceInput = z
   .object({
-    username: z
-      .string()
-      .trim()
-      .toLowerCase()
-      .regex(/^[a-z0-9_]{3,32}$/),
     number: z
       .string()
       .trim()
       .toUpperCase()
       .regex(/^[A-Z0-9][A-Z0-9._/-]{0,39}$/, "Enter an invoice number."),
     clientName: z.string().trim().min(1).max(120),
-    asset: z.enum(["USDC", "AUSD"]),
+    clientEmail: z
+      .union([z.string().trim().email().max(200), z.literal("")])
+      .optional()
+      .transform((v) => v || null),
     dueDate: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -59,12 +55,14 @@ export const invoiceInput = z
   .refine((v) => {
     try {
       const total = invoiceTotal(v.items);
-      return total > 0n && total <= (1n << 64n) - 1n;
+      return total > 0n && total <= MAX_ZAT;
     } catch {
       return false;
     }
   }, "Invoice total must be positive and within the supported range.");
-export type InvoiceInput = z.infer<typeof invoiceInput>;
+
+export type InvoiceInput = z.input<typeof invoiceInput>;
+
 export function invoiceStatus(
   status: InvoiceState,
   dueDate: string,
@@ -74,6 +72,7 @@ export function invoiceStatus(
     ? "overdue"
     : status;
 }
+
 export const invoiceToken = z.string().regex(/^[A-Za-z0-9_-]{32}$/);
-export const invoiceId = z.string().uuid();
-export const invoiceHash = z.string().regex(/^0x[0-9a-fA-F]{64}$/);
+export const invoiceId = z.string().regex(/^[0-9A-Za-z]{8,24}$/);
+export const txidSchema = z.string().regex(/^[0-9a-f]{64}$/);

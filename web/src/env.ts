@@ -7,54 +7,28 @@ const optionalString = z.preprocess(
   emptyToUndefined,
   z.string().trim().min(1).optional(),
 );
-const optionalUrl = z.preprocess(
-  emptyToUndefined,
-  z.string().trim().url().optional(),
-);
-const optionalAddress = z.preprocess(
-  emptyToUndefined,
-  z
-    .string()
-    .trim()
-    .regex(/^0x[0-9a-fA-F]{40}$/, "must be a 0x-prefixed EVM address")
-    .optional(),
-);
 
 export const publicEnvSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
-  // 10143 = Monad testnet, 143 = Monad mainnet, 31337 = local Hardhat node.
-  NEXT_PUBLIC_MONAD_CHAIN_ID: z.preprocess(
+  // "main" = Zcash mainnet, "test" = testnet (also used for local regtest).
+  NEXT_PUBLIC_ZCASH_NETWORK: z.preprocess(
     emptyToUndefined,
-    z.coerce.number().int().positive().default(10143),
+    z.enum(["main", "test"]).default("main"),
   ),
-  NEXT_PUBLIC_MONAD_RPC_URL: optionalUrl,
-  NEXT_PUBLIC_MAWEE_REGISTRY_ADDRESS: optionalAddress,
-  NEXT_PUBLIC_MAWEE_POOL_ADDRESS: optionalAddress,
-  NEXT_PUBLIC_MAWEE_POOL_DEPLOY_BLOCK: z.preprocess(
+  // gRPC-web proxy in front of lightwalletd. A plain lightwalletd endpoint
+  // does not work from a browser.
+  NEXT_PUBLIC_LIGHTWALLETD_URL: z.preprocess(
     emptyToUndefined,
-    z.coerce.number().int().min(0).default(0),
+    z.string().trim().url().default("https://zcash-mainnet.chainsafe.dev"),
   ),
-  NEXT_PUBLIC_USDC_ADDRESS: optionalAddress,
-  NEXT_PUBLIC_USDC_DECIMALS: z.preprocess(
+  // Explorer link for a transaction; `{txid}` is replaced.
+  NEXT_PUBLIC_ZCASH_EXPLORER_TX_URL: optionalString,
+  // Confirmations before received funds count as spendable.
+  NEXT_PUBLIC_MIN_CONFIRMATIONS: z.preprocess(
     emptyToUndefined,
-    z.coerce.number().int().min(0).max(18).default(6),
-  ),
-  // True when the pool asset is the testnet MockUSDC anyone can mint.
-  NEXT_PUBLIC_USDC_MINTABLE: z.preprocess(
-    emptyToUndefined,
-    z
-      .enum(["true", "false"])
-      .default("false")
-      .transform((v) => v === "true"),
-  ),
-  // JSON pool manifest (one active pool plus optional legacy pools); see
-  // src/lib/pools.ts. Unset keeps the single-pool variables above.
-  NEXT_PUBLIC_MAWEE_POOLS: optionalString,
-  NEXT_PUBLIC_POOL_DEPTH: z.preprocess(
-    emptyToUndefined,
-    z.coerce.number().int().min(1).max(32).default(20),
+    z.coerce.number().int().min(1).max(100).default(3),
   ),
   NEXT_PUBLIC_PRIVY_APP_ID: optionalString,
 });
@@ -66,18 +40,11 @@ export const publicEnvSchema = z.object({
 export function getPublicEnv() {
   return publicEnvSchema.parse({
     NODE_ENV: process.env.NODE_ENV,
-    NEXT_PUBLIC_MONAD_CHAIN_ID: process.env.NEXT_PUBLIC_MONAD_CHAIN_ID,
-    NEXT_PUBLIC_MONAD_RPC_URL: process.env.NEXT_PUBLIC_MONAD_RPC_URL,
-    NEXT_PUBLIC_MAWEE_REGISTRY_ADDRESS:
-      process.env.NEXT_PUBLIC_MAWEE_REGISTRY_ADDRESS,
-    NEXT_PUBLIC_MAWEE_POOL_ADDRESS: process.env.NEXT_PUBLIC_MAWEE_POOL_ADDRESS,
-    NEXT_PUBLIC_MAWEE_POOL_DEPLOY_BLOCK:
-      process.env.NEXT_PUBLIC_MAWEE_POOL_DEPLOY_BLOCK,
-    NEXT_PUBLIC_USDC_ADDRESS: process.env.NEXT_PUBLIC_USDC_ADDRESS,
-    NEXT_PUBLIC_USDC_DECIMALS: process.env.NEXT_PUBLIC_USDC_DECIMALS,
-    NEXT_PUBLIC_USDC_MINTABLE: process.env.NEXT_PUBLIC_USDC_MINTABLE,
-    NEXT_PUBLIC_MAWEE_POOLS: process.env.NEXT_PUBLIC_MAWEE_POOLS,
-    NEXT_PUBLIC_POOL_DEPTH: process.env.NEXT_PUBLIC_POOL_DEPTH,
+    NEXT_PUBLIC_ZCASH_NETWORK: process.env.NEXT_PUBLIC_ZCASH_NETWORK,
+    NEXT_PUBLIC_LIGHTWALLETD_URL: process.env.NEXT_PUBLIC_LIGHTWALLETD_URL,
+    NEXT_PUBLIC_ZCASH_EXPLORER_TX_URL:
+      process.env.NEXT_PUBLIC_ZCASH_EXPLORER_TX_URL,
+    NEXT_PUBLIC_MIN_CONFIRMATIONS: process.env.NEXT_PUBLIC_MIN_CONFIRMATIONS,
     NEXT_PUBLIC_PRIVY_APP_ID: process.env.NEXT_PUBLIC_PRIVY_APP_ID,
   });
 }

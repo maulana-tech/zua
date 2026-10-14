@@ -1,30 +1,16 @@
 import type { inferRouterOutputs } from "@trpc/server";
-import { depositsRouter } from "./modules/deposits/deposits.router";
+import { accountsRouter } from "./modules/accounts/accounts.router";
 import { invoicesRouter } from "./modules/invoices/invoices.router";
 import { notificationsRouter } from "./modules/notifications/notifications.router";
 import { paymentLinksRouter } from "./modules/paymentLinks/paymentLinks.router";
-import { privacyKeysRouter } from "./modules/privacyKeys/privacyKeys.router";
-import { receiptsRouter } from "./modules/receipts/receipts.router";
-import { relayRouter } from "./modules/relay/relay.router";
-import { requestsRouter } from "./modules/requests/requests.router";
-import { sponsorshipRouter } from "./modules/sponsorship/sponsorship.router";
-import { transfersRouter } from "./modules/transfers/transfers.router";
-import { usernamesRouter } from "./modules/usernames/usernames.router";
-import { walletsRouter } from "./modules/wallets/wallets.router";
+import { profilesRouter } from "./modules/profiles/profiles.router";
 import { createTRPCRouter } from "./trpc";
 
 export const appRouter = createTRPCRouter({
-  invoices: invoicesRouter,
-  privacyKeys: privacyKeysRouter,
-  receipts: receiptsRouter,
-  deposits: depositsRouter,
-  usernames: usernamesRouter,
+  accounts: accountsRouter,
+  profiles: profilesRouter,
   paymentLinks: paymentLinksRouter,
-  wallets: walletsRouter,
-  relay: relayRouter,
-  sponsorship: sponsorshipRouter,
-  requests: requestsRouter,
-  transfers: transfersRouter,
+  invoices: invoicesRouter,
   notifications: notificationsRouter,
 });
 

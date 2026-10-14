@@ -1,176 +1,98 @@
-import { type Binary, type Collection, type Db, MongoClient } from "mongodb";
+import { type Collection, type Db, MongoClient } from "mongodb";
 import { getServerEnv } from "../../env.server";
 
-export type DepositDoc = {
-  _id: string; // `${scope}:${leafIndex}` (see deposits/poolScope.ts)
-  scope: string; // `${chainId}:${poolAddress}`
-  leafIndex: number;
-  commitment: Binary;
-  ephemeralPk: Binary;
-  ciphertext: Binary;
-  block: number;
-  txHash: string;
-  ts: Date;
-};
-
-export type UsernameDoc = {
-  _id: string; // lowercased username
-  owner: string; // checksummed EVM address
-  notePubkey: Binary;
-  viewPubkey: Binary;
+/** One account per Privy identity. Holds recovery metadata, never keys. */
+export type UserDoc = {
+  _id: string; // Privy user id
+  email?: string;
+  // PIN escrow: the account master encrypted under Argon2id(PIN).
+  escrow?: {
+    encryptedMasterHex: string;
+    masterSaltHex: string;
+    kdfParams: { m: number; t: number; p: number };
+    revision: number;
+  };
+  // Passkey recovery (PRF). Public data only: which credential to ask for and
+  // the profile signing key its master must reproduce.
+  passkey?: {
+    credentialId: string;
+    transports: string[];
+    signPubkeyHex: string;
+  };
   createdAt: Date;
-  updatedAt?: Date;
-  displayName?: string;
-  avatarUrl?: string;
-  bio?: string;
-};
-
-export type IndexerStateDoc = {
-  /** `pool:${scope}` per pool; bare "pool" only exists before migration. */
-  _id: "pool" | "registry" | `pool:${string}`;
-  /** Pool scope (`${chainId}:${poolAddress}`) the watermark belongs to. */
-  scope?: string;
-  publishedBlock?: number;
-  publishedLeafIndex?: number;
   updatedAt: Date;
-  indexedAt?: Date;
-  health?: "healthy" | "degraded";
-  lastError?: string;
-  leaseOwner?: string;
-  leaseUntil?: Date;
 };
 
-export type SpentNullifierDoc = {
-  _id: string; // `${scope}:${nullifierHex}` (see deposits/poolScope.ts)
-  scope: string;
-  nullifierHex: string; // no 0x
-  block: number;
-  txHash: string;
-  ts: Date;
+/** Public profile: @username → Zcash unified address, signed by its owner. */
+export type ProfileDoc = {
+  _id: string; // lowercase username
+  userId: string; // Privy user id
+  network: "main" | "test";
+  ua: string;
+  birthday: number;
+  signPubkeyHex: string; // Ed25519
+  claimJson: string; // canonical JSON of the signed claim
+  claimSigHex: string;
+  createdAt: Date;
 };
 
 export type PaymentLinkDoc = {
-  _id: string;
-  owner: string;
-  slug?: string;
-  amount: string | null;
-  asset?: import("../../lib/assets").AssetSymbol;
-  tokenDecimals?: number;
-  description?: string | null;
-  label: string | null;
-  state?: "active" | "archived";
-  status: "pending" | "paid";
-  manageTokenHash?: string; // sha-256 of the per-link manage capability token
-  createdAt: Date;
-  updatedAt?: Date;
-  archivedAt?: Date | null;
-};
-
-export type UserDoc = {
-  _id: string; // checksummed address of the user's Privy embedded wallet
-  privyUserId: string;
-  privyWalletId?: string;
-  encryptedMaster?: Binary;
-  masterSalt?: Binary;
-  kdfParams?: { m: number; t: number; p: number };
-  escrowRevision?: number;
-  // Passkey recovery (Mera PRF). All public: the credential to ask for and
-  // the viewing pubkey its derived keys must reproduce. No secret material.
-  passkeyCredentialId?: string;
-  passkeyTransports?: string[];
-  passkeyViewPubkey?: string;
+  _id: string; // memo id (base62)
+  owner: string; // username
+  slug: string;
+  title: string;
+  description: string | null;
+  amountZat: string | null; // null = payer chooses
+  state: "active" | "archived";
   createdAt: Date;
   updatedAt: Date;
 };
 
-export type RequestParticipantDoc = {
-  username: string;
-  wallet: string; // lowercase
-  notePubkey: string; // 0x-prefixed, lowercase
-  viewPubkey: string; // 0x-prefixed, lowercase
+export type InvoiceItem = {
+  description: string;
+  quantity: number;
+  unitZat: string;
 };
 
-export type RequestEnvelopeDoc = { ephemeralPk: Binary; ciphertext: Binary };
-
-/** Active payment reservation, embedded so reserve/cancel races are one atomic write. */
-export type RequestReservationDoc = {
-  sponsorshipStepLimit?: number;
-  sponsorshipAction?: import("../../features/sponsorship/types").ActionTicket;
-  sponsorshipPause?: import("../../features/sponsorship/types").UnavailableReason;
-  fundingGeneration?: number;
-  keyRevision?: number;
-  accountTicketId?: string;
-  attemptId: string;
-  phase:
-    | "preparing"
-    | "submitting"
-    | "submitted"
-    | "confirmed"
-    | "failed"
-    | "needsReconciliation";
-  updatedAt: Date;
-  completedMerges: number;
-  nextStep: number;
-  txHash: string | null;
-  relayWallet: string | null;
-  currentSubmission:
-    | import("../../features/requests/types").SignedSubmission
-    | null;
-  currentDigest: string | null;
-};
-
-/**
- * A private payment request. Holds only signed public metadata, the two
- * opaque fixed-size envelopes and public status: never a plaintext amount,
- * note, salt or decrypted payload.
- */
-export type PaymentRequestDoc = {
-  _id: string; // client-generated UUID v4
-  version: 1;
-  scope: string; // `${chainId}:${poolAddress}`
-  requesterWallet: string; // lowercase
-  addresseeWallet: string; // lowercase
-  requester: RequestParticipantDoc;
-  addressee: RequestParticipantDoc;
-  createdAt: Date; // the signed creation time
-  recipientCommitment: string; // 0x-prefixed, lowercase
-  requesterEnvelope: RequestEnvelopeDoc;
-  addresseeEnvelope: RequestEnvelopeDoc;
-  signature: string;
-  digest: string; // EIP-712 digest of the immutable record
-  status: "pending" | "paid" | "declined" | "cancelled";
-  revision: number;
-  operationId: string | null;
-  reservation: RequestReservationDoc | null;
-  receipt: { txHash: string; leafIndex: number; block: number } | null;
+export type InvoiceDoc = {
+  _id: string; // memo id (base62)
+  owner: string; // username
+  number: string;
+  token: string; // public capability for /i/<token>
+  clientName: string;
+  clientEmail: string | null;
+  items: InvoiceItem[];
+  totalZat: string;
+  notes: string;
+  dueDate: string; // YYYY-MM-DD
+  status: "pending" | "paid" | "void";
+  paidZat: string;
+  paidTxids: string[];
+  paidReportedAt: Date | null;
+  createdAt: Date;
   updatedAt: Date;
 };
 
 export type NotificationSettingsDoc = {
-  _id: string; // Checksummed EVM address (matches UserDoc._id)
-  privyUserId: string;
+  _id: string; // Privy user id
   email: string;
   enabled: boolean;
-  events: {
-    invoicePaid: boolean;
-    requestReceived: boolean;
-    requestPaid: boolean;
-  };
+  events: { invoicePaid: boolean; paymentPing: boolean };
   unsubscribeToken: string;
   createdAt: Date;
   updatedAt: Date;
 };
 
 export type NotificationLogDoc = {
-  _id: string; // Unique eventKey (e.g. "invoice-paid:<id>")
+  _id: string; // unique event key, e.g. "invoice-paid:<id>"
   recipientEmail: string;
-  eventType: "invoicePaid" | "requestReceived" | "requestPaid" | "test";
+  eventType: "invoicePaid" | "paymentPing" | "test";
   sentAt: Date;
 };
 
 declare global {
   // eslint-disable-next-line no-var
-  var _maweeMongoClientPromise: Promise<MongoClient> | undefined;
+  var _appMongoClientPromise: Promise<MongoClient> | undefined;
 }
 
 let clientPromise: Promise<MongoClient> | undefined;
@@ -183,72 +105,38 @@ function getClient(): Promise<MongoClient> {
   if (serverEnv.NODE_ENV === "production" && !configuredUri) {
     throw new Error("MONGODB_URI must be configured in production.");
   }
-  const uri = configuredUri || "mongodb://localhost:27017/mawee";
+  const uri = configuredUri || "mongodb://localhost:27017/zcash-app";
 
   if (serverEnv.NODE_ENV === "development") {
     // Reuse the connection across HMR reloads in dev.
-    if (!global._maweeMongoClientPromise) {
-      global._maweeMongoClientPromise = new MongoClient(uri).connect();
-    }
-    clientPromise = global._maweeMongoClientPromise;
+    global._appMongoClientPromise ??= new MongoClient(uri).connect();
+    clientPromise = global._appMongoClientPromise;
   } else {
     clientPromise = new MongoClient(uri).connect();
   }
   // Don't cache a failed connect, or one Mongo outage breaks every later request.
   clientPromise.catch(() => {
     clientPromise = undefined;
-    global._maweeMongoClientPromise = undefined;
+    global._appMongoClientPromise = undefined;
   });
   return clientPromise;
 }
 
 export async function getDb(): Promise<Db> {
-  const client = await getClient();
-  return client.db(); // resolves db name from the URI path (`mawee`)
+  return (await getClient()).db(); // database name from the URI path
 }
 
-export async function getDeposits(): Promise<Collection<DepositDoc>> {
-  return (await getDb()).collection<DepositDoc>("deposits");
-}
+const collection =
+  <T extends { _id: string }>(name: string) =>
+  async (): Promise<Collection<T>> =>
+    (await getDb()).collection<T>(name);
 
-export async function getUsernames(): Promise<Collection<UsernameDoc>> {
-  return (await getDb()).collection<UsernameDoc>("usernames");
-}
-
-export async function getIndexerState(): Promise<Collection<IndexerStateDoc>> {
-  return (await getDb()).collection<IndexerStateDoc>("indexer_state");
-}
-
-export async function getSpentNullifiers(): Promise<
-  Collection<SpentNullifierDoc>
-> {
-  return (await getDb()).collection<SpentNullifierDoc>("spent_nullifiers");
-}
-
-export async function getUsers(): Promise<Collection<UserDoc>> {
-  return (await getDb()).collection<UserDoc>("users");
-}
-
-export async function getPaymentLinks(): Promise<Collection<PaymentLinkDoc>> {
-  return (await getDb()).collection<PaymentLinkDoc>("payment_links");
-}
-
-export async function getPaymentRequests(): Promise<
-  Collection<PaymentRequestDoc>
-> {
-  return (await getDb()).collection<PaymentRequestDoc>("payment_requests");
-}
-
-export async function getNotificationSettings(): Promise<
-  Collection<NotificationSettingsDoc>
-> {
-  return (await getDb()).collection<NotificationSettingsDoc>(
-    "notification_settings",
-  );
-}
-
-export async function getNotificationLogs(): Promise<
-  Collection<NotificationLogDoc>
-> {
-  return (await getDb()).collection<NotificationLogDoc>("notification_logs");
-}
+export const getUsers = collection<UserDoc>("users");
+export const getProfiles = collection<ProfileDoc>("profiles");
+export const getPaymentLinks = collection<PaymentLinkDoc>("payment_links");
+export const getInvoices = collection<InvoiceDoc>("invoices");
+export const getNotificationSettings = collection<NotificationSettingsDoc>(
+  "notification_settings",
+);
+export const getNotificationLogs =
+  collection<NotificationLogDoc>("notification_logs");

@@ -1,180 +1,87 @@
 import { z } from "zod";
-import { env } from "../../../env";
-import { ASSET_SYMBOLS } from "../../../lib/assets";
-import { usernameSchema } from "../usernames/usernames.schema";
+import { zatToZec, zecToZat } from "../../../lib/zcash/units";
+import { usernameSchema } from "../profiles/profiles.schema";
 
-// Must match the client's toBaseUnits/fromBaseUnits. A hardcoded 7 (left over
-// from Stellar USDC) stored every fixed amount 10x too large.
-const USDC_DECIMALS = env.NEXT_PUBLIC_USDC_DECIMALS;
-const AMOUNT_PATTERN = new RegExp(`^\\d+(\\.\\d{0,${USDC_DECIMALS}})?$`);
+const MAX_ZAT = 21_000_000n * 100_000_000n;
 
-function decimalToBaseUnits(amount: string): bigint {
-  const [whole, frac = ""] = amount.trim().split(".");
-  const fracPadded = (frac + "0".repeat(USDC_DECIMALS)).slice(0, USDC_DECIMALS);
-  return (
-    BigInt(whole || "0") * 10n ** BigInt(USDC_DECIMALS) +
-    BigInt(fracPadded || "0")
-  );
-}
-
-const amountInput = z
+/** Decimal ZEC string in, zatoshi string out; empty means "payer chooses". */
+export const zecAmountInput = z
   .union([z.string(), z.null(), z.undefined()])
   .transform((value, ctx) => {
-    if (value === null || value === undefined || value.trim() === "")
-      return null;
-    const trimmed = value.trim();
-    if (!AMOUNT_PATTERN.test(trimmed)) {
-      ctx.addIssue({ code: "custom", message: "Enter a valid amount." });
-      return z.NEVER;
-    }
-    const units = decimalToBaseUnits(trimmed);
-    if (units <= 0n || units > (1n << 64n) - 1n) {
+    if (value == null || value.trim() === "") return null;
+    try {
+      const zat = zecToZat(value);
+      if (zat <= 0n || zat > MAX_ZAT) throw new Error("out of range");
+      return zat.toString();
+    } catch {
       ctx.addIssue({
         code: "custom",
-        message: "Amount is outside the supported range.",
+        message: "Enter a ZEC amount, e.g. 0.25.",
       });
       return z.NEVER;
     }
-    return units.toString();
   });
 
-const amountFormField = z
-  .union([z.string(), z.null(), z.undefined()])
-  .transform((value, ctx) => {
-    if (value === null || value === undefined || value.trim() === "")
-      return null;
-    const trimmed = value.trim();
-    if (!AMOUNT_PATTERN.test(trimmed)) {
-      ctx.addIssue({ code: "custom", message: "Enter a valid amount." });
-      return z.NEVER;
-    }
-    if (
-      decimalToBaseUnits(trimmed) <= 0n ||
-      decimalToBaseUnits(trimmed) > (1n << 64n) - 1n
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Amount is outside the supported range.",
-      });
-      return z.NEVER;
-    }
-    return trimmed;
-  });
-
-const slugInput = z
+export const slugSchema = z
   .string()
   .trim()
   .toLowerCase()
   .min(3, "Use at least 3 characters.")
-  .max(64, "Use 64 characters or fewer.")
+  .max(48, "Use 48 characters or fewer.")
   .regex(
     /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-    "Use lowercase letters, numbers, and single hyphens.",
+    "Use lowercase letters, numbers and single hyphens.",
   );
 
-const descriptionInput = z
-  .union([z.string().trim().max(500), z.null(), z.undefined()])
-  .transform((value) => {
-    if (value === null || value === undefined) return null;
-    return value || null;
-  });
-
-const labelInput = z
-  .union([z.string().trim().max(120), z.null(), z.undefined()])
-  .transform((value) => {
-    if (value === null || value === undefined) return undefined;
-    return value || undefined;
-  });
+const text = (max: number) =>
+  z
+    .union([z.string().trim().max(max), z.null(), z.undefined()])
+    .transform((v) => (v ? v : null));
 
 export const createLinkInput = z
   .object({
-    username: usernameSchema,
-    asset: z.enum(ASSET_SYMBOLS).default("USDC"),
-    slug: slugInput,
-    amount: amountInput,
-    description: descriptionInput,
-    label: labelInput.optional(),
-  })
-  .strict()
-  .transform(({ label, ...input }) => ({
-    ...input,
-    description: input.description ?? label ?? null,
-  }));
-
-// Client-form counterpart of createLinkInput; keeps the raw decimal amount.
-export const createLinkFormInput = z
-  .object({
-    username: usernameSchema,
-    asset: z.enum(ASSET_SYMBOLS).default("USDC"),
-    slug: slugInput,
-    amount: amountFormField,
-    description: descriptionInput,
+    slug: slugSchema,
+    title: z.string().trim().min(1, "Give the link a title.").max(80),
+    description: text(500),
+    amount: zecAmountInput,
   })
   .strict();
-
-export const getLinkInput = z
-  .object({ id: z.string().min(1).max(64) })
-  .strict();
-
-export const listByOwnerInput = z.object({ owner: usernameSchema }).strict();
-
-export const resolveLinkInput = z
-  .object({ owner: usernameSchema, slug: slugInput })
-  .strict();
-
-const manageTokenInput = z.string().min(1).max(128);
 
 export const updateLinkInput = z
   .object({
-    id: z.string().min(1).max(64),
-    manageToken: manageTokenInput,
-    amount: amountInput,
-    description: descriptionInput,
+    id: z.string().min(8).max(24),
+    title: z.string().trim().min(1).max(80),
+    description: text(500),
+    amount: zecAmountInput,
   })
   .strict();
 
 export const archiveLinkInput = z
-  .object({
-    id: z.string().min(1).max(64),
-    manageToken: manageTokenInput,
-    archived: z.boolean(),
-  })
+  .object({ id: z.string().min(8).max(24), archived: z.boolean() })
   .strict();
 
-export const deleteLinkInput = z
-  .object({
-    id: z.string().min(1).max(64),
-    manageToken: manageTokenInput,
-  })
+export const resolveLinkInput = z
+  .object({ owner: usernameSchema, slug: slugSchema })
   .strict();
 
 export const linkOutput = z.object({
-  asset: z.enum(ASSET_SYMBOLS).default("USDC"),
-  tokenDecimals: z.number().int().min(0).max(18).default(USDC_DECIMALS),
   id: z.string(),
   owner: z.string(),
   slug: z.string(),
-  amount: z.string().nullable(),
+  title: z.string(),
   description: z.string().nullable(),
-  label: z.string().nullable(),
-  status: z.enum(["pending", "paid"]),
+  amountZat: z.string().nullable(),
+  amountZec: z.string().nullable(),
   state: z.enum(["active", "archived"]),
   createdAt: z.string(),
-  updatedAt: z.string().nullable(),
-  archivedAt: z.string().nullable(),
+  updatedAt: z.string(),
 });
 
-// Raw manage token is returned exactly once, at creation; never on reads.
-export const createLinkResult = linkOutput.extend({
-  manageToken: z.string(),
-});
+export const toZec = (zat: string | null) =>
+  zat ? zatToZec(BigInt(zat)) : null;
 
 export type CreateLinkInput = z.infer<typeof createLinkInput>;
-export type GetLinkInput = z.infer<typeof getLinkInput>;
-export type ListByOwnerInput = z.infer<typeof listByOwnerInput>;
-export type ResolveLinkInput = z.infer<typeof resolveLinkInput>;
 export type UpdateLinkInput = z.infer<typeof updateLinkInput>;
 export type ArchiveLinkInput = z.infer<typeof archiveLinkInput>;
-export type DeleteLinkInput = z.infer<typeof deleteLinkInput>;
+export type ResolveLinkInput = z.infer<typeof resolveLinkInput>;
 export type LinkOutput = z.infer<typeof linkOutput>;
-export type CreateLinkResult = z.infer<typeof createLinkResult>;

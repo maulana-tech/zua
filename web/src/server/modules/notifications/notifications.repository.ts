@@ -7,102 +7,63 @@ import {
   type NotificationSettingsDoc,
 } from "../../db/mongo";
 
-export function generateUnsubscribeToken(): string {
-  return randomBytes(24).toString("hex");
-}
+export type NotificationEvents = NotificationSettingsDoc["events"];
 
-export async function findSettingsByWallet(
-  walletAddress: string,
+export async function findSettings(
+  userId: string,
 ): Promise<NotificationSettingsDoc | null> {
-  const collection = await getNotificationSettings();
-  const address = walletAddress.toLowerCase();
-  return collection.findOne({
-    $or: [{ _id: address }, { _id: walletAddress }],
-  });
-}
-
-export async function findSettingsByPrivyUserId(
-  privyUserId: string,
-): Promise<NotificationSettingsDoc | null> {
-  const collection = await getNotificationSettings();
-  return collection.findOne({ privyUserId });
+  return (await getNotificationSettings()).findOne({ _id: userId });
 }
 
 export async function upsertNotificationSettings(
-  walletAddress: string,
-  privyUserId: string,
+  userId: string,
   email: string,
   enabled: boolean,
-  events: {
-    invoicePaid: boolean;
-    requestReceived: boolean;
-    requestPaid: boolean;
-  },
+  events: NotificationEvents,
 ): Promise<NotificationSettingsDoc> {
   const collection = await getNotificationSettings();
   const now = new Date();
-  const address = walletAddress.toLowerCase();
-
-  const existing = await collection.findOne({
-    $or: [{ _id: address }, { _id: walletAddress }],
-  });
-  const unsubscribeToken =
-    existing?.unsubscribeToken ?? generateUnsubscribeToken();
-
-  const update: NotificationSettingsDoc = {
-    _id: address,
-    privyUserId,
+  const existing = await collection.findOne({ _id: userId });
+  const doc: NotificationSettingsDoc = {
+    _id: userId,
     email,
     enabled,
     events,
-    unsubscribeToken,
+    unsubscribeToken:
+      existing?.unsubscribeToken ?? randomBytes(24).toString("hex"),
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };
-
-  await collection.updateOne(
-    { _id: address },
-    { $set: update },
-    { upsert: true },
-  );
-
-  return update;
+  await collection.updateOne({ _id: userId }, { $set: doc }, { upsert: true });
+  return doc;
 }
 
 export async function disableByUnsubscribeToken(
   token: string,
 ): Promise<boolean> {
-  const collection = await getNotificationSettings();
-  const res = await collection.updateOne(
+  const res = await (await getNotificationSettings()).updateOne(
     { unsubscribeToken: token },
     { $set: { enabled: false, updatedAt: new Date() } },
   );
   return res.modifiedCount > 0;
 }
 
+/** Reserves an event key; false when this event was already sent. */
 export async function recordNotificationLog(
   eventKey: string,
   recipientEmail: string,
   eventType: NotificationLogDoc["eventType"],
 ): Promise<boolean> {
-  const collection = await getNotificationLogs();
   try {
-    await collection.insertOne({
+    await (await getNotificationLogs()).insertOne({
       _id: eventKey,
       recipientEmail,
       eventType,
       sentAt: new Date(),
     });
     return true;
-  } catch (error: unknown) {
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      (error as { code: unknown }).code === 11000
-    ) {
-      return false; // Duplicate event key
-    }
+  } catch (error) {
+    if ((error as { code?: unknown }).code === 11000) return false;
     throw error;
   }
 }

@@ -7,49 +7,45 @@ import {
   protectedProcedure,
   publicProcedure,
 } from "../../trpc";
-import { currentWallet } from "../wallets/wallets.service";
+import { usernameSchema } from "../profiles/profiles.schema";
 import {
   disableByUnsubscribeToken,
-  findSettingsByWallet,
+  findSettings,
   upsertNotificationSettings,
 } from "./notifications.repository";
-import { sendTestEmail } from "./notifications.service";
+import { notifyPaymentPing, sendTestEmail } from "./notifications.service";
 
 const updateSettingsInput = z
   .object({
     email: z.string().trim(),
     enabled: z.boolean(),
-    events: z.object({
-      invoicePaid: z.boolean(),
-      requestReceived: z.boolean(),
-      requestPaid: z.boolean(),
-    }),
+    events: z.object({ invoicePaid: z.boolean(), paymentPing: z.boolean() }),
   })
   .superRefine((data, ctx) => {
-    if (data.enabled || data.email.length > 0) {
-      const emailCheck = z.string().email().safeParse(data.email);
-      if (!emailCheck.success) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Invalid email",
-          path: ["email"],
-        });
-      }
-    }
+    if (
+      (data.enabled || data.email.length > 0) &&
+      !z.string().email().safeParse(data.email).success
+    )
+      ctx.addIssue({
+        code: "custom",
+        message: "Invalid email",
+        path: ["email"],
+      });
   });
+
+const limited = (key: string, limit: number, windowMs: number) => {
+  if (!rateLimit(key, limit, windowMs).ok)
+    throw new TRPCError({
+      code: "TOO_MANY_REQUESTS",
+      message: "Too many attempts. Try again shortly.",
+    });
+};
 
 export const notificationsRouter = createTRPCRouter({
   getSettings: protectedProcedure.query(async ({ ctx }) => {
-    const env = getServerEnv();
-    const serviceAvailable = Boolean(env.RESEND_API_KEY);
-    const wallet = await currentWallet(ctx.privyUserId);
-    if (!wallet) {
-      return { serviceAvailable, settings: null };
-    }
-
-    const settings = await findSettingsByWallet(wallet.address);
+    const settings = await findSettings(ctx.privyUserId);
     return {
-      serviceAvailable,
+      serviceAvailable: Boolean(getServerEnv().RESEND_API_KEY),
       settings: settings
         ? {
             email: settings.email,
@@ -62,71 +58,46 @@ export const notificationsRouter = createTRPCRouter({
 
   updateSettings: protectedProcedure
     .input(updateSettingsInput)
-    .mutation(async ({ ctx, input }) => {
-      const wallet = await currentWallet(ctx.privyUserId);
-      if (!wallet) {
-        throw new TRPCError({
-          code: "PRECONDITION_FAILED",
-          message: "No Meaw wallet is linked to this account.",
-        });
-      }
-
-      return upsertNotificationSettings(
-        wallet.address,
+    .mutation(({ ctx, input }) =>
+      upsertNotificationSettings(
         ctx.privyUserId,
         input.email,
         input.enabled,
         input.events,
-      );
-    }),
+      ),
+    ),
 
   sendTest: protectedProcedure.mutation(async ({ ctx }) => {
-    if (
-      !rateLimit(`notifications:test:${ctx.privyUserId}`, 3, 10 * 60_000).ok
-    ) {
-      throw new TRPCError({
-        code: "TOO_MANY_REQUESTS",
-        message: "You can send up to 3 test emails every 10 minutes.",
-      });
-    }
-
-    const wallet = await currentWallet(ctx.privyUserId);
-    if (!wallet) {
-      throw new TRPCError({
-        code: "PRECONDITION_FAILED",
-        message: "No Meaw wallet is linked to this account.",
-      });
-    }
-
-    const ok = await sendTestEmail(wallet.address);
-    if (!ok) {
+    limited(`notifications:test:${ctx.privyUserId}`, 3, 10 * 60_000);
+    if (!(await sendTestEmail(ctx.privyUserId)))
       throw new TRPCError({
         code: "BAD_REQUEST",
-        message:
-          "Failed to send test email. Ensure your email is configured and saved.",
+        message: "Could not send a test email. Save your email first.",
       });
-    }
-
     return { success: true };
   }),
+
+  /** Payer-side "I've paid" ping; carries no payment details. */
+  paymentPing: publicProcedure
+    .input(
+      z
+        .object({
+          username: usernameSchema,
+          nonce: z.string().regex(/^[0-9A-Za-z]{8,24}$/),
+        })
+        .strict(),
+    )
+    .mutation(async ({ ctx, input }) => {
+      limited(`notifications:ping:${ctx.ip ?? "unknown"}`, 10, 60 * 60_000);
+      limited(`notifications:ping-to:${input.username}`, 20, 60 * 60_000);
+      await notifyPaymentPing(input.username, input.nonce);
+      return { ok: true };
+    }),
 
   unsubscribe: publicProcedure
     .input(z.object({ token: z.string().trim().min(1) }))
     .mutation(async ({ ctx, input }) => {
-      if (
-        !rateLimit(
-          `notifications:unsubscribe:${ctx.ip ?? "unknown"}`,
-          30,
-          60_000,
-        ).ok
-      ) {
-        throw new TRPCError({
-          code: "TOO_MANY_REQUESTS",
-          message: "Too many attempts. Try again shortly.",
-        });
-      }
-
-      const success = await disableByUnsubscribeToken(input.token);
-      return { success };
+      limited(`notifications:unsubscribe:${ctx.ip ?? "unknown"}`, 30, 60_000);
+      return { success: await disableByUnsubscribeToken(input.token) };
     }),
 });

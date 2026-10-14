@@ -1,98 +1,75 @@
 import { TRPCError } from "@trpc/server";
-import type { Hex } from "viem";
 import { z } from "zod";
 import {
-  invoiceHash,
   invoiceId,
   invoiceInput,
   invoiceToken,
+  txidSchema,
 } from "../../../features/invoices/input";
-import { rateLimit } from "../../lib/rateLimit";
 import {
   createTRPCRouter,
   protectedProcedure,
   publicProcedure,
 } from "../../trpc";
+import { notifyInvoicePaid } from "../notifications/notifications.service";
+import { requireUsername } from "../profiles/profiles.service";
 import {
-  checkInvoicePayment,
-  confirmInvoicePayment,
+  InvoiceClosedError,
+  InvoiceNotFoundError,
+  InvoiceNumberTakenError,
+} from "./invoices.errors";
+import {
   createInvoice,
-  getInvoice,
-  getPublicInvoice,
   listInvoices,
+  publicInvoice,
+  reportPayment,
   voidInvoice,
 } from "./invoices.service";
 
-function mapError(error: unknown): never {
-  if (error instanceof TRPCError) throw error;
-  console.error(
-    "[invoices] operation failed",
-    error instanceof Error ? error.name : typeof error,
-  );
-  throw new TRPCError({
-    code: "INTERNAL_SERVER_ERROR",
-    message: "Invoice could not be processed. Try again.",
-  });
+function mapError(e: unknown): never {
+  if (e instanceof InvoiceNumberTakenError || e instanceof InvoiceClosedError)
+    throw new TRPCError({ code: "CONFLICT", message: e.message });
+  if (e instanceof InvoiceNotFoundError)
+    throw new TRPCError({ code: "NOT_FOUND", message: e.message });
+  throw e;
 }
-function publicLimit(ip: string | null, kind: string) {
-  if (
-    !rateLimit(
-      `invoices:${kind}:${ip ?? "unknown"}`,
-      kind === "confirm" ? 30 : 120,
-      60_000,
-    ).ok
-  )
-    throw new TRPCError({
-      code: "TOO_MANY_REQUESTS",
-      message: "Check this invoice again shortly.",
-    });
-}
+
 export const invoicesRouter = createTRPCRouter({
-  checkPayment: publicProcedure
-    .input(
-      z
-        .object({ token: invoiceToken, txHash: invoiceHash.optional() })
-        .strict(),
-    )
-    .mutation(({ ctx, input }) => {
-      publicLimit(ctx.ip, "confirm");
-      return checkInvoicePayment(
-        input.token,
-        input.txHash as Hex | undefined,
-      ).catch(mapError);
-    }),
   create: protectedProcedure
     .input(invoiceInput)
-    .mutation(({ ctx, input }) =>
-      createInvoice(ctx.privyUserId, input).catch(mapError),
+    .mutation(async ({ ctx, input }) =>
+      createInvoice(await requireUsername(ctx.privyUserId), input).catch(
+        mapError,
+      ),
     ),
-  list: protectedProcedure
-    .input(z.object({ cursor: invoiceId.optional() }).strict().default({}))
-    .query(({ ctx, input }) =>
-      listInvoices(ctx.privyUserId, input.cursor).catch(mapError),
-    ),
-  get: protectedProcedure
-    .input(z.object({ id: invoiceId }).strict())
-    .query(({ ctx, input }) =>
-      getInvoice(ctx.privyUserId, input.id).catch(mapError),
-    ),
+  list: protectedProcedure.query(async ({ ctx }) =>
+    listInvoices(await requireUsername(ctx.privyUserId)),
+  ),
   void: protectedProcedure
     .input(z.object({ id: invoiceId }).strict())
-    .mutation(({ ctx, input }) =>
-      voidInvoice(ctx.privyUserId, input.id).catch(mapError),
-    ),
-  publicGet: publicProcedure
-    .input(z.object({ token: invoiceToken }).strict())
-    .query(({ ctx, input }) => {
-      publicLimit(ctx.ip, "read");
-      return getPublicInvoice(input.token).catch(mapError);
-    }),
-  confirmPayment: publicProcedure
-    .input(z.object({ token: invoiceToken, txHash: invoiceHash }).strict())
-    .mutation(({ ctx, input }) => {
-      publicLimit(ctx.ip, "confirm");
-      return confirmInvoicePayment(input.token, input.txHash as Hex).catch(
+    .mutation(async ({ ctx, input }) =>
+      voidInvoice(await requireUsername(ctx.privyUserId), input.id).catch(
         mapError,
-      );
+      ),
+    ),
+  reportPayment: protectedProcedure
+    .input(
+      z
+        .object({
+          id: invoiceId,
+          txids: z.array(txidSchema).min(1).max(50),
+          paidZat: z.string().regex(/^\d{1,17}$/),
+        })
+        .strict(),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const owner = await requireUsername(ctx.privyUserId);
+      const result = await reportPayment(owner, input).catch(mapError);
+      if (result.becamePaid)
+        void notifyInvoicePaid(ctx.privyUserId, result.invoice).catch(() => {});
+      return result.invoice;
     }),
+  public: publicProcedure
+    .input(z.object({ token: invoiceToken }).strict())
+    .query(({ input }) => publicInvoice(input.token)),
 });

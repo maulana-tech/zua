@@ -3,13 +3,11 @@ import { argon2id } from "@noble/hashes/argon2.js";
 import { hkdf } from "@noble/hashes/hkdf.js";
 import { sha512 } from "@noble/hashes/sha2.js";
 import { concatBytes, randomBytes } from "@noble/hashes/utils.js";
-import { bytesToHex, fromBE, hexToBytes, R } from "./crypto";
+import { bytesToHex, hexToBytes } from "./crypto";
 import { BadPinError } from "./pin-errors";
 
 const utf8 = (s: string) => new TextEncoder().encode(s);
 const MASTER_INFO = utf8("mawee.master.v1");
-const OWNER_INFO = utf8("mawee.owner.v1");
-const VIEW_INFO = utf8("mawee.view.v1");
 const MASTER_LEN = 32;
 
 export type KdfParams = { m: number; t: number; p: number };
@@ -35,14 +33,6 @@ export function deriveMasterFromPrf(
     MASTER_INFO,
     MASTER_LEN,
   );
-}
-
-export type NoteSecrets = { ownerSecret: bigint; viewSk: Uint8Array };
-
-export function deriveNoteSecrets(master: Uint8Array): NoteSecrets {
-  const ownerBytes = hkdf(sha512, master, undefined, OWNER_INFO, 64);
-  const viewSk = hkdf(sha512, master, undefined, VIEW_INFO, 32);
-  return { ownerSecret: fromBE(ownerBytes) % R, viewSk };
 }
 
 export function randomMaster(): Uint8Array {

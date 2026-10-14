@@ -1,47 +1,27 @@
-import type { Hex } from "viem";
-import type { PoolScope } from "../../lib/pools";
-
 export type InvoiceState = "pending" | "paid" | "void";
-export type InvoicePaymentLifecycle = {
-  onSubmitting: () => void;
-  onSubmitted: (hash: string) => void;
-  onUncertain: () => void;
-  onReleased: () => void;
-};
-export type InvoicePaymentIntent = {
-  poolScope: PoolScope;
-  salt: string;
-  ephemeralPk: Hex;
-  ciphertext: Hex;
-};
+
 export type InvoiceLine = {
-  id: string;
   description: string;
   quantity: number;
-  unitPrice: string;
+  unitPrice: string; // ZEC decimal
 };
+
+/** What the owner and the public invoice page see. */
 export type InvoiceView = {
-  id: string;
+  id: string; // memo id: the payer's memo is `zapp:inv:<id>`
   token: string;
   username: string;
+  ua: string;
   number: string;
   clientName: string;
-  asset: "USDC" | "AUSD";
-  tokenDecimals: number;
-  amount: string;
   items: InvoiceLine[];
+  totalZat: string;
+  totalZec: string;
+  paidZat: string;
   notes: string;
   dueDate: string;
   status: InvoiceState;
+  paidTxids: string[];
+  paidReportedAt: string | null;
   createdAt: string;
-  paidAt: string | null;
-  paidTx: Hex | null;
-  voidedAt: string | null;
-  checkout:
-    | (InvoicePaymentIntent & {
-        recipientWallet: Hex;
-        notePubkey: Hex;
-        viewPubkey: Hex;
-      })
-    | null;
 };

@@ -1,182 +1,104 @@
 import "server-only";
 import { getServerEnv } from "../../../env.server";
+import type { InvoiceView } from "../../../features/invoices/types";
+import { APP_NAME } from "../../../lib/brand";
+import { getProfiles } from "../../db/mongo";
 import { buildEmailHtml, buildEmailText, sendEmail } from "../../lib/email";
 import {
-  findSettingsByWallet,
+  findSettings,
+  type NotificationEvents,
   recordNotificationLog,
 } from "./notifications.repository";
 
-export function formatInvoiceNotification(params: {
-  invoiceNumber: string;
-  amountFormatted: string;
-  appUrl: string;
-  unsubscribeToken: string;
-}): { subject: string; html: string; text: string } {
-  const { invoiceNumber, amountFormatted, appUrl, unsubscribeToken } = params;
-  const title = `Invoice ${invoiceNumber} settled`;
-  const message = `Your invoice ${invoiceNumber} for ${amountFormatted} has been paid into your private balance.`;
-  const actionLabel = "View Invoices";
-  const actionUrl = `${appUrl}/invoices`;
-  const unsubscribeUrl = `${appUrl}/unsubscribe/${unsubscribeToken}`;
+type Email = { subject: string; title: string; message: string; path: string };
 
-  return {
-    subject: `Invoice ${invoiceNumber} has been paid`,
-    html: buildEmailHtml({
-      title,
-      message,
-      actionLabel,
-      actionUrl,
-      unsubscribeUrl,
-    }),
-    text: buildEmailText({
-      title,
-      message,
-      actionLabel,
-      actionUrl,
-      unsubscribeUrl,
-    }),
-  };
-}
-
-export function formatRequestReceivedNotification(params: {
-  requesterUsername: string;
-  appUrl: string;
-  unsubscribeToken: string;
-}): { subject: string; html: string; text: string } {
-  const { requesterUsername, appUrl, unsubscribeToken } = params;
-  const title = "Payment request received";
-  const message = `@${requesterUsername} sent you a payment request. Open Meaw to review and pay.`;
-  const actionLabel = "Open Meaw";
-  const actionUrl = `${appUrl}/dashboard`;
-  const unsubscribeUrl = `${appUrl}/unsubscribe/${unsubscribeToken}`;
-
-  return {
-    subject: `New payment request from @${requesterUsername}`,
-    html: buildEmailHtml({
-      title,
-      message,
-      actionLabel,
-      actionUrl,
-      unsubscribeUrl,
-    }),
-    text: buildEmailText({
-      title,
-      message,
-      actionLabel,
-      actionUrl,
-      unsubscribeUrl,
-    }),
-  };
-}
-
-export function formatRequestPaidNotification(params: {
-  addresseeUsername: string;
-  appUrl: string;
-  unsubscribeToken: string;
-}): { subject: string; html: string; text: string } {
-  const { addresseeUsername, appUrl, unsubscribeToken } = params;
-  const title = "Payment request settled";
-  const message = `Your payment request to @${addresseeUsername} has been paid into your private balance.`;
-  const actionLabel = "Open Meaw";
-  const actionUrl = `${appUrl}/dashboard`;
-  const unsubscribeUrl = `${appUrl}/unsubscribe/${unsubscribeToken}`;
-
-  return {
-    subject: `Payment request to @${addresseeUsername} has been settled`,
-    html: buildEmailHtml({
-      title,
-      message,
-      actionLabel,
-      actionUrl,
-      unsubscribeUrl,
-    }),
-    text: buildEmailText({
-      title,
-      message,
-      actionLabel,
-      actionUrl,
-      unsubscribeUrl,
-    }),
-  };
-}
-
-export async function dispatchNotification(params: {
+async function dispatch(params: {
+  userId: string;
   eventKey: string;
-  recipientWallet: string;
-  eventType: "invoicePaid" | "requestReceived" | "requestPaid";
-  buildEmail: (settings: { unsubscribeToken: string; appUrl: string }) => {
-    subject: string;
-    html: string;
-    text: string;
-  };
+  eventType: keyof NotificationEvents;
+  email: Email;
 }): Promise<void> {
   const env = getServerEnv();
   if (!env.RESEND_API_KEY) return;
-
-  const settings = await findSettingsByWallet(params.recipientWallet);
-  if (!settings?.enabled || !settings.events[params.eventType]) {
-    return;
-  }
-
-  const reserved = await recordNotificationLog(
-    params.eventKey,
-    settings.email,
-    params.eventType,
-  );
-  if (!reserved) {
-    return; // Already dispatched
-  }
-
+  const settings = await findSettings(params.userId);
+  if (!settings?.enabled || !settings.events[params.eventType]) return;
+  if (
+    !(await recordNotificationLog(
+      params.eventKey,
+      settings.email,
+      params.eventType,
+    ))
+  )
+    return; // already sent
   const appUrl = env.APP_URL || "http://localhost:3000";
-  const emailData = params.buildEmail({
-    unsubscribeToken: settings.unsubscribeToken,
-    appUrl,
-  });
-
-  // Non-blocking fire and forget
-  void sendEmail({
+  const content = {
+    title: params.email.title,
+    message: params.email.message,
+    actionLabel: `Open ${APP_NAME}`,
+    actionUrl: `${appUrl}${params.email.path}`,
+    unsubscribeUrl: `${appUrl}/unsubscribe/${settings.unsubscribeToken}`,
+  };
+  await sendEmail({
     to: settings.email,
-    subject: emailData.subject,
-    html: emailData.html,
-    text: emailData.text,
-  }).catch((err) => {
-    console.error(`[notifications] Error dispatching ${params.eventKey}:`, err);
+    subject: params.email.subject,
+    html: buildEmailHtml(content),
+    text: buildEmailText(content),
   });
 }
 
-export async function sendTestEmail(walletAddress: string): Promise<boolean> {
+/** Invoice reached "paid" (reported by the owner's wallet). */
+export function notifyInvoicePaid(userId: string, invoice: InvoiceView) {
+  return dispatch({
+    userId,
+    eventKey: `invoice-paid:${invoice.id}`,
+    eventType: "invoicePaid",
+    email: {
+      subject: `Invoice ${invoice.number} has been paid`,
+      title: `Invoice ${invoice.number} paid`,
+      message: `Your invoice ${invoice.number} for ${invoice.totalZec} ZEC was paid into your shielded balance.`,
+      path: "/invoices",
+    },
+  });
+}
+
+/**
+ * A payer pressed "I've paid" on a payment page. No amount, address or txid:
+ * the server never learns those, and the email must not leak them either.
+ */
+export async function notifyPaymentPing(username: string, nonce: string) {
+  const profile = await (await getProfiles()).findOne({ _id: username });
+  if (!profile) return;
+  await dispatch({
+    userId: profile.userId,
+    eventKey: `payment-ping:${username}:${nonce}`,
+    eventType: "paymentPing",
+    email: {
+      subject: "Someone says they paid you",
+      title: "A payment is on its way",
+      message: `A payer marked a payment to @${username} as sent. Open ${APP_NAME} to sync your wallet and see it.`,
+      path: "/dashboard",
+    },
+  });
+}
+
+export async function sendTestEmail(userId: string): Promise<boolean> {
   const env = getServerEnv();
   if (!env.RESEND_API_KEY) return false;
-
-  const settings = await findSettingsByWallet(walletAddress);
+  const settings = await findSettings(userId);
   if (!settings?.email) return false;
-
   const appUrl = env.APP_URL || "http://localhost:3000";
-  const title = "Meaw Notification Test";
-  const message =
-    "Your email notification preferences are active. You will receive updates according to your settings.";
-  const actionLabel = "Open Settings";
-  const actionUrl = `${appUrl}/settings`;
-  const unsubscribeUrl = `${appUrl}/unsubscribe/${settings.unsubscribeToken}`;
-
+  const content = {
+    title: `${APP_NAME} notification test`,
+    message: "Your email notifications are set up.",
+    actionLabel: "Open Settings",
+    actionUrl: `${appUrl}/settings`,
+    unsubscribeUrl: `${appUrl}/unsubscribe/${settings.unsubscribeToken}`,
+  };
   const res = await sendEmail({
     to: settings.email,
-    subject: "Meaw: Test email notification",
-    html: buildEmailHtml({
-      title,
-      message,
-      actionLabel,
-      actionUrl,
-      unsubscribeUrl,
-    }),
-    text: buildEmailText({
-      title,
-      message,
-      actionLabel,
-      actionUrl,
-      unsubscribeUrl,
-    }),
+    subject: `${APP_NAME}: test email`,
+    html: buildEmailHtml(content),
+    text: buildEmailText(content),
   });
-
   return res.ok;
 }
