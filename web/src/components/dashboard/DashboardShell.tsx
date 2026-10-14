@@ -26,6 +26,7 @@ import {
   SETTINGS_PATH,
 } from "../../lib/auth-routes";
 import { cn } from "../../lib/utils";
+import { isTestnet } from "../../lib/zcash/network";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -164,6 +165,11 @@ function DashboardNavLayout({
               <LogoMark />
             </Link>
             <span className="dashboard-tile-title">{current}</span>
+            {isTestnet ? (
+              <span className="rounded-full border border-(--dash-line-strong) px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-(--dash-ash)">
+                Testnet
+              </span>
+            ) : null}
           </div>
           <div className="flex items-center gap-2">
             <ModeToggle />

@@ -3,12 +3,11 @@ import { publicEnvSchema } from "../src/env";
 import { serverEnvSchema } from "../src/env.server";
 
 describe("environment schemas", () => {
-  it("defaults to Zcash mainnet through the ChainSafe proxy", () => {
+  it("defaults to Zcash mainnet with no proxy override", () => {
     const parsed = publicEnvSchema.parse({ NODE_ENV: "test" });
     expect(parsed.NEXT_PUBLIC_ZCASH_NETWORK).toBe("main");
-    expect(parsed.NEXT_PUBLIC_LIGHTWALLETD_URL).toBe(
-      "https://zcash-mainnet.chainsafe.dev",
-    );
+    // network.ts then picks ChainSafe's proxy for the network.
+    expect(parsed.NEXT_PUBLIC_LIGHTWALLETD_URL).toBeUndefined();
     expect(parsed.NEXT_PUBLIC_MIN_CONFIRMATIONS).toBe(3);
   });
 

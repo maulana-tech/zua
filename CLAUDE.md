@@ -23,7 +23,7 @@ pnpm --filter web migrate:up              # migrate-mongo, reads web/.env.local 
 ## Architecture
 
 ### Zcash wallet (client)
-- `packages/webzjs-wallet/` is a prebuilt WASM package (~60 MB) from our WebZjs fork (branch `zua/nu63`): released NU6.3 crates (Ironwood), `zcash_client_sqlite` on sqlite-wasm-rs, memos, payment disclosure. Don't hand-edit; rebuild from source (see README). `web/scripts/sync-webzjs.mjs` (pre-dev/build) copies it to `web/public/webzjs`, where it is loaded unbundled.
+- `packages/webzjs-wallet/` is a prebuilt WASM package (~60 MB) from our WebZjs fork (branch `zua/nu7`): librustzcash pre-release crates: mainnet NU6.3 + testnet NU7 (Ironwood), `zcash_client_sqlite` on sqlite-wasm-rs, memos, payment disclosure. Don't hand-edit; rebuild from source (see README). `web/scripts/sync-webzjs.mjs` (pre-dev/build) copies it to `web/public/webzjs`, where it is loaded unbundled.
 - `web/src/lib/zcash/`: `wallet.ts` (WebZjs wrapper: open/sync/status/history/send, init once per page), `seed.ts` (master → BIP39 seed, wallet-DB key, profile signing seed via HKDF with `KEY_NS`), `zip321.ts`, `memo.ts` (`zua:<kind>:<id>` tags), `units.ts` (zatoshi), `address.ts`, `walletStore.ts` (AES-GCM wallet DB cache in IndexedDB).
 - `web/src/components/WalletProvider.tsx` owns the session: Privy login → passkey/PIN unlock → master in a ref → wallet open + periodic sync → invoice settlement (`features/invoices/settle.ts`). Seeds, masters and viewing keys stay in page memory; never send them to the server or persist them unencrypted.
 - `web/src/lib/brand.ts` holds `APP_NAME`, `KEY_NS` and `MEMO_PREFIX`. Changing `KEY_NS` after launch changes every user's wallet.

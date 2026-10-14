@@ -12,16 +12,18 @@ export const publicEnvSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
-  // "main" = Zcash mainnet, "test" = testnet (also used for local regtest).
+  // "main" = Zcash mainnet (NU6.3), "test" = testnet (NU7; free TAZ from a
+  // faucet). The wallet build supports both.
   NEXT_PUBLIC_ZCASH_NETWORK: z.preprocess(
     emptyToUndefined,
     z.enum(["main", "test"]).default("main"),
   ),
   // gRPC-web proxy in front of lightwalletd. A plain lightwalletd endpoint
-  // does not work from a browser.
+  // does not work from a browser. Defaults to ChainSafe's proxy for the
+  // chosen network (lib/zcash/network.ts).
   NEXT_PUBLIC_LIGHTWALLETD_URL: z.preprocess(
     emptyToUndefined,
-    z.string().trim().url().default("https://zcash-mainnet.chainsafe.dev"),
+    z.string().trim().url().optional(),
   ),
   // Explorer link for a transaction; `{txid}` is replaced.
   NEXT_PUBLIC_ZCASH_EXPLORER_TX_URL: optionalString,

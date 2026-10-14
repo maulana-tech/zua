@@ -230,10 +230,10 @@ export interface InitOutput {
     readonly webwallet_propose_transfer_with_memo: (a: number, b: number, c: number, d: number, e: bigint, f: number, g: number) => any;
     readonly webwallet_send_authorized_transactions: (a: number, b: number, c: number) => any;
     readonly webwallet_sync: (a: number) => any;
-    readonly rustsecp256k1_v0_10_0_default_error_callback_fn: (a: number, b: number) => void;
-    readonly rustsecp256k1_v0_10_0_default_illegal_callback_fn: (a: number, b: number) => void;
-    readonly rustsecp256k1_v0_10_0_context_create: (a: number) => number;
-    readonly rustsecp256k1_v0_10_0_context_destroy: (a: number) => void;
+    readonly rustsecp256k1_v0_14_default_error_callback_fn: (a: number, b: number) => void;
+    readonly rustsecp256k1_v0_14_default_illegal_callback_fn: (a: number, b: number) => void;
+    readonly rustsecp256k1_v0_14_context_create: (a: number) => number;
+    readonly rustsecp256k1_v0_14_context_destroy: (a: number) => void;
     readonly wasm_bindgen_2d4164a0f0cf4d7b___convert__closures_____invoke___js_sys_5d4d6018ad607809___Function_fn_wasm_bindgen_2d4164a0f0cf4d7b___JsValue_____wasm_bindgen_2d4164a0f0cf4d7b___sys__Undefined___js_sys_5d4d6018ad607809___Function_fn_wasm_bindgen_2d4164a0f0cf4d7b___JsValue_____wasm_bindgen_2d4164a0f0cf4d7b___sys__Undefined_______true_: (a: number, b: number, c: any, d: any) => void;
     readonly wasm_bindgen_2d4164a0f0cf4d7b___convert__closures_____invoke___wasm_bindgen_2d4164a0f0cf4d7b___JsValue__core_fb28759eaf8b6199___result__Result_____wasm_bindgen_2d4164a0f0cf4d7b___JsError___true_: (a: number, b: number, c: any) => [number, number];
     readonly wasm_bindgen_2d4164a0f0cf4d7b___convert__closures________invoke___web_sys_f3154cf37e8da907___features__gen_MessageEvent__MessageEvent______true_: (a: number, b: number, c: any) => void;

@@ -49,7 +49,7 @@ sees your seed, viewing keys, balance, history, senders or amounts.
     `notifications`.
 - `packages/webzjs-wallet/` - prebuilt wallet (WASM) from our fork of
   [ChainSafe WebZjs](https://github.com/ChainSafe/WebZjs), ported to the
-  released NU6.3 Zcash crates: it scans and spends the **Ironwood** pool,
+  current Zcash crates (mainnet NU6.3, testnet NU7): it scans and spends the **Ironwood** pool,
   stores the wallet in `zcash_client_sqlite` on SQLite compiled to WASM, sends
   memos, and discloses single payments for receipts.
 - `docs/superpowers/` - migration plan and design spec.
@@ -67,8 +67,10 @@ pnpm dev                             # http://localhost:3000
 pnpm --filter web test
 ```
 
-`NEXT_PUBLIC_ZCASH_NETWORK=main` with `NEXT_PUBLIC_LIGHTWALLETD_URL=https://zcash-mainnet.chainsafe.dev`
-works out of the box. Use small amounts: the wallet library is unaudited.
+`NEXT_PUBLIC_ZCASH_NETWORK=main` works out of the box. For free testing set
+`NEXT_PUBLIC_ZCASH_NETWORK=test` (testnet, NU7) and get TAZ from a testnet
+faucet; the lightwalletd proxy and explorer default to the chosen network. Use
+small amounts on mainnet: the wallet library is unaudited.
 
 ### Rebuilding the wallet package
 
@@ -76,7 +78,7 @@ Upstream WebZjs stops at NU6.1, so transactions it builds are rejected on
 today's mainnet. Our port lives on the `zua/nu63` branch of the WebZjs fork:
 
 ```sh
-cd WebZjs && git checkout zua/nu63
+cd WebZjs && git checkout zua/nu7
 brew install wasm-pack just llvm
 cargo +stable install wasm-bindgen-cli --version 0.2.129 --locked
 PATH=$(brew --prefix llvm)/bin:$PATH \
@@ -95,8 +97,8 @@ its thread workers resolve.
 | Variable | Purpose |
 |---|---|
 | `NEXT_PUBLIC_ZCASH_NETWORK` | `main` or `test` |
-| `NEXT_PUBLIC_LIGHTWALLETD_URL` | gRPC-web proxy in front of lightwalletd |
-| `NEXT_PUBLIC_ZCASH_EXPLORER_TX_URL` | optional, `{txid}` is replaced |
+| `NEXT_PUBLIC_LIGHTWALLETD_URL` | optional; gRPC-web proxy (defaults to ChainSafe's for the network) |
+| `NEXT_PUBLIC_ZCASH_EXPLORER_TX_URL` | optional, `{txid}` is replaced (defaults to zcashexplorer.app) |
 | `NEXT_PUBLIC_MIN_CONFIRMATIONS` | confirmations before funds are spendable (default 3) |
 | `NEXT_PUBLIC_PRIVY_APP_ID`, `PRIVY_APP_ID`, `PRIVY_APP_SECRET` | login |
 | `MONGODB_URI` | include a database name, e.g. `/zcash-app` |
