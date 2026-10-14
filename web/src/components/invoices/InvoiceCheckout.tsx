@@ -70,6 +70,18 @@ export function InvoiceCheckout({ token }: { token: string }) {
   const remaining = invoice
     ? BigInt(invoice.totalZat) - BigInt(invoice.paidZat)
     : 0n;
+  // The memo tag is what marks the invoice paid, so copy the whole ZIP-321
+  // link (address, amount, memo), not just the address.
+  const payUri =
+    ua && invoice
+      ? buildPaymentUri({
+          address: ua,
+          amountZat: remaining,
+          memo: formatMemoTag({ kind: "inv", id: invoice.id }),
+          label: `@${invoice.username} on ${APP_NAME}`,
+          message: `Invoice ${invoice.number}`,
+        })
+      : "";
   const state = invoice ? invoiceStatus(invoice.status, invoice.dueDate) : null;
 
   return (
@@ -271,14 +283,9 @@ export function InvoiceCheckout({ token }: { token: string }) {
                     </p>
                   ) : null}
                   <QrPanel
-                    uri={buildPaymentUri({
-                      address: ua,
-                      amountZat: remaining,
-                      memo: formatMemoTag({ kind: "inv", id: invoice.id }),
-                      label: `@${invoice.username} on ${APP_NAME}`,
-                      message: `Invoice ${invoice.number}`,
-                    })}
-                    copyText={ua}
+                    uri={payUri}
+                    copyText={payUri}
+                    copyLabel="Copy payment link"
                   />
                   <p className="inline-flex items-center gap-1.5 text-xs text-(--dash-ash)">
                     <ShieldCheck className="size-3.5" aria-hidden="true" />

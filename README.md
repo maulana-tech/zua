@@ -56,6 +56,9 @@ sees your seed, viewing keys, balance, history, senders or amounts.
 
 ## Run locally
 
+Full walkthrough, including free testnet coins and a test checklist:
+[`docs/setup.md`](docs/setup.md).
+
 Requirements: Node 22+, pnpm 10, MongoDB (local or Atlas), a Privy app with
 `http://localhost:3000` in its allowed origins.
 

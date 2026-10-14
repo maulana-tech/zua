@@ -1,0 +1,139 @@
+# Setup and testing
+
+How to run Zua locally and test every payment flow for free on Zcash testnet,
+then switch to mainnet.
+
+## 1. Requirements
+
+- Node 22+ and pnpm 10
+- MongoDB: local, or a free MongoDB Atlas cluster
+- A [Privy](https://dashboard.privy.io) app (login only)
+- Chrome or another Chromium browser. The wallet needs `SharedArrayBuffer`,
+  which works on `localhost` and HTTPS with the cross-origin isolation headers
+  Zua already sends.
+- Optional: a [Resend](https://resend.com) API key for email notifications
+
+## 2. Install
+
+```sh
+pnpm install
+cp web/.env.example web/.env.local
+```
+
+`pnpm dev` and `pnpm build` copy the wallet (`packages/webzjs-wallet`, about
+60 MB of WASM) to `web/public/webzjs`. You never need to edit that folder.
+
+## 3. Configure `web/.env.local`
+
+### Zcash network
+
+| Variable | Testnet (free testing) | Mainnet (real ZEC) |
+|---|---|---|
+| `NEXT_PUBLIC_ZCASH_NETWORK` | `test` | `main` |
+| `NEXT_PUBLIC_LIGHTWALLETD_URL` | leave empty | leave empty |
+| `NEXT_PUBLIC_ZCASH_EXPLORER_TX_URL` | leave empty | leave empty |
+| `NEXT_PUBLIC_MIN_CONFIRMATIONS` | `1` (faster tests) | `3` |
+
+If the two URLs are left empty, they default to ChainSafe's gRPC-web
+lightwalletd proxy and zcashexplorer.app for the chosen network. Testnet runs
+NU7 and mainnet runs NU6.3 (Ironwood). The same wallet build supports both.
+
+### Privy
+
+1. Create an app in the Privy dashboard and enable **Email** and **Google**
+   (passkey login is optional).
+2. Turn off embedded wallets. Zua derives its own Zcash keys.
+3. Under **Configuration → App settings → Allowed origins**, add
+   `http://localhost:3000`. If you skip this, the console shows
+   `Origin not allowed` and sign-in does nothing.
+4. Copy the app ID into `NEXT_PUBLIC_PRIVY_APP_ID` and `PRIVY_APP_ID`, and the
+   secret into `PRIVY_APP_SECRET`.
+
+### MongoDB
+
+Set `MONGODB_URI`. It must include a database name, for example
+`mongodb+srv://user:pass@cluster.mongodb.net/zua`. Without one, the driver
+writes to a database called `test`.
+
+Then create the collections and indexes:
+
+```sh
+pnpm --filter web migrate:up
+```
+
+### Optional
+
+- `RESEND_API_KEY`, `EMAIL_FROM`, `APP_URL`: emails for paid invoices, payment
+  pings and new requests, plus the paid-invoice receipt email to clients.
+- `CRON_SECRET`: only needed if you call cron routes.
+
+## 4. Run
+
+```sh
+pnpm dev      # http://localhost:3000
+```
+
+Open `http://localhost:3000`, sign in, and pick an unlock method: a passkey,
+or a 6-digit PIN if your device has no PRF passkey. Then claim a `@username`.
+Your wallet is created in the browser and syncs from about 100 blocks before
+now. A "Testnet" badge in the header shows which network you are on.
+
+## 5. Get free testnet coins (TAZ)
+
+1. In Zua, open **Settings → Zcash wallet** (or **Receive**) and copy your
+   address. On testnet it starts with `utest1`.
+2. Go to the [Zcash testnet faucet](https://zcashfaucet.jinolabs.xyz/), paste
+   the address and solve the short in-browser puzzle. You get 0.1 TAZ, sent
+   shielded, once per address every 24 hours.
+3. Wait for the transaction to be mined (about 75 s per block). Your balance
+   shows it as pending first, then spendable after
+   `NEXT_PUBLIC_MIN_CONFIRMATIONS` blocks.
+
+0.1 TAZ covers dozens of test payments, since a payment's fee is about
+0.0001–0.00015 ZEC (ZIP-317). For more, ask in the Zcash community Discord or
+wait 24 h. To test payments between two people, use a second browser profile
+with a second account.
+
+## 6. Test checklist
+
+Use two accounts, A (the freelancer) and B (the payer), in two browser
+profiles. Both need TAZ for steps that send.
+
+| # | Flow | Steps | Expected |
+|---|---|---|---|
+| 1 | Wallet | Sign in as A, unlock, wait for sync | Address shown, balance after the faucet, "Testnet" badge |
+| 2 | Backup | Settings → reveal recovery words | 24 words. Importing them in a testnet-capable wallet shows the same funds. |
+| 3 | Payment link | A: Links → create a link (amount optional) → open `/pay/<username>` | QR + ZIP-321 URI, "verified profile" check passes |
+| 4 | Send | B: Send → `@A` or A's `utest1…`, an amount, a memo → confirm | Proving takes about 10–30 s, then a txid. A sees the payment with the memo after sync. |
+| 5 | Invoice | A: Invoices → new invoice → open its public link. B presses **Copy payment link** there and pastes it into Send (the link carries the amount and the invoice memo), or scans the QR with another wallet. | Once A's wallet syncs, the invoice turns **Paid** without anyone pressing a button, and the client email goes out if Resend is set. |
+| 6 | Partial payment | Pay an invoice with less than the total | Shows partially paid with the amount received |
+| 7 | Request | A: Requests → request from `@B` | B sees the request (end-to-end encrypted) and pays it. It turns paid for both. |
+| 8 | Receipt | A: History → receipt icon on the received payment | Downloads `zua-receipt-….json` |
+| 9 | Verify | Open `/verify`, choose the receipt | "Verified on Zcash": amount and memo **proven on chain**, recipient signature checked |
+| 10 | Tamper | Edit the amount in the receipt JSON and verify again | Rejected |
+| 11 | Restore | Reload the page and unlock again | Fast start from the encrypted local cache, same balance |
+
+Explorer: `https://testnet.zcashexplorer.app/transactions/<txid>` shows the
+transaction is on chain. Shielded amounts and addresses are not visible there.
+
+## 7. Switch to mainnet
+
+1. Set `NEXT_PUBLIC_ZCASH_NETWORK=main` and `NEXT_PUBLIC_MIN_CONFIRMATIONS=3`,
+   then restart `pnpm dev`.
+2. Each account now has a separate mainnet wallet with a different address
+   (`u1…`) and its own balance.
+3. Fund it with a small amount from [Zodl](https://zodl.com) or an exchange.
+   0.005 ZEC is enough for several tests. The wallet library is unaudited, so
+   keep amounts small.
+
+## 8. Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `Origin not allowed` in the console, sign-in does nothing | Add the exact origin (`http://localhost:3000`, or your deploy URL) to Privy's Allowed origins, on the same app as `NEXT_PUBLIC_PRIVY_APP_ID`. |
+| Wallet stuck loading | Hard reload. The first load downloads and compiles 60 MB of WASM. Check that `self.crossOriginIsolated` is `true` in the console on a dashboard page. |
+| `404` for `/webzjs/webzjs_wallet.js` | Run `node web/scripts/sync-webzjs.mjs` (or restart `pnpm dev`). |
+| `invalid consensus branch id` | The network ran an upgrade the wallet build does not know. Rebuild the wallet (README, "Rebuilding the wallet package") from current librustzcash crates. |
+| Balance stays pending | Wait for `NEXT_PUBLIC_MIN_CONFIRMATIONS` blocks (about 75 s each). |
+| Faucet says already claimed | One claim per address per 24 h. Use the second account's address. |
+| Migrations wrote to a `test` database | `MONGODB_URI` has no database name. Add one and run `migrate:up` again. |
