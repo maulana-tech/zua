@@ -137,3 +137,93 @@ transaction is on chain. Shielded amounts and addresses are not visible there.
 | Balance stays pending | Wait for `NEXT_PUBLIC_MIN_CONFIRMATIONS` blocks (about 75 s each). |
 | Faucet says already claimed | One claim per address per 24 h. Use the second account's address. |
 | Migrations wrote to a `test` database | `MONGODB_URI` has no database name. Add one and run `migrate:up` again. |
+
+## 9. Run on another computer
+
+Git carries the code and the prebuilt wallet (`packages/webzjs-wallet`), so
+another machine needs no Rust toolchain. It does **not** carry
+`web/.env.local`, which holds secrets (Privy secret, MongoDB password). Copy
+that file yourself, for example through a password manager or AirDrop. Never
+commit it, and don't paste it into chat or email.
+
+### 9.1 Get the code
+
+The branch with this work is `zecathon`. Pick one way to move it.
+
+**A. Through a private GitHub repo (recommended)**
+
+On the machine that has the code:
+
+```sh
+git remote add origin git@github.com:<you>/zua.git   # create the repo as private first
+git push -u origin zecathon
+```
+
+On the new laptop:
+
+```sh
+git clone git@github.com:<you>/zua.git
+cd zua && git checkout zecathon
+```
+
+**B. Without GitHub (one file over AirDrop or USB)**
+
+```sh
+# on the machine that has the code
+git bundle create ~/Desktop/zua.bundle --all
+# on the new laptop
+git clone ~/Downloads/zua.bundle zua
+cd zua && git checkout zecathon
+```
+
+The bundle is about 260 MB, mostly old wallet builds in the history.
+
+### 9.2 Install tools
+
+- Node 22 or newer: `brew install node`, or use nvm. Check with `node -v`.
+- pnpm 10: `corepack enable` (the repo pins `pnpm@10.4.1` in
+  `package.json`), or `npm i -g pnpm@10`.
+- Chrome.
+
+### 9.3 Configure and run
+
+```sh
+pnpm install
+cp /path/to/your/.env.local web/.env.local   # the file copied from the other machine
+pnpm dev                                     # http://localhost:3000
+```
+
+Then check three things:
+
+1. **MongoDB Atlas network access.** Atlas only accepts allowed IPs. In Atlas,
+   go to **Network Access** and add the laptop's IP (or `0.0.0.0/0` for
+   development only). Otherwise the server logs a connection timeout and
+   sign-in fails. If you point at the same database, you don't need to run
+   migrations again. `pnpm --filter web migrate:up` is safe to re-run anyway.
+2. **Privy origin.** `http://localhost:3000` is the same origin on every
+   machine, so nothing changes. If `pnpm dev` starts on another port because
+   3000 is taken, either free the port or add that origin in Privy.
+3. **Network.** Keep `NEXT_PUBLIC_ZCASH_NETWORK` the same on both machines if
+   you want to see the same wallet. Testnet and mainnet wallets are different.
+
+### 9.4 Your account on the new laptop
+
+Sign in with the same Privy login (email or Google). Unlock with your passkey
+or PIN, and the same Zcash wallet is derived again, because keys come from the
+passkey or PIN, not from the device.
+
+- **PIN:** works on any device. The encrypted escrow lives on the server.
+- **Passkey:** works if the passkey syncs to the new device (iCloud Keychain,
+  Google Password Manager). A passkey bound to one device won't be there, so
+  use your PIN or the 24 recovery words instead.
+
+The encrypted wallet cache stays in each browser, so the first unlock on a new
+laptop scans the chain again from the account's birthday. That takes a few
+minutes for an old account.
+
+### 9.5 Rebuilding the wallet (optional)
+
+You only need this if you change the Rust wallet. It requires the WebZjs fork
+(branch `zua/nu7`), Rust nightly and LLVM; see the README section "Rebuilding
+the wallet package". Move the fork the same way as above (GitHub or
+`git bundle`).
