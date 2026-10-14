@@ -32,8 +32,7 @@ export function EmailNotificationsRow() {
   const [enabled, setEnabled] = useState(false);
   const [events, setEvents] = useState({
     invoicePaid: true,
-    requestReceived: true,
-    requestPaid: true,
+    paymentPing: true,
   });
 
   const hasPrefilledRef = useRef(false);
@@ -201,37 +200,19 @@ export function EmailNotificationsRow() {
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={events.requestReceived}
+                  checked={events.paymentPing}
                   onChange={(e) =>
-                    setEvents({ ...events, requestReceived: e.target.checked })
+                    setEvents({ ...events, paymentPing: e.target.checked })
                   }
                   className="mt-0.5 size-4 rounded border-(--dash-line-strong) bg-(--dash-surface) text-(--dash-fg) focus:ring-(--dash-fg)"
                 />
                 <div>
                   <span className="text-sm font-medium text-(--dash-fg)">
-                    Payment request received
+                    Payer says they paid
                   </span>
                   <p className="text-xs text-(--dash-ash)">
-                    When another user requests a payment from you
-                  </p>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={events.requestPaid}
-                  onChange={(e) =>
-                    setEvents({ ...events, requestPaid: e.target.checked })
-                  }
-                  className="mt-0.5 size-4 rounded border-(--dash-line-strong) bg-(--dash-surface) text-(--dash-fg) focus:ring-(--dash-fg)"
-                />
-                <div>
-                  <span className="text-sm font-medium text-(--dash-fg)">
-                    Payment request settled
-                  </span>
-                  <p className="text-xs text-(--dash-ash)">
-                    When a request you sent is settled
+                    When someone taps &quot;I&apos;ve paid&quot; on your payment
+                    page. No amount or sender is included.
                   </p>
                 </div>
               </label>

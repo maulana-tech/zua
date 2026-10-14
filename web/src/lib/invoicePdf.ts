@@ -1,6 +1,7 @@
 import type { jsPDF } from "jspdf";
 import type { InvoiceView } from "../features/invoices/types";
-import { formatAssetUnits } from "./paymentAsset";
+import { APP_NAME } from "./brand";
+import { zatToZec, zecToZat } from "./zcash/units";
 
 export const INVOICE_PDF_PALETTE = {
   obsidian: "#1A1F12",
@@ -42,14 +43,14 @@ export async function renderInvoicePdf(
   // Document metadata
   const properties = {
     title: isPaid
-      ? `Meaw Payment Receipt ${invoice.number}`
-      : `Meaw Invoice ${invoice.number}`,
+      ? `${APP_NAME} Payment Receipt ${invoice.number}`
+      : `${APP_NAME} Invoice ${invoice.number}`,
     subject: isPaid
       ? `Payment receipt for ${invoice.number}`
       : `Invoice ${invoice.number} for ${invoice.clientName}`,
-    author: "Meaw",
-    creator: "Meaw",
-    keywords: `Meaw, Invoice, ${invoice.asset}, ${invoice.number}`,
+    author: APP_NAME,
+    creator: APP_NAME,
+    keywords: `${APP_NAME}, Invoice, ZEC, ${invoice.number}`,
   };
   doc.setProperties(properties);
   (
@@ -139,7 +140,7 @@ export async function renderInvoicePdf(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(INVOICE_PDF_PALETTE.ash);
-  doc.text("Private payments on Monad testnet", MARGIN, currentY + 32);
+  doc.text("Shielded payments on Zcash", MARGIN, currentY + 32);
 
   // Right column: Billed To & Dates
   doc.setFont("helvetica", "bold");
@@ -166,11 +167,11 @@ export async function renderInvoicePdf(
     currentY + 45,
   );
 
-  if (isPaid && invoice.paidAt) {
+  if (isPaid && invoice.paidReportedAt) {
     doc.setFont("helvetica", "bold");
     doc.setTextColor(INVOICE_PDF_PALETTE.obsidian);
     doc.text(
-      `Settled: ${formatDisplayDate(invoice.paidAt)} (UTC)`,
+      `Settled: ${formatDisplayDate(invoice.paidReportedAt)} (UTC)`,
       col2X,
       currentY + 58,
     );
@@ -205,9 +206,9 @@ export async function renderInvoicePdf(
   doc.setFontSize(9.5);
 
   for (const item of invoice.items) {
-    const itemTotalBigInt = BigInt(item.unitPrice) * BigInt(item.quantity);
-    const itemTotalFormatted = `${formatAssetUnits(itemTotalBigInt, invoice.tokenDecimals)} ${invoice.asset}`;
-    const unitPriceFormatted = `${formatAssetUnits(BigInt(item.unitPrice), invoice.tokenDecimals)} ${invoice.asset}`;
+    const itemTotalBigInt = zecToZat(item.unitPrice) * BigInt(item.quantity);
+    const itemTotalFormatted = `${zatToZec(itemTotalBigInt)} ZEC`;
+    const unitPriceFormatted = `${item.unitPrice} ZEC`;
 
     // Description text wrapping
     const descLines = doc.splitTextToSize(
@@ -234,7 +235,7 @@ export async function renderInvoicePdf(
 
   // Summary block
   currentY += 20;
-  const totalFormatted = `${formatAssetUnits(BigInt(invoice.amount), invoice.tokenDecimals)} ${invoice.asset}`;
+  const totalFormatted = `${invoice.totalZec} ZEC`;
 
   // Left: Notes (if present)
   if (invoice.notes) {
@@ -284,12 +285,12 @@ export async function renderInvoicePdf(
     ? `${options.origin}/i/${invoice.token}`
     : `/i/${invoice.token}`;
   doc.text(`Pay or verify online: ${checkoutUrl}`, MARGIN, footerY + 18);
-  doc.text("Meaw • Private Payments", pageWidth - MARGIN, footerY + 18, {
+  doc.text(`${APP_NAME} • Shielded Payments`, pageWidth - MARGIN, footerY + 18, {
     align: "right",
   });
 
   doc.text(
-    "Invoice issued on Meaw. Balances and spending history remain private.",
+    `Invoice issued on ${APP_NAME}. Pay to the shielded address with memo zapp:inv:${invoice.id}.`,
     MARGIN,
     footerY + 30,
   );

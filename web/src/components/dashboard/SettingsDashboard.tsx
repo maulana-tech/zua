@@ -4,9 +4,7 @@ import { Loader, LockKeyhole, LogOut } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { EmailNotificationsRow } from "../../features/notifications/EmailNotificationsRow";
-import { usePrivacyKeyRotation } from "../../features/privacyKeys/usePrivacyKeyRotation";
 import { useChangeRecoveryPin } from "../../features/recovery/hooks/useChangeRecoveryPin";
-import { SponsorshipSettingsRow } from "../../features/sponsorship/SponsorshipSettingsRow";
 import { trpc } from "../../trpc/react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -22,84 +20,35 @@ import {
 import { useWallet } from "../WalletProvider";
 import { ChangeRecoveryPinDialog } from "./ChangeRecoveryPinDialog";
 import { DashboardPageHeader } from "./DashboardPageHeader";
-import { RotatePrivacyKeyDialog } from "./RotatePrivacyKeyDialog";
 import { dashButtonPrimary, dashCell, dashLedger } from "./styles";
+import { ZcashWalletTile } from "./ZcashWalletTile";
 
 export function SettingsDashboard() {
   const { username, disconnect, recoveryMethod, openUsernameModal } =
     useWallet();
   const [changePinOpen, setChangePinOpen] = useState(false);
-  const [rotationOpen, setRotationOpen] = useState(false);
-  const privacy = usePrivacyKeyRotation();
   const { changeRecoveryPin, validateCurrentPin, isChanging } =
     useChangeRecoveryPin();
-  const escrowQuery = trpc.wallets.getEscrow.useQuery();
-  const passkeyQuery = trpc.wallets.getPasskey.useQuery();
-  const passkeyProtected =
-    recoveryMethod === "passkey" || Boolean(passkeyQuery.data);
+  const escrowQuery = trpc.accounts.getEscrow.useQuery();
+  const passkeyProtected = recoveryMethod === "passkey";
 
   return (
     <>
       <DashboardPageHeader
         title="Settings"
-        description="The essentials for your Meaw account, explained without the crypto jargon."
+        description="Your account, your Zcash wallet and how it is protected."
       />
 
       <div className={`${dashLedger} max-w-3xl`}>
         <IdentityTile username={username} onClaim={openUsernameModal} />
-        <SponsorshipSettingsRow />
+        <ZcashWalletTile />
         <EmailNotificationsRow />
         <RecoveryTile
           method={passkeyProtected ? "passkey" : "pin"}
           protectedRecovery={passkeyProtected || Boolean(escrowQuery.data)}
-          loading={escrowQuery.isLoading || passkeyQuery.isLoading}
+          loading={escrowQuery.isLoading}
           onChangePin={() => setChangePinOpen(true)}
         />
-        <SettingsRow
-          title="Privacy keys"
-          description="Rotate the key used for new incoming payments while keeping your existing payments accessible."
-        >
-          <p className="mb-4 text-sm text-(--dash-ash)">
-            {privacy.state
-              ? `Active key version ${privacy.state.activeGeneration + 1}`
-              : "Your initial privacy key is in use."}
-          </p>
-          {privacy.state?.generations?.[privacy.state.activeGeneration]
-            ?.rotatedAt && (
-            <p className="mb-4 text-sm text-(--dash-ash)">
-              Last confirmed change:{" "}
-              {new Date(
-                privacy.state.generations[privacy.state.activeGeneration]
-                  .rotatedAt ?? "",
-              ).toLocaleDateString()}
-            </p>
-          )}
-          {privacy.error && (
-            <p className="mb-4 text-sm" role="status">
-              Privacy key history is currently unavailable. Check again before
-              rotating.
-            </p>
-          )}
-          <Button
-            variant="outline"
-            onClick={() => setRotationOpen(true)}
-            disabled={
-              !username ||
-              !(passkeyProtected || Boolean(escrowQuery.data)) ||
-              privacy.state?.activeGeneration === 63
-            }
-          >
-            {privacy.state?.pending
-              ? "Check key rotation"
-              : "Rotate privacy key"}
-          </Button>
-          {privacy.state?.activeGeneration === 63 && (
-            <p className="mt-3 text-sm">
-              This account has reached its rotation limit. Every previous key is
-              retained.
-            </p>
-          )}
-        </SettingsRow>
         <SessionTile onSignOut={disconnect} />
       </div>
 
@@ -113,10 +62,6 @@ export function SettingsDashboard() {
           void escrowQuery.refetch();
           toast.success("Recovery PIN changed");
         }}
-      />
-      <RotatePrivacyKeyDialog
-        open={rotationOpen}
-        onOpenChange={setRotationOpen}
       />
     </>
   );
@@ -225,9 +170,9 @@ function RecoveryTile({
           </p>
           <p>
             {method === "passkey"
-              ? "Your private keys are derived from your passkey on each device. Use the same synced passkey anywhere — Meaw stores nothing secret."
+              ? "Your private keys are derived from your passkey on each device. Use the same synced passkey anywhere — we store nothing secret."
               : protectedRecovery
-                ? "Your PIN lets you restore access on another device. Meaw never sees or stores the PIN itself."
+                ? "Your PIN lets you restore access on another device. We never see or store the PIN itself."
                 : "Without a recovery PIN, moving to a new device could leave you unable to access your funds."}
           </p>
         </>
@@ -271,7 +216,7 @@ function SessionTile({ onSignOut }: { onSignOut: () => Promise<void> }) {
       <Dialog open={signOutOpen} onOpenChange={setSignOutOpen}>
         <DialogContent appearance="linen" size="sm">
           <DialogHeader>
-            <DialogTitle>Sign out of Meaw?</DialogTitle>
+            <DialogTitle>Sign out?</DialogTitle>
             <DialogDescription>
               This removes access from this device. Your account and funds stay
               safe, and you can return with your passkey or recovery PIN.

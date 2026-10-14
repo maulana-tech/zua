@@ -2,37 +2,17 @@
 
 import { Check, ChevronRight, Copy, ExternalLink, QrCode } from "lucide-react";
 import Link from "next/link";
-import {
-  type ForwardedRef,
-  forwardRef,
-  type ReactNode,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { usePaymentActivity } from "../../features/payments/usePaymentActivity";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { InstallMeaw } from "../../features/pwa/InstallMeaw";
-import { useTransfers } from "../../features/transfers/hooks/useTransfers";
-import type { TransferRecord } from "../../features/transfers/types";
-import { ASSETS } from "../../lib/assets";
-import { LINKS_PATH, WITHDRAW_PATH } from "../../lib/auth-routes";
-import { fromBaseUnits } from "../../lib/crypto";
+import { LINKS_PATH } from "../../lib/auth-routes";
+import { APP_NAME } from "../../lib/brand";
 import { unlockLabel } from "../../lib/passkey";
-import { activePools, type PoolDescriptor } from "../../lib/pools";
 import { useWallet } from "../WalletProvider";
 import { ActivityFeed } from "./ActivityFeed";
-import { AddFundsDialog } from "./AddFundsDialog";
 import { BalanceCard } from "./BalanceCard";
-import { CreateRequestDialog } from "./CreateRequestDialog";
 import { DashboardPageHeader } from "./DashboardPageHeader";
-import { weeklyActivity } from "./dashboardAnalytics";
 import { PaymentQrDialog } from "./PaymentQrDialog";
-import { PendingTransfersNotice } from "./PendingTransfersNotice";
 import { ReceiveDialog } from "./ReceiveDialog";
-import { RequestsTile } from "./RequestsTile";
-import { SendAusdAction } from "./SendAusdAction";
-import { SendTransferDialog } from "./SendTransferDialog";
 import {
   dashButtonPrimary,
   dashButtonSecondary,
@@ -40,107 +20,45 @@ import {
   dashFocus,
   dashLedger,
 } from "./styles";
-import { TransferProgress } from "./TransferProgress";
-import { useMyNotes } from "./useMyNotes";
-import { assetLabel, selectAsset, useSelectedPool } from "./useSelectedPool";
+
 export function Dashboard() {
   const {
-    address,
     username,
     usernameResolved,
     openUsernameModal,
     accountUnlocked,
     promptUnlock,
     recoveryMethod,
+    zcash,
+    syncNow,
   } = useWallet();
   const [origin, setOrigin] = useState("");
   const [receiveOpen, setReceiveOpen] = useState(false);
-  const [addFundsOpen, setAddFundsOpen] = useState(false);
-  const [requestOpen, setRequestOpen] = useState(false);
-  const [sendPool, setSendPool] = useState<PoolDescriptor | null>(null);
-  const pool = useSelectedPool();
-  const [sendOpen, setSendOpen] = useState(false),
-    [selectedTransfer, setSelectedTransfer] = useState<TransferRecord | null>(
-      null,
-    ),
-    [progressOpen, setProgressOpen] = useState(false),
-    [startTransfer, setStartTransfer] = useState(false);
-  const transfers = useTransfers("sent", pool.scope);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Account changes must clear payment dialogs.
-  useEffect(() => {
-    setSelectedTransfer(null);
-    setProgressOpen(false);
-    setSendOpen(false);
-    setSendPool(null);
-  }, [address]);
-  const { notes, claimable, loading, refreshing, stale, refresh } = useMyNotes(
-    accountUnlocked ? address : undefined,
-    pool,
-  );
-  const activity = usePaymentActivity(notes);
-  // Activity spans every pool; keep the selected asset's rows only.
-  const rows = useMemo(
-    () => activity.rows.filter((r) => r.scope === pool.scope),
-    [activity.rows, pool.scope],
-  );
-  const insight = useMemo(() => weeklyActivity(rows), [rows]);
 
-  useEffect(() => {
-    setOrigin(window.location.origin);
-  }, []);
+  useEffect(() => setOrigin(window.location.origin), []);
 
   const payLink = username && origin ? `${origin}/pay/${username}` : "";
-  const locked = Boolean(address) && !accountUnlocked;
-  const needsUsername = usernameResolved && !username;
+  const needsUsername = accountUnlocked && usernameResolved && !username;
 
   return (
     <>
       <DashboardPageHeader
-        title={username ? `Hi, @${username}` : "Welcome to Meaw"}
-        description="Your private balance, payment link and recent activity."
-        action={
-          <SendAusdAction
-            onReady={(ausdPool, pending) => {
-              selectAsset(ausdPool.asset);
-              if (pending) {
-                setSelectedTransfer(pending);
-                setStartTransfer(false);
-                setProgressOpen(true);
-              } else {
-                setSendPool(ausdPool);
-                setSendOpen(true);
-              }
-            }}
-          />
-        }
+        title={username ? `Hi, @${username}` : `Welcome to ${APP_NAME}`}
+        description="Your shielded ZEC balance, payment link and recent activity."
       />
 
       <InstallMeaw />
 
-      <PendingTransfersNotice
-        record={transfers.pending}
-        onOpen={(record) => {
-          setSelectedTransfer(record);
-          setStartTransfer(false);
-          setProgressOpen(true);
-        }}
-      />
       {needsUsername ? (
         <div className="mb-4 flex flex-col gap-4 rounded-(--dash-radius) border border-(--dash-line-solid) bg-(--dash-surface) p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <span
-              className="mt-2 size-1.5 shrink-0 rounded-full bg-(--dash-accent)"
-              aria-hidden="true"
-            />
-            <div>
-              <h2 className="font-medium">
-                Claim your username to start getting paid
-              </h2>
-              <p className="mt-1 text-sm text-(--dash-ash)">
-                It becomes your payment link, so clients can pay you without
-                seeing your wallet history.
-              </p>
-            </div>
+          <div>
+            <h2 className="font-medium">
+              Claim your username to start getting paid
+            </h2>
+            <p className="mt-1 text-sm text-(--dash-ash)">
+              It becomes your payment link. Your shielded Zcash address is
+              created at the same time.
+            </p>
           </div>
           <button
             type="button"
@@ -155,29 +73,14 @@ export function Dashboard() {
       <div className={`${dashLedger} lg:grid-cols-3`}>
         <section aria-label="Balance" className={`${dashCell} lg:col-span-2`}>
           <BalanceCard
-            claimable={claimable}
-            loading={loading}
-            locked={locked}
+            zcash={zcash}
+            locked={!accountUnlocked}
             unlockLabel={unlockLabel(recoveryMethod)}
             onUnlock={promptUnlock}
-            onReceive={username ? () => setReceiveOpen(true) : undefined}
-            onSend={
-              username
-                ? () => {
-                    setSendPool(null);
-                    if (transfers.pending) {
-                      setSelectedTransfer(transfers.pending);
-                      setStartTransfer(false);
-                      setProgressOpen(true);
-                    } else setSendOpen(true);
-                  }
-                : undefined
+            onReceive={
+              username && zcash.address ? () => setReceiveOpen(true) : undefined
             }
-            onAddFunds={() => setAddFundsOpen(true)}
-            cashOutHref={WITHDRAW_PATH}
-            onRefresh={refresh}
-            refreshing={refreshing}
-            stale={stale}
+            onSync={() => void syncNow()}
           />
         </section>
 
@@ -189,99 +92,37 @@ export function Dashboard() {
           />
         </section>
 
-        <div className={`${dashCell} lg:col-span-2`}>
-          {locked ? (
-            <LockedActivity />
-          ) : (
+        <div className={`${dashCell} lg:col-span-3`}>
+          {accountUnlocked ? (
             <ActivityFeed
-              notes={notes}
-              rows={rows}
-              loading={loading}
+              history={zcash.history}
+              loading={zcash.status === "loading" || zcash.status === "syncing"}
               limit={5}
               showSeeAll
               showFilters={false}
               title="Recent activity"
             />
+          ) : (
+            <div className="p-6">
+              <h2 className="dashboard-tile-title">Recent activity</h2>
+              <p className="max-w-sm py-10 text-sm leading-6 text-(--dash-ash)">
+                Your payment history is decrypted on this device only. Unlock to
+                read it.
+              </p>
+            </div>
           )}
         </div>
-
-        <section aria-label="Last 7 days" className={dashCell}>
-          <WeekCard
-            buckets={insight.buckets}
-            received={insight.receivedAmount}
-            cashedOut={insight.cashedOutAmount}
-            hidden={locked || loading}
-            asset={assetLabel(pool)}
-          />
-        </section>
       </div>
 
-      <section aria-label="Requests" className="mt-4">
-        <RequestsTile />
-      </section>
-      <CreateRequestDialog
-        pool={pool}
-        open={requestOpen}
-        onOpenChange={setRequestOpen}
-      />
-      <SendTransferDialog
-        pool={sendPool ?? pool}
-        open={sendOpen}
-        onOpenChange={(next) => {
-          setSendOpen(next);
-          if (!next) setSendPool(null);
-        }}
-        onCreated={(record) => {
-          setSelectedTransfer(record);
-          setStartTransfer(true);
-          setProgressOpen(true);
-        }}
-      />
-      {selectedTransfer && (
-        <TransferProgress
-          record={selectedTransfer}
-          open={progressOpen}
-          autoStart={startTransfer}
-          onClose={() => setProgressOpen(false)}
+      {username && zcash.address ? (
+        <ReceiveDialog
+          open={receiveOpen}
+          onClose={() => setReceiveOpen(false)}
+          username={username}
+          address={zcash.address}
         />
-      )}
-      <ReceiveDialog
-        open={receiveOpen}
-        onClose={() => setReceiveOpen(false)}
-        username={username ?? ""}
-        origin={origin}
-        onRequest={() => {
-          setReceiveOpen(false);
-          setRequestOpen(true);
-        }}
-      />
-      <AddFundsDialog
-        open={addFundsOpen}
-        onOpenChange={setAddFundsOpen}
-        onComplete={refresh}
-        pool={pool}
-      />
+      ) : null}
     </>
-  );
-}
-
-/** Cell heading in the landing's style: mono label left, index right. */
-function CellHeading({
-  title,
-  index,
-  action,
-}: {
-  title: string;
-  index: string;
-  action?: ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <h2 className="dashboard-tile-title">{title}</h2>
-      {action ?? (
-        <span className="text-xs text-(--dash-ash) tabular-nums">{index}</span>
-      )}
-    </div>
   );
 }
 
@@ -308,59 +149,49 @@ function PayLinkCard({
 
   return (
     <div className="flex h-full flex-col p-6">
-      <CellHeading
-        title="Payment link"
-        index="02"
-        action={
-          username ? (
-            <Link
-              href={LINKS_PATH}
-              className={`inline-flex items-center gap-0.5 rounded-(--dash-radius-sm) text-sm text-(--dash-ash) transition-colors hover:text-(--dash-fg) ${dashFocus}`}
-            >
-              Manage
-              <ChevronRight className="size-4" aria-hidden="true" />
-            </Link>
-          ) : undefined
-        }
-      />
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="dashboard-tile-title">Payment link</h2>
+        {username ? (
+          <Link
+            href={LINKS_PATH}
+            className={`inline-flex items-center gap-0.5 text-sm text-(--dash-ash) transition-colors hover:text-(--dash-fg) ${dashFocus}`}
+          >
+            Manage
+            <ChevronRight className="size-4" aria-hidden="true" />
+          </Link>
+        ) : null}
+      </div>
 
       {username ? (
         <>
           <p className="mt-4 text-sm leading-6 text-(--dash-ash)">
-            Anyone can pay you in{" "}
-            {new Intl.ListFormat("en", { type: "disjunction" }).format(
-              activePools().map((p) => ASSETS[p.asset].label),
-            )}{" "}
-            from any wallet. Payments land in your private balance.
+            Anyone can pay you in ZEC from any Zcash wallet. Payments land in
+            your shielded balance.
           </p>
           <div className="mt-5 truncate border-y border-(--dash-line) py-3 font-mono text-sm">
             {displayLink || "Loading link…"}
           </div>
           <div className="mt-auto flex flex-wrap gap-2 pt-6">
-            <PayLinkAction
-              label={copied ? "Copied" : "Copy"}
-              ariaLabel={copied ? "Link copied" : "Copy link"}
-              onClick={copyLink}
-              disabled={!payLink}
-              primary
-            >
+            <Action primary onClick={copyLink} disabled={!payLink}>
               {copied ? <Check /> : <Copy />}
-            </PayLinkAction>
-            <PayLinkAction
+              {copied ? "Copied" : "Copy"}
+            </Action>
+            <button
               ref={qrTriggerRef}
-              label="QR"
-              ariaLabel="Show QR code"
+              type="button"
+              className={dashButtonSecondary}
               onClick={() => setQrOpen(true)}
               disabled={!payLink}
+              aria-label="Show QR code"
             >
               <QrCode />
-            </PayLinkAction>
+              QR
+            </button>
             <a
               href={payLink || undefined}
               target="_blank"
               rel="noreferrer"
               aria-disabled={!payLink}
-              aria-label="Open link"
               className={dashButtonSecondary}
             >
               <ExternalLink aria-hidden="true" />
@@ -387,135 +218,25 @@ function PayLinkCard({
   );
 }
 
-const PayLinkAction = forwardRef(function PayLinkAction(
-  {
-    label,
-    ariaLabel,
-    onClick,
-    disabled,
-    primary = false,
-    children,
-  }: {
-    label: string;
-    ariaLabel: string;
-    onClick: () => void;
-    disabled: boolean;
-    primary?: boolean;
-    children: ReactNode;
-  },
-  ref: ForwardedRef<HTMLButtonElement>,
-) {
+function Action({
+  primary = false,
+  onClick,
+  disabled,
+  children,
+}: {
+  primary?: boolean;
+  onClick: () => void;
+  disabled?: boolean;
+  children: ReactNode;
+}) {
   return (
     <button
-      ref={ref}
       type="button"
       onClick={onClick}
       disabled={disabled}
       className={primary ? dashButtonPrimary : dashButtonSecondary}
-      aria-label={ariaLabel}
-      title={ariaLabel}
     >
       {children}
-      {label}
     </button>
-  );
-});
-
-function LockedActivity() {
-  return (
-    <div className="flex h-full flex-col p-6">
-      <CellHeading title="Recent activity" index="03" />
-      <p className="my-auto max-w-sm py-10 text-sm leading-6 text-(--dash-ash)">
-        Your payment history is private. Unlock your balance above to read it on
-        this device.
-      </p>
-    </div>
-  );
-}
-
-function WeekCard({
-  buckets,
-  received,
-  cashedOut,
-  hidden,
-  asset,
-}: {
-  asset: string;
-  buckets: number[];
-  received: bigint;
-  cashedOut: bigint;
-  hidden: boolean;
-}) {
-  const max = Math.max(1, ...buckets);
-  const today = new Date();
-  const days = buckets.map((count, index) => {
-    const date = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate() - (6 - index),
-    );
-    return {
-      key: date.toDateString(),
-      label: date.toLocaleDateString(undefined, { weekday: "narrow" }),
-      count,
-    };
-  });
-
-  return (
-    <div className="flex h-full flex-col p-6">
-      <CellHeading title="Last 7 days" index="04" />
-
-      <dl className="mt-5 grid grid-cols-2 border-y border-(--dash-line)">
-        <div className="py-4 pr-4">
-          <dt className="text-xs text-(--dash-ash)">Received</dt>
-          <dd className="mt-1 text-2xl font-normal tracking-tight tabular-nums">
-            {hidden ? "—" : `+${fromBaseUnits(received)}`}
-          </dd>
-        </div>
-        <div className="border-l border-(--dash-line) py-4 pl-4">
-          <dt className="text-xs text-(--dash-ash)">Cashed out</dt>
-          <dd className="mt-1 text-2xl font-normal tracking-tight tabular-nums">
-            {hidden ? "—" : `−${fromBaseUnits(cashedOut)}`}
-          </dd>
-        </div>
-      </dl>
-      <p className="mt-2 text-[11px] tracking-[0.12em] text-(--dash-ash) uppercase">
-        Amounts in {asset}
-      </p>
-
-      <div
-        className="mt-auto pt-6"
-        role="img"
-        aria-label={`Payments per day over the last seven days: ${buckets.join(", ")}`}
-      >
-        <div className="flex h-20 items-end gap-1.5">
-          {days.map((day) => (
-            <span
-              key={day.key}
-              className={`flex-1 ${
-                !hidden && day.count > 0
-                  ? "bg-(--dash-accent)"
-                  : "bg-(--dash-fg)/8"
-              }`}
-              style={{
-                height: hidden
-                  ? "6%"
-                  : `${Math.max(6, (day.count / max) * 100)}%`,
-              }}
-            />
-          ))}
-        </div>
-        <div className="mt-2 flex gap-1.5" aria-hidden="true">
-          {days.map((day) => (
-            <span
-              key={day.key}
-              className="flex-1 text-center text-[11px] text-(--dash-ash)"
-            >
-              {day.label}
-            </span>
-          ))}
-        </div>
-      </div>
-    </div>
   );
 }

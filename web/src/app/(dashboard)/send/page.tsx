@@ -1,0 +1,37 @@
+"use client";
+
+import { useEffect } from "react";
+import { SendDashboard } from "@/components/dashboard/SendDashboard";
+import { useWallet } from "@/components/WalletProvider";
+import { SIGN_IN_PATH } from "@/lib/auth-routes";
+
+export default function DashboardSendPage() {
+  const { authenticated, sessionReady } = useWallet();
+
+  useEffect(() => {
+    if (!sessionReady || authenticated) return;
+    window.location.replace(SIGN_IN_PATH);
+  }, [authenticated, sessionReady]);
+
+  if (!sessionReady || !authenticated) {
+    return (
+      <div
+        className="motion-safe:animate-pulse"
+        role="status"
+        aria-busy="true"
+        aria-label="Loading send page"
+      >
+        <div className="mb-8 space-y-3">
+          <div className="h-12 w-56 max-w-full rounded-lg bg-brand-linen/12" />
+          <div className="h-4 w-96 max-w-full rounded-full bg-brand-linen/8" />
+        </div>
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.6fr)]">
+          <div className="h-96 rounded-(--dash-radius) bg-(--dash-surface) ring-1 ring-(--dash-line)" />
+          <div className="h-64 rounded-(--dash-radius) bg-(--dash-surface) ring-1 ring-(--dash-line)" />
+        </div>
+      </div>
+    );
+  }
+
+  return <SendDashboard />;
+}

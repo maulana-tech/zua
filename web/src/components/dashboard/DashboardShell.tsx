@@ -4,7 +4,6 @@ import {
   ArrowUpRight,
   FileText,
   History,
-  Inbox,
   LayoutGrid,
   Link2,
   LogOut,
@@ -16,15 +15,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { usePendingRequestsCount } from "../../features/requests/hooks/usePendingRequestsCount";
 import {
   DASHBOARD_PATH,
   HISTORY_PATH,
   INVOICES_PATH,
   LINKS_PATH,
-  REQUESTS_PATH,
+  SEND_PATH,
   SETTINGS_PATH,
-  WITHDRAW_PATH,
 } from "../../lib/auth-routes";
 import { cn } from "../../lib/utils";
 import {
@@ -44,9 +41,8 @@ const NAV_ITEMS = [
   { href: DASHBOARD_PATH, label: "Overview", icon: LayoutGrid },
   { href: LINKS_PATH, label: "Links", icon: Link2 },
   { href: INVOICES_PATH, label: "Invoices", icon: FileText },
-  { href: WITHDRAW_PATH, label: "Cash out", icon: ArrowUpRight },
+  { href: SEND_PATH, label: "Send", icon: ArrowUpRight },
   { href: HISTORY_PATH, label: "History", icon: History },
-  { href: REQUESTS_PATH, label: "Requests", icon: Inbox },
   { href: SETTINGS_PATH, label: "Settings", icon: Settings },
 ] as const;
 
@@ -121,8 +117,6 @@ function DashboardNavLayout({
   pathname: string;
   contentClassName?: string;
 }) {
-  const { count: pendingRequestsCount } = usePendingRequestsCount();
-
   const current =
     NAV_ITEMS.find((item) => isActive(pathname, item.href))?.label ??
     "Overview";
@@ -144,16 +138,7 @@ function DashboardNavLayout({
           >
             <ul className="my-auto grid gap-2">
               {MAIN_ITEMS.map((item) => (
-                <RailLink
-                  key={item.href}
-                  item={item}
-                  pathname={pathname}
-                  badge={
-                    item.href === REQUESTS_PATH
-                      ? pendingRequestsCount
-                      : undefined
-                  }
-                />
+                <RailLink key={item.href} item={item} pathname={pathname} />
               ))}
             </ul>
             <ul className="grid gap-2">
@@ -195,10 +180,7 @@ function DashboardNavLayout({
       </div>
 
       <div className="fixed right-[max(0.75rem,env(safe-area-inset-right))] bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-[max(0.75rem,env(safe-area-inset-left))] z-40 rounded-(--dash-radius) border border-(--dash-line-solid) bg-(--dash-surface) lg:hidden">
-        <MobileTabs
-          pathname={pathname}
-          pendingRequestsCount={pendingRequestsCount}
-        />
+        <MobileTabs pathname={pathname} />
       </div>
     </div>
   );
@@ -262,23 +244,16 @@ function RailLink({
   );
 }
 
-function MobileTabs({
-  pathname,
-  pendingRequestsCount,
-}: {
-  pathname: string;
-  pendingRequestsCount?: number;
-}) {
+function MobileTabs({ pathname }: { pathname: string }) {
   return (
     <nav
       aria-label="Dashboard tabs"
       className="overflow-x-auto overscroll-x-contain"
     >
-      <ul className="grid min-w-[28rem] grid-cols-7">
+      <ul className="grid min-w-[22rem] grid-cols-6">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = isActive(pathname, href);
-          const badge =
-            href === REQUESTS_PATH ? pendingRequestsCount : undefined;
+          const badge: number | undefined = undefined;
           const showBadge = typeof badge === "number" && badge > 0;
           return (
             <li key={href}>

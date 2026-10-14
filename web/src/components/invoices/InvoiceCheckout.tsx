@@ -1,234 +1,77 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Download } from "lucide-react";
+import { Download, ShieldAlert, ShieldCheck } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { type Hex, hexToBytes } from "viem";
-import { PayForm } from "../../app/pay/[username]/PayForm";
+import { useMemo, useState } from "react";
 import { invoiceStatus } from "../../features/invoices/input";
-import type { InvoiceView } from "../../features/invoices/types";
-import type { PaymentLink } from "../../features/paymentLinks/types";
-import { chain, explorerTxUrl } from "../../lib/chain";
+import { formatUsd, useZecPrice } from "../../features/zcash/useZecPrice";
+import { APP_NAME } from "../../lib/brand";
 import { downloadInvoicePdf } from "../../lib/invoicePdf";
-import { formatAssetUnits } from "../../lib/paymentAsset";
+import { verifyClaim } from "../../lib/profileClaim";
+import { formatMemoTag } from "../../lib/zcash/memo";
+import { network } from "../../lib/zcash/network";
+import { zatToZec, zecToZat } from "../../lib/zcash/units";
+import { buildPaymentUri } from "../../lib/zcash/zip321";
 import { api } from "../../trpc/client";
 import { BackLink } from "../BackLink";
 import { DashboardBackground } from "../dashboard/DashboardBackground";
-import {
-  dashButtonPrimary,
-  dashButtonSecondary,
-  dashCell,
-} from "../dashboard/styles";
+import { dashButtonSecondary, dashCell } from "../dashboard/styles";
 import { MeawMascot } from "../MeawMascot";
+import { QrPanel } from "../zcash/QrPanel";
 
 export const invoiceDate = (value: string) =>
-  new Date(`${value.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en", {
-    dateStyle: "medium",
+  new Date(`${value}T00:00:00Z`).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
     timeZone: "UTC",
   });
-const labels = {
-  pending: "Pending",
+
+const LABELS = {
+  pending: "Awaiting payment",
   paid: "Paid",
   void: "Void",
   overdue: "Overdue",
 } as const;
-const receiptKey = (token: string) => `meaw:invoice-receipt:${token}`;
-const attemptKey = (token: string) => `meaw:invoice-attempt:${token}`;
+
+/** Public invoice page: verified ZIP-321 QR tagged with the invoice memo. */
 export function InvoiceCheckout({ token }: { token: string }) {
-  const query = useQuery({
-    queryKey: ["invoice-public", token],
-    queryFn: () => api.invoices.publicGet.query({ token }),
-    retry: false,
-    refetchInterval: (query) =>
-      query.state.data?.status === "paid" ? false : 5000,
-  });
-  const [confirmed, setConfirmed] = useState<{
-    token: string;
-    invoice: InvoiceView;
-  } | null>(null);
-  const [receipt, setReceipt] = useState<{ token: string; hash: Hex } | null>(
-    null,
-  );
-  const [checking, setChecking] = useState(false),
-    [notice, setNotice] = useState("");
-  const [uncertain, setUncertain] = useState<{
-    token: string;
-    active: boolean;
-  } | null>(null);
+  const price = useZecPrice();
   const [downloading, setDownloading] = useState(false);
-  const session = useRef(token),
-    mounted = useRef(true);
-  session.current = token;
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-  useEffect(() => {
-    try {
-      const hash = sessionStorage.getItem(receiptKey(token));
-      if (hash && /^0x[0-9a-fA-F]{64}$/.test(hash))
-        setReceipt({ token, hash: hash as Hex });
-      if (sessionStorage.getItem(attemptKey(token)) === "1")
-        setUncertain({ token, active: true });
-    } catch {}
-  }, [token]);
-  const invoice = confirmed?.token === token ? confirmed.invoice : query.data;
-  const hash = receipt?.token === token ? receipt.hash : null;
-  const unresolved = uncertain?.token === token && uncertain.active;
-  async function handleDownloadPdf() {
-    if (!invoice) return;
-    setDownloading(true);
-    try {
-      const origin =
-        typeof window !== "undefined" ? window.location.origin : "";
-      await downloadInvoicePdf(invoice, { origin });
-    } catch (err) {
-      console.error("PDF download failed:", err);
-    } finally {
-      if (mounted.current) setDownloading(false);
-    }
-  }
-  async function confirm(txHash?: Hex) {
-    const at = token;
-    setChecking(true);
-    setNotice("");
-    try {
-      const paid = txHash
-        ? await api.invoices.checkPayment.mutate({ token: at, txHash })
-        : await api.invoices.checkPayment.mutate({ token: at });
-      if (mounted.current && session.current === at) {
-        if (paid.status === "paid") setConfirmed({ token: at, invoice: paid });
-        else if (
-          paid.paymentOutcome === "reverted" &&
-          txHash &&
-          paid.verifiedRevertHash?.toLowerCase() === txHash.toLowerCase()
-        ) {
-          invoiceLifecycle.onReleased();
-          setNotice(
-            "The payment reverted. You can review the invoice and pay again.",
-          );
-        } else
-          setNotice(
-            "No confirmed payment was found yet. Keep checking this invoice before making another payment.",
-          );
-      }
-    } catch {
-      if (mounted.current && session.current === at)
-        setNotice(
-          "Payment submitted. Confirmation is pending; check its status before paying again.",
-        );
-    } finally {
-      if (mounted.current && session.current === at) setChecking(false);
-    }
-  }
-  async function onPaid(value: string) {
-    if (!/^0x[0-9a-fA-F]{64}$/.test(value))
-      throw new Error("Receipt hash unavailable. Check the invoice status.");
-    const txHash = value as Hex;
-    try {
-      sessionStorage.setItem(receiptKey(token), txHash);
-    } catch {}
-    if (!mounted.current || session.current !== token) return;
-    setReceipt({ token, hash: txHash });
-    try {
-      const paid = await api.invoices.confirmPayment.mutate({ token, txHash });
-      if (mounted.current && session.current === token)
-        setConfirmed({ token, invoice: paid });
-    } catch {
-      if (mounted.current && session.current === token)
-        setNotice(
-          "Payment submitted. Confirmation is pending; check its status before paying again.",
-        );
-    }
-  }
-  const invoiceLifecycle = {
-    onSubmitting: () => {
-      try {
-        sessionStorage.setItem(attemptKey(token), "1");
-        if (sessionStorage.getItem(attemptKey(token)) !== "1")
-          throw new Error("Unavailable");
-      } catch {
-        throw new Error(
-          "This browser cannot keep payment status. Use another browser before paying.",
-        );
-      }
-    },
-    onSubmitted: (value: string) => {
-      if (!/^0x[0-9a-fA-F]{64}$/.test(value)) return;
-      try {
-        sessionStorage.setItem(receiptKey(token), value);
-      } catch {}
-      if (mounted.current && session.current === token)
-        setReceipt({ token, hash: value as Hex });
-    },
-    onUncertain: () => {
-      if (mounted.current && session.current === token) {
-        setUncertain({ token, active: true });
-        setNotice(
-          "Payment status is uncertain. Check this invoice before paying again.",
-        );
-      }
-    },
-    onReleased: () => {
-      try {
-        sessionStorage.removeItem(attemptKey(token));
-        sessionStorage.removeItem(receiptKey(token));
-      } catch {}
-      if (mounted.current && session.current === token) {
-        setUncertain({ token, active: false });
-        setReceipt(null);
-      }
-    },
-  };
-  const amount = (units: string) =>
-    invoice
-      ? `${formatAssetUnits(BigInt(units), invoice.tokenDecimals)} ${invoice.asset}`
-      : "";
+  const query = useQuery({
+    queryKey: ["public-invoice", token],
+    queryFn: () => api.invoices.public.query({ token }),
+    // The owner's wallet reports payments; poll so the payer sees "Paid".
+    refetchInterval: (q) =>
+      q.state.data?.status === "pending" ? 20_000 : false,
+    retry: 1,
+  });
+  const profile = useQuery({
+    queryKey: ["invoice-owner", query.data?.username],
+    enabled: Boolean(query.data?.username),
+    queryFn: () =>
+      api.profiles.byUsername.query({ username: query.data?.username ?? "" }),
+  });
+  const invoice = query.data ?? null;
+
+  const ua = useMemo(() => {
+    if (!profile.data || !invoice) return null;
+    const claim = verifyClaim(profile.data.claimJson, profile.data.claimSigHex);
+    return claim &&
+      claim.username === invoice.username &&
+      claim.network === network &&
+      claim.ua === profile.data.ua
+      ? claim.ua
+      : null;
+  }, [profile.data, invoice]);
+
+  const remaining = invoice
+    ? BigInt(invoice.totalZat) - BigInt(invoice.paidZat)
+    : 0n;
   const state = invoice ? invoiceStatus(invoice.status, invoice.dueDate) : null;
-  let checkout = null;
-  if (
-    invoice?.checkout &&
-    invoice.status === "pending" &&
-    !hash &&
-    !unresolved &&
-    !query.isError
-  ) {
-    const link: PaymentLink = {
-      id: invoice.id,
-      owner: invoice.username,
-      slug: invoice.token,
-      asset: invoice.asset,
-      tokenDecimals: invoice.tokenDecimals,
-      amount: invoice.amount,
-      description: null,
-      label: null,
-      status: "pending",
-      state: "active",
-      createdAt: invoice.createdAt,
-      updatedAt: null,
-      archivedAt: null,
-    };
-    const account = {
-      owner: invoice.checkout.recipientWallet,
-      note_pubkey: hexToBytes(invoice.checkout.notePubkey),
-      view_pubkey: hexToBytes(invoice.checkout.viewPubkey),
-      created: 0n,
-    };
-    checkout = (
-      <PayForm
-        account={account}
-        username={invoice.username}
-        link={link}
-        invoice={invoice.checkout}
-        onPaid={onPaid}
-        invoiceLifecycle={invoiceLifecycle}
-      />
-    );
-  }
+
   return (
     <DashboardBackground>
       <main
@@ -238,24 +81,23 @@ export function InvoiceCheckout({ token }: { token: string }) {
         <header className="mb-8 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <BackLink />
-            <Link href="/" aria-label="Meaw home">
+            <Link href="/" aria-label={`${APP_NAME} home`}>
               <Image
                 src="/assets/mawee-white.svg"
-                alt="Meaw"
+                alt={APP_NAME}
                 width={40}
                 height={40}
                 className="size-10"
               />
             </Link>
           </div>
-          {chain.testnet && (
-            <p className="text-xs text-(--dash-ash)">
-              Testnet invoice · test funds
-            </p>
-          )}
+          <p className="text-xs text-(--dash-ash)">
+            Zcash {network === "main" ? "mainnet" : "testnet"} invoice
+          </p>
         </header>
+
         {!invoice ? (
-          query.isError ? (
+          query.isError || (query.isSuccess && !query.data) ? (
             <section
               role="alert"
               className={`${dashCell} border border-(--dash-line) p-6`}
@@ -290,7 +132,7 @@ export function InvoiceCheckout({ token }: { token: string }) {
                   </h1>
                 </div>
                 <span className="rounded-full border border-(--dash-line) px-3 py-1 text-sm">
-                  {state ? labels[state] : ""}
+                  {state ? LABELS[state] : ""}
                 </span>
               </div>
               <dl className="my-7 grid gap-4 text-sm sm:grid-cols-2">
@@ -322,150 +164,128 @@ export function InvoiceCheckout({ token }: { token: string }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {invoice.items.map((item) => (
+                    {invoice.items.map((item, i) => (
                       <tr
-                        key={item.id}
+                        key={`${i}-${item.description}`}
                         className="border-b border-(--dash-line)"
                       >
                         <td className="min-w-32 break-words py-4">
                           {item.description}
-                          <span className="mt-1 block text-xs text-(--dash-ash)">
-                            {amount(item.unitPrice)} each
-                          </span>
                         </td>
                         <td className="px-3 py-4 tabular-nums">
                           {item.quantity}
                         </td>
-                        <td className="py-4 text-right whitespace-nowrap tabular-nums">
-                          {amount(
-                            (
-                              BigInt(item.unitPrice) * BigInt(item.quantity)
-                            ).toString(),
-                          )}
+                        <td className="py-4 text-right tabular-nums">
+                          {zatToZec(
+                            zecToZat(item.unitPrice) * BigInt(item.quantity),
+                          )}{" "}
+                          ZEC
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <div className="mt-6 flex flex-wrap items-baseline justify-between gap-3">
-                <span className="text-sm text-(--dash-ash)">Total due</span>
-                <strong className="text-2xl font-medium tabular-nums">
-                  {amount(invoice.amount)}
-                </strong>
-              </div>
-              {invoice.notes && (
-                <p className="mt-7 break-words whitespace-pre-wrap text-sm leading-6 text-(--dash-ash)">
+              <p className="mt-6 flex items-baseline justify-between gap-4 text-lg">
+                <span>Total</span>
+                <span className="tabular-nums">
+                  {invoice.totalZec} ZEC{" "}
+                  <span className="text-sm text-(--dash-ash)">
+                    {formatUsd(BigInt(invoice.totalZat), price)}
+                  </span>
+                </span>
+              </p>
+              {invoice.notes ? (
+                <p className="mt-6 whitespace-pre-wrap text-sm text-(--dash-ash)">
                   {invoice.notes}
                 </p>
-              )}
-              <p className="mt-7 border-t border-(--dash-line) pt-4 text-xs leading-5 text-(--dash-ash)">
-                Invoice details are visible to anyone with this link. The
-                recipient's private balance and spending history stay protected.
-              </p>
-              <div className="mt-7 flex flex-wrap items-center gap-3 border-t border-(--dash-line) pt-5">
-                <button
-                  type="button"
-                  className={`${dashButtonSecondary} min-h-11`}
-                  disabled={downloading}
-                  onClick={() => void handleDownloadPdf()}
-                >
-                  <Download aria-hidden="true" className="size-4" />
-                  {downloading
-                    ? "Downloading…"
-                    : invoice.status === "paid"
-                      ? "Download receipt (PDF)"
-                      : "Download invoice (PDF)"}
-                </button>
-              </div>
+              ) : null}
+              <button
+                type="button"
+                className={`${dashButtonSecondary} mt-6`}
+                disabled={downloading}
+                onClick={async () => {
+                  setDownloading(true);
+                  try {
+                    await downloadInvoicePdf(invoice, {
+                      origin: window.location.origin,
+                    });
+                  } finally {
+                    setDownloading(false);
+                  }
+                }}
+              >
+                <Download aria-hidden="true" />
+                {downloading
+                  ? "Preparing…"
+                  : invoice.status === "paid"
+                    ? "Download receipt"
+                    : "Download PDF"}
+              </button>
             </article>
-            <aside className="grid gap-4" aria-label="Invoice payment">
-              {checkout}
-              {checkout && notice && (
-                <p role="status" className="text-sm text-(--dash-ash)">
-                  {notice}
-                </p>
-              )}
-              {invoice.status === "paid" && (
-                <section
-                  className={`${dashCell} border border-(--dash-line) p-6`}
-                  role="status"
-                >
-                  <MeawMascot mood="success" />
-                  <h2 className="mt-4 text-xl">Invoice paid</h2>
-                  <p className="mt-2 text-sm text-(--dash-ash)">
-                    Payment has been verified for @{invoice.username}.
+
+            <aside
+              className={`${dashCell} border border-(--dash-line-solid) p-5 sm:p-6`}
+              aria-label="Pay this invoice"
+            >
+              {invoice.status === "paid" ? (
+                <div className="grid justify-items-start gap-3" role="status">
+                  <MeawMascot mood="success" size={72} />
+                  <h2 className="text-xl">Paid. Thank you!</h2>
+                  <p className="text-sm text-(--dash-ash)">
+                    @{invoice.username}&apos;s wallet found your payment.
+                    Nothing about it is public.
                   </p>
-                  {invoice.voidedAt && (
-                    <p className="mt-2 text-sm">
-                      Payment was confirmed after this invoice was voided.
+                </div>
+              ) : invoice.status === "void" ? (
+                <p className="text-sm text-(--dash-ash)">
+                  This invoice was voided. Ask @{invoice.username} for a new
+                  one.
+                </p>
+              ) : !ua ? (
+                profile.isLoading ? (
+                  <p role="status">Checking the address…</p>
+                ) : (
+                  <div className="grid gap-2" role="alert">
+                    <ShieldAlert className="size-6" aria-hidden="true" />
+                    <p className="text-sm">
+                      The payee&apos;s address could not be verified. Don&apos;t
+                      pay this invoice.
                     </p>
-                  )}
-                  <button
-                    type="button"
-                    className={`${dashButtonSecondary} mt-4 w-full min-h-11`}
-                    disabled={downloading}
-                    onClick={() => void handleDownloadPdf()}
-                  >
-                    <Download aria-hidden="true" className="size-4" />
-                    {downloading ? "Downloading…" : "Download receipt (PDF)"}
-                  </button>
-                </section>
-              )}
-              {invoice.status === "void" && (
-                <section
-                  className={`${dashCell} border border-(--dash-line) p-6`}
-                >
-                  <h2 className="text-xl">Invoice voided</h2>
-                  <p className="mt-2 text-sm text-(--dash-ash)">
-                    Checkout is closed. An already-submitted payment can still
-                    be confirmed.
-                  </p>
-                </section>
-              )}
-              {(hash || unresolved) && invoice.status !== "paid" && (
-                <section
-                  className={`${dashCell} border border-(--dash-line) p-6`}
-                >
-                  <h2 className="text-xl">
-                    {hash ? "Payment submitted" : "Check your payment"}
+                  </div>
+                )
+              ) : (
+                <div className="grid gap-4">
+                  <h2 className="dashboard-tile-title">
+                    Pay with any Zcash wallet
                   </h2>
-                  <p className="mt-2 text-sm leading-6 text-(--dash-ash)">
-                    {notice ||
-                      "Check this payment's status. You do not need to send it again."}
+                  <p className="text-2xl tabular-nums">
+                    {zatToZec(remaining)} ZEC{" "}
+                    <span className="text-sm text-(--dash-ash)">
+                      {formatUsd(remaining, price)}
+                    </span>
                   </p>
-                  <button
-                    type="button"
-                    className={`${dashButtonPrimary} mt-4 min-h-11`}
-                    disabled={checking}
-                    onClick={() => void confirm(hash ?? undefined)}
-                  >
-                    {checking ? "Checking payment…" : "Check payment status"}
-                  </button>
-                </section>
-              )}
-              {query.isError && invoice.status === "pending" && !hash && (
-                <p role="alert" className="text-sm">
-                  Invoice status cannot be checked.{" "}
-                  <button
-                    type="button"
-                    className="underline"
-                    onClick={() => void query.refetch()}
-                  >
-                    Retry before paying
-                  </button>
-                  .
-                </p>
-              )}
-              {(invoice.paidTx || hash) && (
-                <a
-                  href={explorerTxUrl(invoice.paidTx ?? hash ?? "")}
-                  rel="noreferrer"
-                  target="_blank"
-                  className="text-sm underline underline-offset-4"
-                >
-                  View payment transaction
-                </a>
+                  {invoice.paidZat !== "0" ? (
+                    <p className="text-xs text-(--dash-ash)">
+                      {zatToZec(BigInt(invoice.paidZat))} ZEC already received.
+                    </p>
+                  ) : null}
+                  <QrPanel
+                    uri={buildPaymentUri({
+                      address: ua,
+                      amountZat: remaining,
+                      memo: formatMemoTag({ kind: "inv", id: invoice.id }),
+                      label: `@${invoice.username} on ${APP_NAME}`,
+                      message: `Invoice ${invoice.number}`,
+                    })}
+                    copyText={ua}
+                  />
+                  <p className="inline-flex items-center gap-1.5 text-xs text-(--dash-ash)">
+                    <ShieldCheck className="size-3.5" aria-hidden="true" />
+                    Address signed by @{invoice.username}. Keep the memo so the
+                    invoice is marked paid.
+                  </p>
+                </div>
               )}
             </aside>
           </div>

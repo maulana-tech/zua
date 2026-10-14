@@ -4,9 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { registerUsername, registerUsernameCache } from "../lib/chain";
-import { accountPubkeys, getAccount, setStoredUsername } from "../lib/notes";
-import { usernameSchema } from "../server/modules/usernames/usernames.schema";
+import { usernameSchema } from "../server/modules/profiles/profiles.schema";
 import { Button } from "./ui/button";
 import {
   Dialog,
@@ -33,7 +31,7 @@ export function CreateAccountForm({
   onClaimed: (username: string) => void;
   error?: string | null;
 }) {
-  const { getSigner, signIn } = useWallet();
+  const { claimUsername, signIn } = useWallet();
   const {
     register,
     handleSubmit,
@@ -48,19 +46,7 @@ export function CreateAccountForm({
 
   const onSubmit = handleSubmit(async ({ username }) => {
     try {
-      const signer = await getSigner();
-      // Registration must use pubkeys from the unlocked recoverable account so
-      // the username stays attached to the same escrow state.
-      const acct = getAccount();
-      if (!acct) throw new Error("Account is locked. Unlock with your PIN.");
-      const { notePubkey, viewPubkey } = await accountPubkeys(acct);
-      await registerUsername(signer, username, notePubkey, viewPubkey);
-      try {
-        await registerUsernameCache(username);
-      } catch (err) {
-        console.warn("username saved on-chain but Mongo mirror failed", err);
-      }
-      setStoredUsername(username);
+      await claimUsername(username);
       onClaimed(username);
     } catch (e) {
       setError("username", {
@@ -75,8 +61,8 @@ export function CreateAccountForm({
         <DialogHeader className="px-10 text-center">
           <DialogTitle>Create Your Account</DialogTitle>
           <DialogDescription className="mx-auto">
-            Pick a username. It will become your payment link, like
-            mawee.xyz/@jimmymcgill.
+            Pick a username. We also create your shielded Zcash address and sign
+            it, so payers can check it really is yours.
           </DialogDescription>
         </DialogHeader>
 
@@ -90,7 +76,7 @@ export function CreateAccountForm({
               id="username"
               className="min-h-11"
               placeholder="jimmymcgill"
-              maxLength={32}
+              maxLength={20}
               {...usernameField}
               onChange={(e) => {
                 e.target.value = e.target.value.replace(/[^a-zA-Z0-9_]/g, "");
@@ -98,7 +84,7 @@ export function CreateAccountForm({
               }}
             />
             <span className="text-xs text-muted-foreground">
-              3-32 characters. Letters, numbers, underscore.
+              3-20 characters. Letters, numbers, underscore.
             </span>
           </div>
 
@@ -115,7 +101,7 @@ export function CreateAccountForm({
                 aria-hidden="true"
               />
             )}
-            {isSubmitting ? "Working…" : "Claim"}
+            {isSubmitting ? "Creating your wallet…" : "Claim"}
           </Button>
 
           <ToastFeedback

@@ -7,7 +7,7 @@ import { invoiceStatus } from "../../features/invoices/input";
 import type { InvoiceView } from "../../features/invoices/types";
 import { SIGN_IN_PATH } from "../../lib/auth-routes";
 import { downloadInvoicePdf } from "../../lib/invoicePdf";
-import { formatAssetUnits } from "../../lib/paymentAsset";
+import { zatToZec } from "../../lib/zcash/units";
 import { api } from "../../trpc/client";
 import { DashboardPageHeader } from "../dashboard/DashboardPageHeader";
 import { PaymentQrDialog } from "../dashboard/PaymentQrDialog";
@@ -31,17 +31,13 @@ import { useWallet } from "../WalletProvider";
 import { CreateInvoiceDialog } from "./CreateInvoiceDialog";
 
 export function InvoicesDashboard() {
-  const { address, username, sessionReady } = useWallet();
+  const { authenticated, username, sessionReady } = useWallet();
   const [createOpen, setCreateOpen] = useState(false),
     [origin, setOrigin] = useState("");
-  const [page, setPage] = useState<{ owner: string; cursor?: string }>({
-    owner: "",
-  });
-  const cursor = page.owner === address ? page.cursor : undefined;
   const query = useQuery({
-    queryKey: ["owner-invoices", address, cursor ?? "first"],
-    enabled: Boolean(address) && sessionReady,
-    queryFn: () => api.invoices.list.query({ cursor }),
+    queryKey: ["owner-invoices", username],
+    enabled: Boolean(username) && sessionReady,
+    queryFn: () => api.invoices.list.query(),
     refetchInterval: 15_000,
     retry: false,
   });
@@ -49,15 +45,15 @@ export function InvoicesDashboard() {
     setOrigin(window.location.origin);
   }, []);
   useEffect(() => {
-    if (sessionReady && !address) window.location.replace(SIGN_IN_PATH);
-  }, [sessionReady, address]);
-  if (!sessionReady || !address)
+    if (sessionReady && !authenticated) window.location.replace(SIGN_IN_PATH);
+  }, [sessionReady, authenticated]);
+  if (!sessionReady || !authenticated)
     return <p role="status">Loading your invoices…</p>;
   return (
     <>
       <DashboardPageHeader
         title="Invoices"
-        description="Create a bill, share its link and track verified payments."
+        description="Bill in ZEC, share the link, and see it marked paid as soon as your wallet finds the payment."
         action={
           <button
             type="button"
@@ -72,7 +68,7 @@ export function InvoicesDashboard() {
       />
       {!username && (
         <p className="mb-5 text-sm text-(--dash-ash)">
-          Claim your Meaw username before creating an invoice.
+          Claim your username before creating an invoice.
         </p>
       )}
       {query.isError && (
@@ -89,15 +85,16 @@ export function InvoicesDashboard() {
       )}
       {query.isLoading ? (
         <p role="status">Loading invoices…</p>
-      ) : query.data?.items.length === 0 ? (
+      ) : query.data?.length === 0 ? (
         <section
           className={`${dashCell} border border-(--dash-line-solid) p-8`}
         >
           <MeawMascot mood="idle" />
           <h2 className="mt-5 text-xl">Your first invoice starts here</h2>
           <p className="mt-2 max-w-md text-sm leading-6 text-(--dash-ash)">
-            Set a total in USDC or AUSD. Share the link with your client and see
-            when the payment is verified.
+            Set a total in ZEC and share the link. Your client pays with any
+            Zcash wallet; the payment carries a private tag, so your wallet
+            marks the invoice paid by itself.
           </p>
         </section>
       ) : (
@@ -105,9 +102,9 @@ export function InvoicesDashboard() {
           aria-label="Your invoices"
           className="divide-y divide-(--dash-line-solid) border border-(--dash-line-solid)"
         >
-          {query.data?.items.map((invoice) => (
+          {query.data?.map((invoice) => (
             <InvoiceRow
-              key={`${address}:${invoice.id}`}
+              key={invoice.id}
               invoice={invoice}
               origin={origin}
               onChanged={() => void query.refetch()}
@@ -115,40 +112,11 @@ export function InvoicesDashboard() {
           ))}
         </section>
       )}
-      {(cursor || query.data?.nextCursor) && (
-        <div className="mt-5 flex gap-3">
-          {cursor && (
-            <button
-              type="button"
-              className={dashButtonSecondary}
-              onClick={() => setPage({ owner: address })}
-            >
-              Latest invoices
-            </button>
-          )}
-          {query.data?.nextCursor && (
-            <button
-              type="button"
-              className={dashButtonSecondary}
-              onClick={() =>
-                setPage({
-                  owner: address,
-                  cursor: query.data?.nextCursor ?? undefined,
-                })
-              }
-            >
-              Older invoices
-            </button>
-          )}
-        </div>
-      )}
       <CreateInvoiceDialog
-        key={address}
         open={createOpen}
         onOpenChange={setCreateOpen}
         onCreated={() => {
           setCreateOpen(false);
-          setPage({ owner: address });
           void query.refetch();
         }}
       />
@@ -243,12 +211,14 @@ export function InvoiceRow({
           </a>
           <p className="mt-1 break-words text-sm text-(--dash-ash)">
             {invoice.clientName} · Due {invoice.dueDate} UTC
+            {invoice.status === "pending" && invoice.paidZat !== "0"
+              ? ` · ${zatToZec(BigInt(invoice.paidZat))} ZEC received so far`
+              : ""}
           </p>
         </div>
         <div className="flex items-center gap-4">
           <p className="text-lg whitespace-nowrap tabular-nums">
-            {formatAssetUnits(BigInt(invoice.amount), invoice.tokenDecimals)}{" "}
-            {invoice.asset}
+            {invoice.totalZec} ZEC
           </p>
           <span className="rounded-full border border-(--dash-line) px-3 py-1 text-xs">
             {labels[status]}
@@ -303,7 +273,7 @@ export function InvoiceRow({
         open={qrOpen}
         onOpenChange={setQrOpen}
         url={url}
-        asset={invoice.asset}
+        asset="ZEC"
         triggerRef={trigger}
       />
       <Dialog
@@ -316,8 +286,8 @@ export function InvoiceRow({
           <DialogHeader>
             <DialogTitle>Void {invoice.number}?</DialogTitle>
             <DialogDescription>
-              Closes checkout for this invoice. An already-submitted payment can
-              still be confirmed; its evidence is preserved.
+              The invoice page will stop showing a payment code. Payments that
+              already arrived stay in your balance.
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-3">

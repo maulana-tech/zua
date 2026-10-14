@@ -2,48 +2,27 @@
 
 import {
   Archive,
-  ArchiveRestore,
   Check,
   Copy,
   ExternalLink,
-  Loader,
   Pencil,
   Plus,
   QrCode,
-  Trash2,
+  RotateCcw,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { usePaymentLinksByOwner } from "../../features/paymentLinks/hooks/usePaymentLink";
-import {
-  getManageToken,
-  removeManageToken,
-} from "../../features/paymentLinks/manageTokens";
-import type { PaymentLink } from "../../features/paymentLinks/types";
-import { ASSETS } from "../../lib/assets";
-import { formatAssetUnits } from "../../lib/paymentAsset";
+import { useRef, useState } from "react";
 import { payUrl } from "../../lib/paymentLinks";
-import { api } from "../../trpc/client";
-import { Button } from "../ui/button";
-import { Card } from "../ui/card";
-import { ToastFeedback } from "../ui/toast-feedback";
+import { trpc } from "../../trpc/react";
+import { MeawMascot } from "../MeawMascot";
 import { DashboardPageHeader } from "./DashboardPageHeader";
-import { LinkEditorDialog } from "./LinkEditorDialog";
+import { LinkEditorDialog, type PaymentLink } from "./LinkEditorDialog";
 import { PaymentQrDialog } from "./PaymentQrDialog";
-import { PersonalLinkCard } from "./PersonalLinkCard";
-
-function displayAmount(link: PaymentLink) {
-  return link.amount
-    ? `${formatAssetUnits(BigInt(link.amount), link.tokenDecimals ?? 6)} ${ASSETS[link.asset ?? "USDC"].label}`
-    : `Open amount · ${ASSETS[link.asset ?? "USDC"].label}`;
-}
-
-function isUnauthorized(e: unknown): boolean {
-  return (
-    typeof e === "object" &&
-    e !== null &&
-    (e as { data?: { code?: string } }).data?.code === "UNAUTHORIZED"
-  );
-}
+import {
+  dashButtonPrimary,
+  dashCell,
+  dashIconButton,
+  dashLedger,
+} from "./styles";
 
 export function LinksDashboard({
   username,
@@ -52,334 +31,196 @@ export function LinksDashboard({
   username: string;
   origin: string;
 }) {
-  const { links, loading, error, refresh, setLinks } =
-    usePaymentLinksByOwner(username);
-  const [createOpen, setCreateOpen] = useState(false);
-  const payLink = username && origin ? `${origin}/pay/${username}` : "";
-
-  async function replaceLink(next: PaymentLink) {
-    setLinks((current) =>
-      current.map((link) => (link.id === next.id ? next : link)),
-    );
-  }
+  const links = trpc.paymentLinks.mine.useQuery();
+  const archive = trpc.paymentLinks.setArchived.useMutation();
+  const [editing, setEditing] = useState<PaymentLink | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const all = [
+    {
+      id: "personal",
+      slug: "",
+      title: "Personal link",
+      description: "Payer chooses the amount.",
+      amountZec: null,
+      state: "active" as const,
+    },
+    ...(links.data ?? []),
+  ];
 
   return (
     <>
       <DashboardPageHeader
-        title="Links"
-        description={
-          <>
-            Create and manage payment links for invoices, tips, projects, and
-            open-ended requests.
-          </>
-        }
+        title="Payment links"
+        description="Share links that let anyone pay you in shielded ZEC from any Zcash wallet."
         action={
-          <Button variant="glass" size="lg" onClick={() => setCreateOpen(true)}>
-            <Plus className="size-4" aria-hidden="true" />
-            Create link
-          </Button>
+          <button
+            type="button"
+            className={dashButtonPrimary}
+            onClick={() => {
+              setEditing(null);
+              setEditorOpen(true);
+            }}
+          >
+            <Plus aria-hidden="true" />
+            New link
+          </button>
         }
       />
-
-      <section className="grid gap-4" aria-label="Payment links">
-        <ToastFeedback
-          title="Could not load payment links"
-          message={error}
-          variant="error"
-          toastId="payment-links-load-error"
-          action={{ label: "Try again", onClick: () => void refresh() }}
-        />
-        {(loading || links.length > 0) && (
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="font-heading text-xl font-semibold text-brand-linen">
-              Payment links
-            </h2>
-            <span className="flex items-center gap-2 text-sm text-brand-linen/60">
-              {loading && (
-                <Loader
-                  className="size-3.5 motion-safe:animate-spin"
-                  aria-hidden="true"
-                />
-              )}
-              {loading ? "Loading..." : `${links.length + 1} total`}
-            </span>
-          </div>
-        )}
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <PersonalLinkCard username={username} payLink={payLink} />
-          {loading ? (
-            <div
-              className="min-h-64 rounded-(--dash-radius) bg-(--dash-tint) ring-1 ring-(--dash-line) motion-safe:animate-pulse"
-              aria-hidden="true"
-            />
-          ) : null}
-          {links.map((link) => (
-            <GeneratedLinkCard
+      <div className={dashLedger}>
+        {links.isLoading ? (
+          <div className={`${dashCell} h-40 motion-safe:animate-pulse`} />
+        ) : (
+          all.map((link) => (
+            <LinkRow
               key={link.id}
-              link={link}
-              username={username}
-              origin={origin}
-              onChanged={replaceLink}
-              onDeleted={refresh}
+              url={payUrl(origin, username, link.slug || undefined)}
+              title={link.title}
+              description={link.description}
+              amount={link.amountZec}
+              archived={link.state === "archived"}
+              onEdit={
+                "owner" in link
+                  ? () => {
+                      setEditing(link as PaymentLink);
+                      setEditorOpen(true);
+                    }
+                  : undefined
+              }
+              onArchive={
+                "owner" in link
+                  ? async () => {
+                      await archive.mutateAsync({
+                        id: link.id,
+                        archived: link.state !== "archived",
+                      });
+                      await links.refetch();
+                    }
+                  : undefined
+              }
             />
-          ))}
-        </div>
-      </section>
-
+          ))
+        )}
+        {links.data?.length === 0 ? (
+          <div className={`${dashCell} flex items-center gap-4 p-6`}>
+            <MeawMascot size={48} />
+            <p className="text-sm text-(--dash-ash)">
+              Create links for products, retainers or tips. Each one carries a
+              private tag so you know what was paid.
+            </p>
+          </div>
+        ) : null}
+      </div>
       <LinkEditorDialog
-        mode="create"
-        open={createOpen}
-        username={username}
-        onOpenChange={setCreateOpen}
-        onSaved={async () => {
-          setCreateOpen(false);
-          await refresh();
-        }}
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        link={editing}
+        onSaved={() => void links.refetch()}
       />
     </>
   );
 }
 
-function GeneratedLinkCard({
-  link,
-  username,
-  origin,
-  onChanged,
-  onDeleted,
+function LinkRow({
+  url,
+  title,
+  description,
+  amount,
+  archived,
+  onEdit,
+  onArchive,
 }: {
-  link: PaymentLink;
-  username: string;
-  origin: string;
-  onChanged: (link: PaymentLink) => void;
-  onDeleted: () => void;
+  url: string;
+  title: string;
+  description: string | null;
+  amount: string | null;
+  archived: boolean;
+  onEdit?: () => void;
+  onArchive?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [failedAction, setFailedAction] = useState<
-    { kind: "archive"; nextArchived: boolean } | { kind: "delete" } | null
-  >(null);
-  const [manageToken, setManageToken] = useState<string | null>(null);
-  const qrTriggerRef = useRef<HTMLButtonElement>(null);
-  const url = payUrl(origin, username, link.slug);
-  const archived = link.state === "archived";
-  const canManage = manageToken !== null;
-  const manageTitle = canManage
-    ? undefined
-    : "Only available on the device that created this link";
-
-  // Read from localStorage after mount to avoid an SSR/hydration mismatch.
-  useEffect(() => {
-    setManageToken(getManageToken(link.id));
-  }, [link.id]);
-
-  async function copy() {
-    await navigator.clipboard?.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  }
-
-  async function archive(nextArchived: boolean) {
-    if (!manageToken) return;
-    setActionError(null);
-    setFailedAction(null);
-    setBusy(true);
-    try {
-      onChanged(
-        await api.paymentLinks.setArchived.mutate({
-          id: link.id,
-          manageToken,
-          archived: nextArchived,
-        }),
-      );
-    } catch (e) {
-      if (isUnauthorized(e)) {
-        removeManageToken(link.id);
-        setManageToken(null);
-        setActionError(
-          "This device no longer has permission to manage the link.",
-        );
-      } else {
-        setActionError(
-          e instanceof Error ? e.message : "Could not update the link.",
-        );
-        setFailedAction({ kind: "archive", nextArchived });
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function remove() {
-    if (!manageToken) return;
-    if (!window.confirm(`Permanently delete ${link.slug}?`)) return;
-    setActionError(null);
-    setFailedAction(null);
-    setBusy(true);
-    try {
-      await api.paymentLinks.delete.mutate({ id: link.id, manageToken });
-      removeManageToken(link.id);
-      onDeleted();
-    } catch (e) {
-      if (isUnauthorized(e)) {
-        removeManageToken(link.id);
-        setManageToken(null);
-        setActionError(
-          "This device no longer has permission to manage the link.",
-        );
-      } else {
-        setActionError(
-          e instanceof Error ? e.message : "Could not delete the link.",
-        );
-        setFailedAction({ kind: "delete" });
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
-
+  const qrRef = useRef<HTMLButtonElement>(null);
   return (
-    <Card appearance="linen" className="relative justify-between gap-4">
-      <ToastFeedback
-        title="Link action not completed"
-        message={actionError}
-        variant="error"
-        toastId={`payment-link-action-error-${link.id}`}
-        action={
-          failedAction
-            ? {
-                label: "Try again",
-                onClick: () =>
-                  failedAction.kind === "archive"
-                    ? void archive(failedAction.nextArchived)
-                    : void remove(),
-              }
-            : undefined
-        }
-      />
-      <div className="grid gap-3">
-        <div className="min-w-0 pr-12">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate font-heading text-lg font-semibold text-foreground">
-              {link.slug}
-            </h3>
-            {archived ? (
-              <span className="rounded-[4px] bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
-                Archived
-              </span>
-            ) : null}
-          </div>
-          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-            {displayAmount(link)}
-            {link.description ? ` · ${link.description}` : ""}
-          </p>
-        </div>
-
-        <div className="grid grid-cols-6 gap-1">
-          <Button
-            size="icon"
-            variant="secondary"
-            className="size-9"
-            onClick={copy}
-            title={copied ? "Copied" : "Copy"}
-            aria-label="Copy link"
-          >
-            {copied ? (
-              <Check className="size-4" />
-            ) : (
-              <Copy className="size-4" />
-            )}
-          </Button>
-          <Button
-            ref={qrTriggerRef}
-            size="icon"
-            variant="secondary"
-            className="size-9"
-            onClick={() => setQrOpen(true)}
-            title="Show QR code"
-            aria-label="Show QR code"
-            aria-expanded={qrOpen}
-          >
-            <QrCode className="size-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="secondary"
-            className="size-9"
-            nativeButton={false}
-            render={<a href={url} target="_blank" rel="noreferrer" />}
-            title="Open link"
-            aria-label="Open link"
-          >
-            <ExternalLink className="size-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="secondary"
-            className="size-9"
-            onClick={() => setEditOpen(true)}
-            title={manageTitle ?? "Edit link"}
+    <div
+      className={`${dashCell} flex flex-col gap-3 p-5 sm:flex-row sm:items-center ${archived ? "opacity-55" : ""}`}
+    >
+      <div className="min-w-0 flex-1">
+        <p className="font-medium">
+          {title}
+          {archived ? (
+            <span className="ml-2 text-xs text-(--dash-ash)">Archived</span>
+          ) : null}
+        </p>
+        <p className="mt-0.5 text-sm text-(--dash-ash)">
+          {amount ? `${amount} ZEC` : "Payer chooses"}
+          {description ? ` · ${description}` : ""}
+        </p>
+        <p className="mt-1 truncate font-mono text-xs text-(--dash-ash)">
+          {url.replace(/^https?:\/\//, "")}
+        </p>
+      </div>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          className={dashIconButton}
+          aria-label={copied ? "Copied" : "Copy link"}
+          onClick={async () => {
+            await navigator.clipboard?.writeText(url);
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 1500);
+          }}
+        >
+          {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+        </button>
+        <button
+          ref={qrRef}
+          type="button"
+          className={dashIconButton}
+          aria-label="Show QR code"
+          onClick={() => setQrOpen(true)}
+        >
+          <QrCode aria-hidden="true" />
+        </button>
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className={dashIconButton}
+          aria-label="Open link"
+        >
+          <ExternalLink aria-hidden="true" />
+        </a>
+        {onEdit ? (
+          <button
+            type="button"
+            className={dashIconButton}
             aria-label="Edit link"
-            disabled={busy || !canManage}
+            onClick={onEdit}
           >
-            <Pencil className="size-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="secondary"
-            className="size-9"
-            onClick={() => archive(!archived)}
-            title={manageTitle ?? (archived ? "Restore link" : "Archive link")}
+            <Pencil aria-hidden="true" />
+          </button>
+        ) : null}
+        {onArchive ? (
+          <button
+            type="button"
+            className={dashIconButton}
             aria-label={archived ? "Restore link" : "Archive link"}
-            disabled={busy || !canManage}
+            onClick={onArchive}
           >
             {archived ? (
-              <ArchiveRestore className="size-4" />
+              <RotateCcw aria-hidden="true" />
             ) : (
-              <Archive className="size-4" />
+              <Archive aria-hidden="true" />
             )}
-          </Button>
-          <Button
-            size="icon"
-            variant="destructive"
-            className="size-9"
-            onClick={remove}
-            title={manageTitle ?? "Delete link"}
-            aria-label="Delete link"
-            disabled={busy || !canManage}
-          >
-            <Trash2 className="size-4" />
-          </Button>
-        </div>
+          </button>
+        ) : null}
       </div>
-
-      <div className="truncate rounded-(--dash-radius-sm) bg-secondary px-3 py-2 font-mono text-sm text-foreground ring-1 ring-border">
-        {url.replace(/^https?:\/\//, "")}
-      </div>
-
       <PaymentQrDialog
         open={qrOpen}
         onOpenChange={setQrOpen}
         url={url}
-        triggerRef={qrTriggerRef}
-        asset={ASSETS[link.asset ?? "USDC"].label}
+        triggerRef={qrRef}
       />
-
-      <LinkEditorDialog
-        mode="edit"
-        open={editOpen}
-        username={username}
-        link={link}
-        manageToken={manageToken}
-        onOpenChange={setEditOpen}
-        onSaved={(next) => {
-          setEditOpen(false);
-          onChanged(next);
-        }}
-      />
-    </Card>
+    </div>
   );
 }

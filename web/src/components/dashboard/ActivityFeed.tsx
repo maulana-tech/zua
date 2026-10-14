@@ -1,119 +1,79 @@
 "use client";
 
-import { ChevronRight, Download, FileCheck } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Repeat } from "lucide-react";
 import Link from "next/link";
-import { type ReactNode, useMemo, useState } from "react";
-import {
-  buildActivityRows,
-  csvActivity,
-} from "../../features/payments/activityRows";
-import type { ActivityRow } from "../../features/payments/activityTypes";
-import { ASSETS } from "../../lib/assets";
+import { useMemo, useState } from "react";
 import { HISTORY_PATH } from "../../lib/auth-routes";
-import { fromBaseUnits } from "../../lib/crypto";
-import type { MyNote } from "../../lib/notes";
-import { findPool } from "../../lib/pools";
-import { cn } from "../../lib/utils";
+import { parseMemoTag, sanitizeMemo } from "../../lib/zcash/memo";
+import { explorerTxUrl } from "../../lib/zcash/network";
+import { zatToZec } from "../../lib/zcash/units";
+import type { WalletTx } from "../../lib/zcash/wallet";
 import { MeawMascot } from "../MeawMascot";
-import { Card } from "../ui/card";
-import { DiscloseDialog } from "./DiscloseDialog";
-import { dashButtonSecondary, dashFocus, dashIconButton } from "./styles";
+import { dashFocus } from "./styles";
 
-type ActivityEvent = ActivityRow;
-
-/** Each row is labelled with its own pool's asset. */
-function rowAsset(scope: string): string {
-  const pool = findPool(scope);
-  return pool ? ASSETS[pool.asset].label : "USDC";
-}
-
-const TABS = ["All", "Received", "Sent", "Cashed out"] as const;
+const TABS = ["All", "Received", "Sent"] as const;
 type Tab = (typeof TABS)[number];
 
-function toEvents(notes: MyNote[]): ActivityEvent[] {
-  return [
-    ...buildActivityRows({
-      notes,
-      transfers: [],
-      payloads: new Map(),
-      evidence: [],
-      viewer: "0x0000000000000000000000000000000000000000",
-    }),
-  ];
+function describe(tx: WalletTx): string {
+  for (const memo of tx.memos) {
+    const tag = parseMemoTag(memo);
+    if (tag?.kind === "inv") return "Invoice payment";
+    if (tag?.kind === "link") return "Payment link";
+    if (tag?.kind === "req") return "Request payment";
+  }
+  const note = tx.memos.map(sanitizeMemo).find((m) => m && !parseMemoTag(m));
+  if (note) return note;
+  return tx.kind === "received"
+    ? "Received"
+    : tx.kind === "sent"
+      ? "Sent"
+      : "Internal transfer";
 }
 
-function formatWhen(value: string | undefined): string {
-  if (!value) return "Private note";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Private note";
-  const minutes = Math.round((Date.now() - date.getTime()) / 60_000);
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes} min ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} h ago`;
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
-function exportCsv(events: readonly ActivityEvent[]) {
-  const blob = new Blob([csvActivity(events)], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "mawee-receipts.csv";
-  a.click();
-  URL.revokeObjectURL(url);
+function when(tx: WalletTx): string {
+  if (tx.pending || tx.height === null) return "Confirming…";
+  if (tx.timestamp)
+    return new Date(tx.timestamp).toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  return `Block ${tx.height.toLocaleString("en-US")}`;
 }
 
 export function ActivityFeed({
-  notes,
-  rows,
-  onTransferOpen,
+  history,
   loading,
   limit,
-  showSeeAll = false,
-  showExport = false,
   showFilters = true,
-  title = "History",
-  emptyAction,
-  className,
+  showSeeAll = false,
+  title = "Activity",
 }: {
-  notes: MyNote[];
-  rows?: readonly ActivityRow[];
-  onTransferOpen?: (id: string) => void;
+  history: WalletTx[];
   loading: boolean;
   limit?: number;
-  showSeeAll?: boolean;
-  showExport?: boolean;
   showFilters?: boolean;
+  showSeeAll?: boolean;
   title?: string;
-  emptyAction?: ReactNode;
-  className?: string;
 }) {
   const [tab, setTab] = useState<Tab>("All");
-  const [discloseLeaf, setDiscloseLeaf] = useState<number | null>(null);
-  const [discloseScope, setDiscloseScope] = useState<string | null>(null);
-  const events = useMemo(() => rows ?? toEvents(notes), [notes, rows]);
-  const filtered = useMemo(() => {
-    if (tab === "Received") return events.filter((e) => e.kind === "received");
-    if (tab === "Sent") return events.filter((e) => e.kind === "sent");
-    if (tab === "Cashed out")
-      return events.filter((e) => e.kind === "cashedOut");
-    return events;
-  }, [events, tab]);
-  const displayed = limit === undefined ? filtered : filtered.slice(0, limit);
-  const skeletonCount = limit ?? 5;
+  const rows = useMemo(() => {
+    const filtered = history.filter(
+      (tx) =>
+        tab === "All" ||
+        (tab === "Received" ? tx.kind === "received" : tx.kind === "sent"),
+    );
+    return limit ? filtered.slice(0, limit) : filtered;
+  }, [history, tab, limit]);
 
   return (
-    <Card
-      appearance="linen"
-      id="activity"
-      className={cn("h-full gap-4 p-6", className)}
-    >
+    <div className="flex h-full flex-col p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="dashboard-tile-title">{title}</h2>
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+        <div className="flex items-center gap-2">
           {showFilters ? (
-            <fieldset className="flex max-w-full flex-wrap items-center rounded-full border border-(--dash-line) p-0.5">
+            <fieldset className="flex items-center rounded-full border border-(--dash-line) p-0.5">
               <legend className="sr-only">Filter activity</legend>
               {TABS.map((t) => (
                 <button
@@ -132,152 +92,85 @@ export function ActivityFeed({
               ))}
             </fieldset>
           ) : null}
-          {showExport ? (
-            <button
-              type="button"
-              className={`${dashButtonSecondary} h-9`}
-              onClick={() => exportCsv(filtered)}
-              disabled={loading || filtered.length === 0}
-            >
-              <Download aria-hidden="true" />
-              Export CSV
-            </button>
-          ) : null}
           {showSeeAll ? (
             <Link
               href={HISTORY_PATH}
-              className={`inline-flex items-center gap-0.5 rounded-(--dash-radius-sm) text-sm text-(--dash-ash) transition-colors hover:text-(--dash-fg) ${dashFocus}`}
+              className={`text-sm text-(--dash-ash) hover:text-(--dash-fg) ${dashFocus}`}
             >
               See all
-              <ChevronRight className="size-4" aria-hidden="true" />
             </Link>
           ) : null}
         </div>
       </div>
 
-      <section aria-label="Activity history">
-        <ul className="flex flex-col divide-y divide-(--dash-line)">
-          {loading && (
-            <li className="grid gap-2 py-1" aria-label="Loading history">
-              {Array.from({ length: skeletonCount }, (_, item) => item).map(
-                (item) => (
-                  <div
-                    key={item}
-                    className="h-12 rounded-(--dash-radius-sm) bg-(--dash-tint) motion-safe:animate-pulse"
-                  />
-                ),
-              )}
-            </li>
-          )}
-
-          {!loading && filtered.length === 0 && (
-            <li className="py-10">
-              <MeawMascot size={56} className="mb-4" />
-              <p className="max-w-sm text-sm leading-6 text-(--dash-ash)">
-                {tab === "Cashed out"
-                  ? "Nothing cashed out yet."
-                  : tab === "Received"
-                    ? "No payments received yet."
-                    : "No payments yet. Share your pay link to receive your first."}
-              </p>
-              {tab === "All" && emptyAction ? (
-                <div className="mt-4">{emptyAction}</div>
-              ) : null}
-            </li>
-          )}
-
-          {!loading &&
-            displayed.map((event) => (
-              <li
-                key={event.id}
-                className="flex min-h-14 items-center gap-3 py-3"
-              >
+      {loading && history.length === 0 ? (
+        <ul className="mt-5 grid gap-2" aria-label="Loading activity">
+          {[0, 1, 2].map((k) => (
+            <li
+              key={k}
+              className="h-12 rounded-(--dash-radius-sm) bg-(--dash-tint) motion-safe:animate-pulse"
+            />
+          ))}
+        </ul>
+      ) : rows.length === 0 ? (
+        <div className="py-10">
+          <MeawMascot size={56} className="mb-4" />
+          <p className="max-w-sm text-sm leading-6 text-(--dash-ash)">
+            {tab === "All"
+              ? "No payments yet. Share your payment link to receive your first."
+              : `Nothing ${tab.toLowerCase()} yet.`}
+          </p>
+        </div>
+      ) : (
+        <ul className="mt-4 divide-y divide-(--dash-line)">
+          {rows.map((tx) => {
+            const Icon =
+              tx.kind === "received"
+                ? ArrowDownLeft
+                : tx.kind === "sent"
+                  ? ArrowUpRight
+                  : Repeat;
+            const url = explorerTxUrl(tx.txid);
+            const amount = `${tx.value > 0n ? "+" : tx.value < 0n ? "−" : ""}${zatToZec(tx.value < 0n ? -tx.value : tx.value)} ZEC`;
+            const body = (
+              <>
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-(--dash-tint)">
+                  <Icon className="size-4" aria-hidden="true" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">
+                    {describe(tx)}
+                  </span>
+                  <span className="block text-xs text-(--dash-ash)">
+                    {when(tx)}
+                  </span>
+                </span>
                 <span
-                  className={`size-1.5 shrink-0 rounded-full ${
-                    event.kind === "received"
-                      ? "bg-(--dash-accent)"
-                      : "border border-(--dash-fg)/50"
-                  }`}
-                  aria-hidden="true"
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium">
-                    {
-                      {
-                        received: "Payment received",
-                        sent: "Payment sent",
-                        cashedOut: "Cashed out",
-                        attempt: "Transfer attempt",
-                        unclassified: "Payment details loading",
-                      }[event.kind]
-                    }
-                    {event.counterparty && (
-                      <span className="ml-1.5 text-(--dash-ash)">
-                        @{event.counterparty}
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-0.5 text-xs text-(--dash-ash)">
-                    {formatWhen(event.at)}
-                    {event.status !== "confirmed" &&
-                      ` · ${event.status === "pending" ? "In progress" : "Failed"}`}
-                  </div>
-                  {event.note && (
-                    <p className="mt-1 break-words whitespace-pre-wrap text-xs text-(--dash-ash)">
-                      {event.note}
-                    </p>
-                  )}
-                </div>
-                <div className="shrink-0 text-right text-sm font-medium tabular-nums">
-                  {event.amount === null
-                    ? "Locked"
-                    : `${event.kind === "received" ? "+" : event.kind === "sent" || event.kind === "cashedOut" ? "−" : ""}${fromBaseUnits(event.amount)}`}
-                  {event.amount !== null && (
-                    <span className="ml-1 text-(--dash-ash)">
-                      {rowAsset(event.scope)}
-                    </span>
-                  )}
-                </div>
-                {event.transferId && onTransferOpen ? (
-                  <button
-                    type="button"
-                    className={dashIconButton}
-                    onClick={() => onTransferOpen(event.transferId!)}
-                    aria-label="View transfer"
+                  className={`text-sm tabular-nums ${tx.value > 0n ? "text-(--dash-fg)" : "text-(--dash-ash)"}`}
+                >
+                  {amount}
+                </span>
+              </>
+            );
+            return (
+              <li key={tx.txid}>
+                {url ? (
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`flex items-center gap-3 py-3 ${dashFocus}`}
                   >
-                    <ChevronRight aria-hidden="true" />
-                  </button>
-                ) : event.kind === "received" &&
-                  event.leafIndex !== null &&
-                  findPool(event.scope) ? (
-                  <button
-                    type="button"
-                    className={dashIconButton}
-                    onClick={() => {
-                      setDiscloseScope(event.scope);
-                      setDiscloseLeaf(event.leafIndex);
-                    }}
-                    aria-label="Prove payment"
-                    title="Download a proof of this payment (PDF)"
-                  >
-                    <FileCheck aria-hidden="true" />
-                  </button>
+                    {body}
+                  </a>
                 ) : (
-                  <span className="size-9 shrink-0" aria-hidden="true" />
+                  <div className="flex items-center gap-3 py-3">{body}</div>
                 )}
               </li>
-            ))}
+            );
+          })}
         </ul>
-      </section>
-
-      <DiscloseDialog
-        pool={
-          discloseScope ? (findPool(discloseScope) ?? undefined) : undefined
-        }
-        open={discloseLeaf !== null}
-        onClose={() => setDiscloseLeaf(null)}
-        leafIndex={discloseLeaf}
-      />
-    </Card>
+      )}
+    </div>
   );
 }

@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { isProtectedRoute } from "../lib/auth-routes";
-import { chain } from "../lib/chain";
+import { APP_NAME } from "../lib/brand";
+import { network } from "../lib/zcash/network";
 import { BackLink } from "./BackLink";
 import { DashboardBackground } from "./dashboard/DashboardBackground";
 import { DashboardShell } from "./dashboard/DashboardShell";
@@ -37,18 +38,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isPay = pathname.startsWith("/pay");
   const protectedRoute = isProtectedRoute(pathname);
 
-  const networkBanner =
-    protectedRoute && chain.testnet ? (
-      <StickyBanner
-        className="z-[80] min-h-10 border-b border-brand-linen/30 bg-brand-obsidian-secondary px-12 py-2 text-center text-sm font-medium text-brand-linen"
-        hideOnScroll={false}
-      >
-        <p role="status" aria-label="Network status">
-          Meaw is running on {chain.name}. Balances are test funds with no real
-          value.
-        </p>
-      </StickyBanner>
-    ) : null;
+  const networkBanner = protectedRoute ? (
+    <StickyBanner
+      className="z-[80] min-h-10 border-b border-brand-linen/30 bg-brand-obsidian-secondary px-12 py-2 text-center text-sm font-medium text-brand-linen"
+      hideOnScroll={false}
+    >
+      <p role="status" aria-label="Network status">
+        {network === "test"
+          ? `${APP_NAME} is running on Zcash testnet. Balances are test funds with no real value.`
+          : `${APP_NAME} is experimental software on Zcash mainnet. Use small amounts.`}
+      </p>
+    </StickyBanner>
+  ) : null;
 
   const usernameModal = (
     <UsernameModal open={usernameModalOpen} onClose={closeUsernameModal} />

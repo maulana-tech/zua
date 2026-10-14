@@ -20,7 +20,7 @@ const FACTS = [
 ] as const;
 
 export function Hero() {
-  const { address, signIn } = useWallet();
+  const { authenticated, signIn } = useWallet();
 
   return (
     <section
@@ -45,7 +45,7 @@ export function Hero() {
               you can show your accountant whenever you need it.
             </p>
             <div className="mt-9 flex flex-wrap gap-3">
-              {address ? (
+              {authenticated ? (
                 <Link href="/dashboard" className={pillSolidViolet}>
                   Open your dashboard
                 </Link>

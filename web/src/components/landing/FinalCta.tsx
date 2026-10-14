@@ -5,7 +5,7 @@ import { useWallet } from "../WalletProvider";
 import { Frame, pillSolidViolet } from "./primitives";
 
 export function FinalCta() {
-  const { address, signIn } = useWallet();
+  const { authenticated, signIn } = useWallet();
   return (
     <section
       aria-labelledby="cta-title"
@@ -22,7 +22,7 @@ export function FinalCta() {
           Private USDC payment links on Monad. Claim yours in under a minute.
         </p>
         <div className="mt-9">
-          {address ? (
+          {authenticated ? (
             <Link href="/dashboard" className={pillSolidViolet}>
               Open your dashboard
             </Link>

@@ -4,8 +4,7 @@ import { Plus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { invoiceInput, invoiceTotal } from "../../features/invoices/input";
 import type { InvoiceView } from "../../features/invoices/types";
-import { formatAssetUnits } from "../../lib/paymentAsset";
-import { activePoolFor } from "../../lib/pools";
+import { zatToZec } from "../../lib/zcash/units";
 import { api } from "../../trpc/client";
 import { Button } from "../ui/button";
 import {
@@ -33,26 +32,18 @@ export function CreateInvoiceDialog({
   onOpenChange: (value: boolean) => void;
   onCreated: (invoice: InvoiceView) => void;
 }) {
-  const wallet = useWallet(),
-    assets = (["USDC", "AUSD"] as const).filter((asset) => {
-      const p = activePoolFor(asset);
-      return (
-        p?.role === "active" &&
-        p.tokenDecimals === 6 &&
-        (p.requestCapable || p.transferCapable)
-      );
-    });
+  const wallet = useWallet();
   const [number, setNumber] = useState(""),
     [clientName, setClientName] = useState(""),
     [dueDate, setDueDate] = useState(
       new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
     ),
     [notes, setNotes] = useState("");
-  const [asset, setAsset] = useState<"USDC" | "AUSD">(assets[0] ?? "USDC"),
+  const [clientEmail, setClientEmail] = useState(""),
     [lines, setLines] = useState([emptyLine()]),
     [error, setError] = useState(""),
     [working, setWorking] = useState(false);
-  const identity = `${wallet.address}:${wallet.username}:${open}`,
+  const identity = `${wallet.username}:${open}`,
     session = useRef(identity),
     mounted = useRef(true),
     busy = useRef(false);
@@ -75,7 +66,7 @@ export function CreateInvoiceDialog({
         (l) =>
           Number.isInteger(Number(l.quantity)) &&
           Number(l.quantity) > 0 &&
-          /^\d+(\.\d{1,6})?$/.test(l.unitPrice),
+          /^\d+(\.\d{1,8})?$/.test(l.unitPrice),
       )
     )
       total = invoiceTotal(inputItems);
@@ -94,11 +85,10 @@ export function CreateInvoiceDialog({
     if (busy.current) return;
     setError("");
     const parsed = invoiceInput.safeParse({
-      username: wallet.username,
       number,
       clientName,
+      clientEmail,
       dueDate,
-      asset,
       notes,
       items: inputItems,
     });
@@ -112,12 +102,20 @@ export function CreateInvoiceDialog({
     busy.current = true;
     setWorking(true);
     try {
-      const invoice = await api.invoices.create.mutate(parsed.data);
+      const invoice = await api.invoices.create.mutate({
+        number,
+        clientName,
+        clientEmail,
+        dueDate,
+        notes,
+        items: inputItems,
+      });
       if (mounted.current && session.current === at) {
         onCreated(invoice);
         onOpenChange(false);
         setNumber("");
         setClientName("");
+        setClientEmail("");
         setNotes("");
         setLines([emptyLine()]);
       }
@@ -191,21 +189,16 @@ export function CreateInvoiceDialog({
                 required
               />
             </label>
-            <label className="grid gap-2 text-sm" htmlFor="invoice-asset">
-              Payment asset
-              <select
-                id="invoice-asset"
-                className="min-h-11 rounded-lg border border-input bg-card px-3 text-base"
-                value={asset}
-                onChange={(e) => setAsset(e.target.value as "USDC" | "AUSD")}
-                disabled={working}
-              >
-                {assets.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
+            <label className="grid gap-2 text-sm" htmlFor="invoice-email">
+              Client email (optional)
+              <Input
+                id="invoice-email"
+                appearance="linen"
+                type="email"
+                value={clientEmail}
+                onChange={(e) => setClientEmail(e.target.value)}
+                placeholder="For the payment receipt"
+              />
             </label>
           </div>
           <fieldset className="grid gap-4">
@@ -257,7 +250,7 @@ export function CreateInvoiceDialog({
                     className="grid gap-2 text-sm"
                     htmlFor={`invoice-price-${item.id}`}
                   >
-                    Unit price {index + 1} · {asset}
+                    Unit price {index + 1} · ZEC
                     <Input
                       id={`invoice-price-${item.id}`}
                       appearance="linen"
@@ -318,7 +311,7 @@ export function CreateInvoiceDialog({
           <div className="flex flex-wrap items-baseline justify-between gap-3 border-t border-border pt-4">
             <span>Total</span>
             <strong className="text-xl font-medium tabular-nums">
-              {total === null ? "—" : `${formatAssetUnits(total, 6)} ${asset}`}
+              {total === null ? "—" : `${zatToZec(total)} ZEC`}
             </strong>
           </div>
           <p className="text-xs leading-5 text-muted-foreground">
@@ -334,7 +327,7 @@ export function CreateInvoiceDialog({
           <Button
             type="submit"
             className="min-h-11"
-            disabled={working || assets.length === 0 || !wallet.username}
+            disabled={working || !wallet.username}
           >
             {working ? "Creating invoice…" : "Create invoice"}
           </Button>

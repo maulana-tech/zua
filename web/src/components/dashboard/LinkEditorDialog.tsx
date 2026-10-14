@@ -1,16 +1,8 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
-import type { z } from "zod";
-import { storeManageToken } from "../../features/paymentLinks/manageTokens";
-import type { PaymentLink } from "../../features/paymentLinks/types";
-import { ASSETS } from "../../lib/assets";
-import { formatAssetUnits } from "../../lib/paymentAsset";
-import { createLinkFormInput } from "../../server/modules/paymentLinks/paymentLinks.schema";
-import { api } from "../../trpc/client";
+import { useEffect, useState } from "react";
+import type { RouterOutputs } from "../../server/root";
+import { trpc } from "../../trpc/react";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -19,266 +11,123 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
-import { linenFieldClass, linenSegmentedClass } from "../ui/glass";
 import { Input } from "../ui/input";
-import { Label } from "../ui/label";
-import { ToastFeedback } from "../ui/toast-feedback";
-import { PaymentAssetSelect } from "./PaymentAssetSelect";
-import { useSelectedPool } from "./useSelectedPool";
 
-type LinkFormInput = z.input<typeof createLinkFormInput>;
-type LinkFormOutput = z.output<typeof createLinkFormInput>;
+export type PaymentLink = RouterOutputs["paymentLinks"]["mine"][number];
 
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .replace(/-{2,}/g, "-")
-    .slice(0, 64);
-}
-
+/** Create a payment link, or edit the title/amount of an existing one. */
 export function LinkEditorDialog({
-  mode,
   open,
-  username,
-  link,
-  manageToken,
   onOpenChange,
+  link,
   onSaved,
 }: {
-  mode: "create" | "edit";
   open: boolean;
-  username: string;
-  link?: PaymentLink;
-  manageToken?: string | null;
   onOpenChange: (open: boolean) => void;
-  onSaved: (link: PaymentLink) => void | Promise<void>;
+  link: PaymentLink | null;
+  onSaved: (link: PaymentLink) => void;
 }) {
-  const initialPool = useSelectedPool();
-  const [choice, setChoice] = useState(initialPool);
-  const asset = mode === "edit" ? (link?.asset ?? "USDC") : choice.asset;
-  const [amountMode, setAmountMode] = useState<"fixed" | "open">(
-    link?.amount ? "fixed" : "open",
-  );
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const initialDescription = link?.description ?? "";
-  const initialAmount = link?.amount
-    ? formatAssetUnits(BigInt(link.amount), link.tokenDecimals ?? 6)
-    : "";
-  const defaultSlug = useMemo(
-    () => link?.slug ?? `link-${Math.random().toString(36).slice(2, 8)}`,
-    [link?.slug],
-  );
-
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    watch,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<LinkFormInput, unknown, LinkFormOutput>({
-    resolver: zodResolver(createLinkFormInput),
-    defaultValues: {
-      username,
-      slug: defaultSlug,
-      amount: initialAmount,
-      description: initialDescription,
-    },
-  });
+  const create = trpc.paymentLinks.create.useMutation();
+  const update = trpc.paymentLinks.update.useMutation();
+  const [slug, setSlug] = useState("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [amount, setAmount] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    setAmountMode(link?.amount ? "fixed" : "open");
-    reset({
-      username,
-      slug: defaultSlug,
-      amount: initialAmount,
-      description: initialDescription,
-    });
-  }, [
-    defaultSlug,
-    initialAmount,
-    initialDescription,
-    link?.amount,
-    reset,
-    username,
-  ]);
+    if (!open) return;
+    setSlug(link?.slug ?? "");
+    setTitle(link?.title ?? "");
+    setDescription(link?.description ?? "");
+    setAmount(link?.amountZec ?? "");
+    setError("");
+  }, [open, link]);
 
-  const description = watch("description") ?? "";
+  const busy = create.isPending || update.isPending;
 
-  function syncSlug() {
-    if (mode === "edit") return;
-    const next = slugify(description || defaultSlug);
-    if (next) setValue("slug", next, { shouldValidate: true });
-  }
-
-  const submit = handleSubmit(async (values) => {
-    setSubmitError(null);
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
     try {
-      const payload = {
-        ...values,
-        asset,
-        username,
-        amount: amountMode === "fixed" ? values.amount : null,
-      };
-      let saved: PaymentLink;
-      if (mode === "create") {
-        const { manageToken: token, ...created } =
-          await api.paymentLinks.create.mutate(payload);
-        storeManageToken(created.id, token);
-        saved = created;
-      } else {
-        if (!manageToken) throw new Error("This link can't be edited here.");
-        saved = await api.paymentLinks.update.mutate({
-          id: link?.id ?? "",
-          manageToken,
-          amount: payload.amount,
-          description: payload.description,
-        });
-      }
-      await onSaved(saved);
-    } catch (error) {
-      setSubmitError(
-        error instanceof Error ? error.message : "Could not save link.",
+      const saved = link
+        ? await update.mutateAsync({ id: link.id, title, description, amount })
+        : await create.mutateAsync({ slug, title, description, amount });
+      onSaved(saved);
+      onOpenChange(false);
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Could not save the link.",
       );
     }
-  });
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent appearance="linen" size="md">
+      <DialogContent appearance="linen" size="sm">
         <DialogHeader>
           <DialogTitle>
-            {mode === "create" ? "Create link" : "Edit link"}
+            {link ? "Edit payment link" : "New payment link"}
           </DialogTitle>
           <DialogDescription>
-            {mode === "create"
-              ? "Set what the payment is for and whether the amount is fixed."
-              : "Update the payment details people see when they open this link."}
+            Payments to this link carry a private tag, so you can tell them
+            apart in your activity. Leave the amount empty to let payers choose.
           </DialogDescription>
         </DialogHeader>
         <form className="grid gap-4" onSubmit={submit}>
-          <input type="hidden" {...register("username")} />
-          {mode === "create" ? (
-            <PaymentAssetSelect
-              value={choice.scope}
-              onChange={setChoice}
-              kind="payment"
-              disabled={isSubmitting}
-            />
-          ) : (
-            <p className="text-sm">Asset: {ASSETS[asset].label}</p>
-          )}
-          <div className="grid gap-2">
-            <Label
-              className="text-foreground"
-              htmlFor={`${mode}-link-description`}
-            >
-              Description
-            </Label>
-            <textarea
-              id={`${mode}-link-description`}
-              className={`${linenFieldClass} min-h-28 rounded-(--dash-radius-sm) border px-3 py-3 text-sm outline-none focus-visible:ring-2`}
-              placeholder="Tell people what this payment is for..."
-              maxLength={500}
-              {...register("description")}
-              onBlur={syncSlug}
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label className="text-foreground" htmlFor={`${mode}-link-slug`}>
+          {!link ? (
+            <label className="grid gap-1.5 text-sm font-medium">
               Link name
-            </Label>
-            <Input
-              appearance="linen"
-              id={`${mode}-link-slug`}
-              className="min-h-11"
-              readOnly={mode === "edit"}
-              aria-readonly={mode === "edit"}
-              {...register("slug")}
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label className="text-foreground">
-              Amount · {ASSETS[asset].label}
-            </Label>
-            <div
-              className={`${linenSegmentedClass} grid grid-cols-2 gap-1 p-1`}
-            >
-              {(["fixed", "open"] as const).map((modeKey) => (
-                <button
-                  key={modeKey}
-                  type="button"
-                  onClick={() => setAmountMode(modeKey)}
-                  className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                    amountMode === modeKey
-                      ? "bg-foreground/18 text-foreground ring-1 ring-foreground/25"
-                      : "text-foreground/65 hover:bg-foreground/8 hover:text-foreground"
-                  }`}
-                >
-                  {modeKey === "fixed" ? "Fixed Amount" : "Open Amount"}
-                </button>
-              ))}
-            </div>
-            {amountMode === "fixed" ? (
               <Input
                 appearance="linen"
-                className="min-h-11"
-                inputMode="decimal"
-                placeholder="25.00"
-                {...register("amount")}
+                value={slug}
+                onChange={(e) =>
+                  setSlug(
+                    e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
+                  )
+                }
+                placeholder="logo-design"
+                required
               />
-            ) : null}
-          </div>
-
-          <ToastFeedback
-            message={errors.slug?.message}
-            variant="error"
-            toastId="link-slug-error"
-          />
-          <ToastFeedback
-            message={errors.amount?.message}
-            variant="error"
-            toastId="link-amount-error"
-          />
-          <ToastFeedback
-            message={errors.description?.message}
-            variant="error"
-            toastId="link-description-error"
-          />
-          <ToastFeedback
-            message={submitError}
-            variant="error"
-            toastId="link-submit-error"
-            action={
-              mode === "edit"
-                ? { label: "Try again", onClick: () => void submit() }
-                : undefined
-            }
-          />
-
-          <Button
-            variant="default"
-            className="mt-4 min-h-11"
-            size="lg"
-            type="submit"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <Loader
-                className="size-4 motion-safe:animate-spin"
-                aria-hidden="true"
-              />
-            ) : null}
-            {isSubmitting
-              ? "Saving..."
-              : mode === "create"
-                ? "Create payment link"
-                : "Save changes"}
+            </label>
+          ) : null}
+          <label className="grid gap-1.5 text-sm font-medium">
+            Title
+            <Input
+              appearance="linen"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Logo design"
+              maxLength={80}
+              required
+            />
+          </label>
+          <label className="grid gap-1.5 text-sm font-medium">
+            Description (optional)
+            <textarea
+              className="min-h-24 rounded-lg border border-foreground/15 bg-background px-3 py-3 text-sm outline-none focus-visible:ring-2"
+              value={description}
+              maxLength={500}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </label>
+          <label className="grid gap-1.5 text-sm font-medium">
+            Amount in ZEC (optional)
+            <Input
+              appearance="linen"
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ""))}
+              placeholder="Payer chooses"
+            />
+          </label>
+          {error ? (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <Button type="submit" disabled={busy} aria-busy={busy}>
+            {busy ? "Saving…" : link ? "Save changes" : "Create link"}
           </Button>
         </form>
       </DialogContent>

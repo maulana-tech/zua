@@ -66,13 +66,13 @@ function sameEscrow(
 
 export function useChangeRecoveryPin() {
   const utils = trpc.useUtils();
-  const mutation = trpc.wallets.rotateEscrow.useMutation();
+  const mutation = trpc.accounts.rotateEscrow.useMutation();
   const [working, setWorking] = useState(false);
 
   async function validateCurrentPin(currentPin: string): Promise<boolean> {
-    let current: Awaited<ReturnType<typeof api.wallets.getEscrow.query>>;
+    let current: Awaited<ReturnType<typeof api.accounts.getEscrow.query>>;
     try {
-      current = await api.wallets.getEscrow.query();
+      current = await api.accounts.getEscrow.query();
     } catch {
       throw new RecoveryPinChangeError();
     }
@@ -93,9 +93,9 @@ export function useChangeRecoveryPin() {
     if (working) return;
     setWorking(true);
     try {
-      let current: Awaited<ReturnType<typeof api.wallets.getEscrow.query>>;
+      let current: Awaited<ReturnType<typeof api.accounts.getEscrow.query>>;
       try {
-        current = await api.wallets.getEscrow.query();
+        current = await api.accounts.getEscrow.query();
       } catch {
         throw new RecoveryPinChangeError();
       }
@@ -124,12 +124,12 @@ export function useChangeRecoveryPin() {
         // A lost response can hide a successful commit. Confirm the exact
         // replacement before reporting failure or inviting a dangerous retry.
         try {
-          const latest = await api.wallets.getEscrow.query();
+          const latest = await api.accounts.getEscrow.query();
           if (
             latest?.revision === current.revision + 1 &&
             sameEscrow(latest, replacement)
           ) {
-            await utils.wallets.getEscrow.invalidate();
+            await utils.accounts.getEscrow.invalidate();
             return;
           }
         } catch {
@@ -137,7 +137,7 @@ export function useChangeRecoveryPin() {
         }
         throw new RecoveryPinChangeError();
       }
-      await utils.wallets.getEscrow.invalidate();
+      await utils.accounts.getEscrow.invalidate();
     } finally {
       setWorking(false);
     }

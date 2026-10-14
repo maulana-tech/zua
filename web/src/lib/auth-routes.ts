@@ -2,10 +2,9 @@ export const PRIVY_ACCESS_TOKEN_COOKIE = "privy-token";
 export const PRIVY_SESSION_COOKIE = "privy-session";
 export const DASHBOARD_PATH = "/dashboard";
 export const LINKS_PATH = "/links";
-export const WITHDRAW_PATH = "/withdraw";
+export const SEND_PATH = "/send";
 export const HISTORY_PATH = "/history";
 export const SETTINGS_PATH = "/settings";
-export const REQUESTS_PATH = "/requests";
 export const INVOICES_PATH = "/invoices";
 export const SIGN_IN_PATH = "/";
 export const REFRESH_PATH = "/refresh";
@@ -13,10 +12,9 @@ export const REFRESH_PATH = "/refresh";
 export const DASHBOARD_PATHS = [
   DASHBOARD_PATH,
   LINKS_PATH,
-  WITHDRAW_PATH,
+  SEND_PATH,
   HISTORY_PATH,
   SETTINGS_PATH,
-  REQUESTS_PATH,
   INVOICES_PATH,
 ] as const;
 const authOnlyPublicRoutes = [SIGN_IN_PATH] as const;

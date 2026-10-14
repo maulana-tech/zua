@@ -10,7 +10,7 @@ import { SIGN_IN_PATH } from "@/lib/auth-routes";
 
 export default function DashboardLinksPage() {
   const {
-    address,
+    authenticated,
     username,
     usernameResolved,
     openUsernameModal,
@@ -23,16 +23,16 @@ export default function DashboardLinksPage() {
   }, []);
 
   useEffect(() => {
-    if (!sessionReady || address) return;
+    if (!sessionReady || authenticated) return;
     window.location.replace(SIGN_IN_PATH);
-  }, [address, sessionReady]);
+  }, [authenticated, sessionReady]);
 
-  if (sessionReady && address && usernameResolved && !username) {
+  if (sessionReady && authenticated && usernameResolved && !username) {
     return (
       <>
         <DashboardPageHeader
           title="Payment links"
-          description="Share links that let anyone pay you privately in USDC."
+          description="Share links that let anyone pay you in shielded ZEC."
         />
         <DashboardNotice
           label="Username needed"
@@ -53,7 +53,7 @@ export default function DashboardLinksPage() {
     );
   }
 
-  if (!sessionReady || !address || !username) {
+  if (!sessionReady || !authenticated || !username) {
     return (
       <div
         className="motion-safe:animate-pulse"

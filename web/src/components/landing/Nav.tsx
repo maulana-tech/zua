@@ -23,7 +23,7 @@ export const LANDING_SECTIONS = [
 export function EditionsTopNav() {
   const router = useRouter();
   const {
-    address,
+    authenticated,
     connecting,
     username,
     usernameResolved,
@@ -63,7 +63,7 @@ export function EditionsTopNav() {
       </nav>
 
       <div className="flex min-w-0 flex-none items-center gap-2 sm:gap-4">
-        {address && usernameResolved && !username && (
+        {authenticated && usernameResolved && !username && (
           <button
             type="button"
             className="inline-flex min-h-11 items-center text-sm font-medium text-(--signal-ink) transition-colors hover:text-starlight"
@@ -74,11 +74,11 @@ export function EditionsTopNav() {
             <span className="hidden sm:inline">Claim username</span>
           </button>
         )}
-        {address ? (
+        {authenticated ? (
           <DropdownMenu>
             <DropdownMenuTrigger
               className="group inline-flex min-h-11 items-center gap-2 rounded-full border border-starlight/20 px-4 text-sm font-semibold transition-colors hover:border-starlight/50"
-              title={address}
+              title={username ?? undefined}
             >
               <span className="max-w-24 truncate sm:max-w-40">
                 {username ? `@${username}` : "Account"}

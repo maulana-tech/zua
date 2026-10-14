@@ -30,11 +30,24 @@ if (fs.existsSync(rootEnv)) {
   }
 }
 
-const localBuild = process.env.MAWEE_BUILD_TARGET === "local";
+const localBuild = process.env.APP_BUILD_TARGET === "local";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   async headers() {
+    // Cross-origin isolation lets the Zcash wallet (WebZjs) prove on several
+    // threads. Only the signed-in app routes get it: login (Privy) happens on
+    // public pages, which stay unisolated. Without it the wallet falls back
+    // to one thread.
+    const isolated = [
+      { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+      { key: "Cross-Origin-Embedder-Policy", value: "credentialless" },
+    ];
+    const appRoutes = ["dashboard", "send", "history", "links", "invoices", "settings"];
     return [
+      ...appRoutes.flatMap((route) => [
+        { source: `/${route}`, headers: isolated },
+        { source: `/${route}/:path*`, headers: isolated },
+      ]),
       {
         source: "/i/:path*",
         headers: [
@@ -68,11 +81,7 @@ const nextConfig = {
         destination: "/links",
         permanent: true,
       },
-      {
-        source: "/dashboard/withdraw",
-        destination: "/withdraw",
-        permanent: true,
-      },
+      { source: "/withdraw", destination: "/send", permanent: false },
       {
         source: "/dashboard/history",
         destination: "/history",
@@ -92,9 +101,8 @@ const nextConfig = {
   // bundle for the Node.js server runtime — require it from node_modules.
   serverExternalPackages: ["mongodb"],
   webpack: (config, { dev }) => {
-    // The proof dependency graph (snarkjs/wasmcurves) makes Next's
-    // persistent filesystem cache balloon to ~2GB. In dev, use an in-memory
-    // cache instead so nothing accumulates on disk between restarts.
+    // The wallet WASM (~60 MB) bloats Next's persistent filesystem cache. In
+    // dev, use an in-memory cache so nothing accumulates on disk.
     if (dev) {
       config.cache = { type: "memory" };
     }

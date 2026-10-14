@@ -6,14 +6,14 @@ import { useWallet } from "@/components/WalletProvider";
 import { SIGN_IN_PATH } from "@/lib/auth-routes";
 
 export default function DashboardSettingsPage() {
-  const { address, sessionReady } = useWallet();
+  const { authenticated, sessionReady } = useWallet();
 
   useEffect(() => {
-    if (!sessionReady || address) return;
+    if (!sessionReady || authenticated) return;
     window.location.replace(SIGN_IN_PATH);
-  }, [address, sessionReady]);
+  }, [authenticated, sessionReady]);
 
-  if (!sessionReady || !address) {
+  if (!sessionReady || !authenticated) {
     return (
       <div
         className="motion-safe:animate-pulse"

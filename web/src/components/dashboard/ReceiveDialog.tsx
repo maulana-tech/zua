@@ -1,18 +1,9 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, AtSign, Check, Copy, Link2, Loader } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import type { z } from "zod";
-import { useCreatePaymentLink } from "../../features/paymentLinks/hooks/useCreatePaymentLink";
-import type { PaymentLink } from "../../features/paymentLinks/types";
-import { ASSETS } from "../../lib/assets";
-import { payUrl } from "../../lib/paymentLinks";
-import { cn } from "../../lib/utils";
-import { createLinkFormInput } from "../../server/modules/paymentLinks/paymentLinks.schema";
-import { Button } from "../ui/button";
+import { useMemo, useState } from "react";
+import { APP_NAME } from "../../lib/brand";
+import { zecToZat } from "../../lib/zcash/units";
+import { buildPaymentUri } from "../../lib/zcash/zip321";
 import {
   Dialog,
   DialogContent,
@@ -20,367 +11,79 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
-import { linenFieldClass, linenInsetClass } from "../ui/glass";
 import { Input } from "../ui/input";
-import { ToastFeedback } from "../ui/toast-feedback";
-import { useSelectedPool } from "./useSelectedPool";
+import { QrPanel } from "../zcash/QrPanel";
 
-type Step = "method" | "configure" | "creating" | "done";
-type CreateLinkFormInput = z.input<typeof createLinkFormInput>;
-type CreateLinkFormOutput = z.output<typeof createLinkFormInput>;
-
-function defaultSlug() {
-  return `link-${Math.random().toString(36).slice(2, 8)}`;
-}
-
+/** Point-of-sale style receive: optional amount and note baked into the QR. */
 export function ReceiveDialog({
   open,
   onClose,
   username,
-  origin,
-  onRequest,
+  address,
 }: {
   open: boolean;
   onClose: () => void;
   username: string;
-  origin: string;
-  onRequest?: () => void;
+  address: string;
 }) {
-  const pool = useSelectedPool(),
-    asset = ASSETS[pool.asset].label;
-  const [step, setStep] = useState<Step>("method");
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [link, setLink] = useState<PaymentLink | null>(null);
-  const [copied, setCopied] = useState(false);
-  const { createPaymentLink, isCreating } = useCreatePaymentLink();
-  const {
-    register,
-    handleSubmit,
-    reset: resetForm,
-    setValue,
-    watch,
-    formState: { errors, isSubmitting },
-  } = useForm<CreateLinkFormInput, unknown, CreateLinkFormOutput>({
-    resolver: zodResolver(createLinkFormInput),
-    defaultValues: {
-      username,
-      slug: defaultSlug(),
-      amount: "",
-      description: "",
-    },
-  });
-
-  const description = watch("description") ?? "";
-  const url = link ? payUrl(origin, link.owner, link.slug) : "";
-
-  function reset() {
-    setStep("method");
-    setSubmitError(null);
-    setLink(null);
-    setCopied(false);
-    resetForm({
-      username,
-      slug: defaultSlug(),
-      amount: "",
-      description: "",
-    });
-  }
-
-  function handleClose() {
-    reset();
-    onClose();
-  }
-
-  const create = handleSubmit(async (values) => {
-    if (!username) {
-      setSubmitError("Claim a username first to create a payment link.");
-      return;
-    }
-    setSubmitError(null);
-    setStep("creating");
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const amountZat = useMemo(() => {
     try {
-      const created = await createPaymentLink({
-        ...values,
-        username,
-        asset: pool.asset,
-      });
-      setLink(created);
-      setStep("done");
-    } catch (e) {
-      setSubmitError(e instanceof Error ? e.message : "Could not create link.");
-      setStep("configure");
+      return amount.trim() ? zecToZat(amount) : undefined;
+    } catch {
+      return null;
     }
-  });
-
-  function syncSlug() {
-    const slug = description
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .replace(/-{2,}/g, "-")
-      .slice(0, 64);
-    if (slug) setValue("slug", slug, { shouldValidate: true });
-  }
-
-  async function handleCopy() {
-    if (!url) return;
-    await navigator.clipboard?.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  }
-
-  const canRequest = Boolean(onRequest && username);
+  }, [amount]);
+  const uri =
+    amountZat === null
+      ? null
+      : buildPaymentUri({
+          address,
+          amountZat,
+          memo: note.trim() || undefined,
+          label: `@${username} on ${APP_NAME}`,
+        });
 
   return (
-    <Dialog open={open} onOpenChange={(next) => !next && handleClose()}>
-      <DialogContent appearance="linen" size="md">
+    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent appearance="linen" size="sm">
         <DialogHeader>
-          <div className="flex items-center gap-2">
-            {step === "configure" && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  setSubmitError(null);
-                  setStep("method");
-                }}
-                className="-ml-2 shrink-0 rounded-(--dash-radius-sm) text-foreground/65 hover:bg-foreground/10 hover:text-foreground"
-                aria-label="Back"
-              >
-                <ArrowLeft className="size-4" aria-hidden="true" />
-              </Button>
-            )}
-            <DialogTitle>Receive privately</DialogTitle>
-          </div>
+          <DialogTitle>Receive ZEC</DialogTitle>
           <DialogDescription>
-            {step === "method" && "Choose how you want to receive funds."}
-            {step === "configure" &&
-              "Create a shareable payment link with an optional fixed amount."}
-            {step === "creating" &&
-              "Your private payment link is being prepared."}
-            {step === "done" && "Your payment link is ready to share."}
+            Show this code to the payer. Any Zcash wallet (like Zodl) can scan
+            it. Payments land in your shielded balance.
           </DialogDescription>
         </DialogHeader>
-
-        {step === "method" && (
-          <div className="grid gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setSubmitError(null);
-                setStep("configure");
-              }}
-              className={cn(
-                linenInsetClass,
-                "flex items-center gap-3 rounded-(--dash-radius) px-4 py-3 text-left transition-colors hover:bg-foreground/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/70",
-              )}
-            >
-              <Link2 className="size-5 text-foreground/70" aria-hidden="true" />
-              <div>
-                <div className="text-sm font-medium text-foreground">
-                  Create a link or QR
-                </div>
-                <div className="text-xs text-foreground/60">
-                  Share a link, with an amount, or open-ended
-                </div>
-              </div>
-            </button>
-            <button
-              type="button"
-              disabled={!canRequest}
-              onClick={onRequest}
-              className={cn(
-                linenInsetClass,
-                "flex items-center gap-3 rounded-(--dash-radius) px-4 py-3 text-left",
-                canRequest
-                  ? "cursor-pointer transition-colors hover:bg-foreground/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/70"
-                  : "cursor-not-allowed text-foreground/45",
-              )}
-            >
-              <AtSign
-                className={cn(
-                  "size-5",
-                  canRequest ? "text-foreground/70" : "text-foreground/45",
-                )}
-                aria-hidden="true"
-              />
-              <div>
-                <div
-                  className={cn(
-                    "text-sm font-medium",
-                    canRequest ? "text-foreground" : "text-foreground/45",
-                  )}
-                >
-                  {username
-                    ? "Request from a username"
-                    : "Claim a username first"}
-                </div>
-                <div
-                  className={cn(
-                    "text-xs",
-                    canRequest ? "text-foreground/60" : "text-foreground/45",
-                  )}
-                >
-                  {username
-                    ? "Request a fixed amount from @username"
-                    : "Claim a handle before requesting payment"}
-                </div>
-              </div>
-            </button>
-          </div>
-        )}
-
-        {step === "configure" && (
-          <form className="grid gap-3" onSubmit={create}>
-            <input type="hidden" {...register("username")} />
-            <label
-              htmlFor="receive-slug"
-              className="text-sm text-foreground/70"
-            >
-              Link name
-            </label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="grid gap-1.5 text-sm font-medium">
+            Amount (optional)
             <Input
               appearance="linen"
-              id="receive-slug"
-              className="min-h-11"
-              placeholder="july-freelance"
-              autoComplete="off"
-              {...register("slug")}
-            />
-
-            <label
-              htmlFor="receive-amount"
-              className="text-sm text-foreground/70"
-            >
-              Amount ({asset}){" "}
-              <span className="text-foreground/60">— optional</span>
-            </label>
-            <Input
-              appearance="linen"
-              id="receive-amount"
-              className="min-h-11"
               inputMode="decimal"
-              placeholder="Any amount"
-              autoComplete="off"
-              {...register("amount")}
+              placeholder="0.25"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ""))}
+              aria-invalid={amountZat === null}
             />
-
-            <label
-              htmlFor="receive-description"
-              className="text-sm text-foreground/70"
-            >
-              Description <span className="text-foreground/60">— optional</span>
-            </label>
-            <textarea
-              id="receive-description"
-              className={cn(
-                linenFieldClass,
-                "min-h-24 rounded-(--dash-radius-sm) border px-3 py-3 text-sm outline-none focus-visible:ring-2",
-              )}
-              placeholder="What's it for? (e.g. Invoice #12)"
-              autoComplete="off"
-              maxLength={500}
-              {...register("description")}
-              onBlur={syncSlug}
+          </label>
+          <label className="grid gap-1.5 text-sm font-medium">
+            Note (optional)
+            <Input
+              appearance="linen"
+              maxLength={120}
+              placeholder="Coffee"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
             />
-
-            <ToastFeedback
-              message={errors.slug?.message}
-              variant="error"
-              toastId="receive-slug-error"
-            />
-            <ToastFeedback
-              message={errors.amount?.message}
-              variant="error"
-              toastId="receive-amount-error"
-            />
-            <ToastFeedback
-              message={errors.description?.message}
-              variant="error"
-              toastId="receive-description-error"
-            />
-            <ToastFeedback
-              message={submitError}
-              variant="error"
-              toastId="receive-submit-error"
-            />
-
-            <Button
-              variant="default"
-              className="min-h-11 mt-4"
-              size="lg"
-              type="submit"
-              disabled={isSubmitting || isCreating}
-            >
-              Create link
-            </Button>
-          </form>
-        )}
-
-        {step === "creating" && (
-          <div className="flex items-center justify-center gap-3 py-8 text-center">
-            <Loader
-              className="size-8 text-foreground/70 motion-safe:animate-spin"
-              aria-hidden="true"
-            />
-            <div className="text-sm font-medium text-foreground">
-              Creating link…
-            </div>
-          </div>
-        )}
-
-        {step === "done" && link && (
-          <div className="grid min-w-0 max-w-full gap-3 overflow-hidden">
-            <div className="text-sm text-foreground/65">
-              {link.amount
-                ? "Share this link to get paid the exact amount."
-                : "Share this link — the payer chooses the amount."}
-              {link.description ? ` · ${link.description}` : ""}
-            </div>
-
-            <div className="flex min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-(--dash-radius-sm) border border-foreground/15 bg-foreground/8 px-3 py-2.5">
-              <div className="min-w-0 flex-1 truncate font-mono text-sm text-foreground">
-                {url.replace(/^https?:\/\//, "")}
-              </div>
-              <Button
-                size="icon-sm"
-                variant="default"
-                onClick={handleCopy}
-                aria-label="Copy link"
-                title="Copy link"
-              >
-                {copied ? (
-                  <Check
-                    className="size-4 text-primary-foreground"
-                    aria-hidden="true"
-                  />
-                ) : (
-                  <Copy className="size-4" aria-hidden="true" />
-                )}
-              </Button>
-            </div>
-
-            <div className="flex max-w-full justify-center overflow-hidden rounded-(--dash-radius-sm) border border-foreground/20 bg-[#fff] p-4">
-              <QRCodeSVG
-                value={url}
-                size={168}
-                fgColor="#0D0C14"
-                bgColor="#FFFFFF"
-                className="h-auto max-w-full"
-              />
-            </div>
-
-            <Button
-              variant="default"
-              className="mt-4 min-h-11 w-full"
-              size="lg"
-              onClick={handleClose}
-            >
-              Done
-            </Button>
-          </div>
+          </label>
+        </div>
+        {uri ? (
+          <QrPanel uri={uri} copyText={address} />
+        ) : (
+          <p className="text-sm text-destructive">
+            Enter a ZEC amount with up to 8 decimals.
+          </p>
         )}
       </DialogContent>
     </Dialog>
