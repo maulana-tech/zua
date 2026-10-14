@@ -1,4 +1,4 @@
-//! Payment disclosure for a single Orchard output.
+//! Payment disclosure for a single Orchard or Ironwood output.
 //!
 //! The recipient reveals the note's symmetric encryption key `K_enc`
 //! (= KDF^Orchard(KA.Agree(ivk, epk), epk), Zcash protocol spec §5.4.5.5).
@@ -15,6 +15,7 @@ use zcash_primitives::transaction::Transaction;
 use zcash_protocol::consensus::{BlockHeight, BranchId};
 
 use crate::disclosure::{disclose_action, verify_action};
+use orchard::note_encryption::{IronwoodVersion, OrchardVersion};
 use crate::wallet::usk_from_seed_str;
 
 fn err(msg: impl std::fmt::Display) -> JsValue {
@@ -56,9 +57,9 @@ fn json_str(s: &str) -> String {
     out
 }
 
-/// For every Orchard action in `tx` that pays the account derived from
-/// `seed_phrase`, returns `{ action, kEnc, value, memo }` as a JSON array.
-/// The seed only lives for the duration of the call.
+/// For every Orchard or Ironwood action in `tx` that pays the account derived
+/// from `seed_phrase`, returns `{ pool, action, kEnc, value, memo, internal }`
+/// as a JSON array. The seed only lives for the duration of the call.
 #[wasm_bindgen]
 pub fn orchard_disclose(
     network: &str,
@@ -68,51 +69,54 @@ pub fn orchard_disclose(
     height: u32,
 ) -> Result<String, JsValue> {
     let network = Network::from_str(network).map_err(err)?;
-    let (usk, _) = usk_from_seed_str(seed_phrase, account_hd_index, &network).map_err(err)?;
+    let usk = usk_from_seed_str(seed_phrase, account_hd_index, &network).map_err(err)?;
     let ufvk = usk.to_unified_full_viewing_key();
     let fvk = ufvk.orchard().ok_or_else(|| err("account has no Orchard key"))?;
     let tx = read_tx(&network, tx, height)?;
-    let bundle = tx
-        .orchard_bundle()
-        .ok_or_else(|| err("transaction has no Orchard actions"))?;
 
     let mut found = Vec::new();
-    for (i, action) in bundle.actions().iter().enumerate() {
-        if let Some(d) = disclose_action(fvk, action) {
-            found.push(format!(
-                "{{\"action\":{i},\"kEnc\":\"{}\",\"value\":\"{}\",\"memo\":{},\"internal\":{}}}",
-                hex(&d.k_enc),
-                d.value,
-                json_str(&d.memo),
-                d.internal
-            ));
+    let mut push = |pool: &str, i: usize, d: crate::disclosure::Disclosure| {
+        found.push(format!(
+            "{{\"pool\":\"{pool}\",\"action\":{i},\"kEnc\":\"{}\",\"value\":\"{}\",\"memo\":{},\"internal\":{}}}",
+            hex(&d.k_enc),
+            d.value,
+            json_str(&d.memo),
+            d.internal
+        ))
+    };
+    if let Some(bundle) = tx.orchard_bundle() {
+        for (i, action) in bundle.actions().iter().enumerate() {
+            if let Some(d) = disclose_action::<OrchardVersion, _>(fvk, action) {
+                push("orchard", i, d);
+            }
+        }
+    }
+    if let Some(bundle) = tx.ironwood_bundle() {
+        for (i, action) in bundle.actions().iter().enumerate() {
+            if let Some(d) = disclose_action::<IronwoodVersion, _>(fvk, action) {
+                push("ironwood", i, d);
+            }
         }
     }
     Ok(format!("[{}]", found.join(",")))
 }
 
-/// Verifies a disclosure: decrypts action `action_index` of `tx` with `k_enc`,
-/// rebuilds the note for `recipient_ua` and checks it against the on-chain
-/// note commitment. Returns `{ value, memo }` as JSON, or an error.
+/// Verifies a disclosure: decrypts action `action_index` of the `pool`
+/// ("orchard" or "ironwood") bundle of `tx` with `k_enc`, rebuilds the note
+/// for `recipient_ua` and checks it against the on-chain note commitment.
+/// Returns `{ value, memo }` as JSON, or an error.
 #[wasm_bindgen]
 pub fn orchard_verify_disclosure(
     network: &str,
     tx: &[u8],
     height: u32,
+    pool: &str,
     action_index: u32,
     k_enc_hex: &str,
     recipient_ua: &str,
 ) -> Result<String, JsValue> {
     let network = Network::from_str(network).map_err(err)?;
     let tx = read_tx(&network, tx, height)?;
-    let bundle = tx
-        .orchard_bundle()
-        .ok_or_else(|| err("transaction has no Orchard actions"))?;
-    let action = bundle
-        .actions()
-        .get(action_index as usize)
-        .ok_or_else(|| err("no such action in this transaction"))?;
-
     let ua = match zcash_keys::address::Address::decode(&network, recipient_ua) {
         Some(zcash_keys::address::Address::Unified(ua)) => ua,
         _ => return Err(err("recipient must be a unified address")),
@@ -120,6 +124,22 @@ pub fn orchard_verify_disclosure(
     let address = *ua
         .orchard()
         .ok_or_else(|| err("recipient has no Orchard receiver"))?;
-    let (value, memo) = verify_action(action, &unhex32(k_enc_hex)?, &address).map_err(err)?;
+    let k_enc = unhex32(k_enc_hex)?;
+    let (bundle, ironwood) = match pool {
+        "orchard" => (tx.orchard_bundle(), false),
+        "ironwood" => (tx.ironwood_bundle(), true),
+        _ => return Err(err("pool must be orchard or ironwood")),
+    };
+    let action = bundle
+        .ok_or_else(|| err("transaction has no actions in this pool"))?
+        .actions()
+        .get(action_index as usize)
+        .ok_or_else(|| err("no such action in this transaction"))?;
+    let (value, memo) = if ironwood {
+        verify_action::<IronwoodVersion, _>(action, &k_enc, &address)
+    } else {
+        verify_action::<OrchardVersion, _>(action, &k_enc, &address)
+    }
+    .map_err(err)?;
     Ok(format!("{{\"value\":\"{value}\",\"memo\":{}}}", json_str(&memo)))
 }

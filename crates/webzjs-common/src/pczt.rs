@@ -1,8 +1,7 @@
-use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub struct Pczt(pczt::Pczt);
 
 impl From<pczt::Pczt> for Pczt {
@@ -19,19 +18,9 @@ impl From<Pczt> for pczt::Pczt {
 
 #[wasm_bindgen]
 impl Pczt {
-    /// Returns a JSON object with the details of the Pczt.
-    pub fn to_json(&self) -> JsValue {
-        serde_wasm_bindgen::to_value(&self).unwrap()
-    }
-
-    /// Returns a Pczt from a JSON object
-    pub fn from_json(s: JsValue) -> Pczt {
-        serde_wasm_bindgen::from_value(s).unwrap()
-    }
-
     /// Returns the postcard serialization of the Pczt.
-    pub fn serialize(&self) -> Vec<u8> {
-        self.0.serialize()
+    pub fn serialize(&self) -> Result<Vec<u8>, JsError> {
+        self.0.clone().serialize().map_err(|e| JsError::new(&format!("{e:?}")))
     }
 
     /// Deserialize to a Pczt from postcard bytes.

@@ -16,19 +16,17 @@ wasm-opt = ["-O4", "-O4"]
 [features]
 default = ["native", "multicore"]
 
-multicore = ["zcash_proofs/multicore", "zcash_primitives/multicore", "zcash_client_memory/multicore"]
+multicore = ["zcash_proofs/multicore", "zcash_primitives/multicore", "zcash_client_sqlite/multicore"]
 
 # WASM specific features
 wasm = ["console_error_panic_hook", "dep:tracing-web"]
 wasm-parallel = ["wasm", "wasm-bindgen-rayon", "multicore"]
 native = ["tonic/channel", "tonic/gzip", "tonic/tls-webpki-roots", "tokio/macros", "tokio/rt", "tokio/rt-multi-thread"]
-sqlite-db = ["dep:zcash_client_sqlite"]
 console_error_panic_hook = ["dep:console_error_panic_hook"]
 no-bundler = ["wasm-bindgen-rayon?/no-bundler", "wasm_thread/no-bundler"]
 
 [dependencies]
 webzjs-common = { path = "../webzjs-common" }
-webzjs-keys = { path = "../webzjs-keys" }
 ## Web dependencies
 wasm-bindgen.workspace = true
 js-sys.workspace = true
@@ -53,10 +51,7 @@ zcash_client_backend = { workspace = true, default-features = false, features = 
     "sync",
     "lightwalletd-tonic",
     "orchard",
-    "pczt",
-    "transparent-inputs",
 ] }
-zcash_client_memory = { workspace = true, features = ["orchard", "transparent-inputs"] }
 zcash_primitives = { workspace = true }
 zcash_address = { workspace = true }
 zcash_protocol = { workspace = true, default-features = false }
@@ -64,7 +59,7 @@ zcash_proofs = { workspace = true, default-features = false, features = ["bundle
 zip321 = { workspace = true }
 zip32 = { workspace = true }
 pczt = { workspace = true, default-features = false, features = ["orchard", "sapling", "transparent"] }
-orchard = { version = "0.12", default-features = false }
+orchard = { version = "0.15.5", default-features = false }
 zcash_note_encryption = "0.4.1"
 chacha20poly1305 = { version = "0.10.1", default-features = false, features = ["alloc"] }
 sapling = { workspace = true }
@@ -75,7 +70,13 @@ tonic = { version = "0.14", default-features = false, features = ["codegen"] }
 
 # Used in Native tests
 tokio.workspace = true
-zcash_client_sqlite = { workspace = true, optional = true }
+zcash_client_sqlite = { workspace = true }
+async-trait = "0.1"
+rand_core = { version = "0.6", features = ["getrandom"] }
+rusqlite = { version = "0.39", features = ["serialize"] }
+uuid = { version = "1", features = ["js"] }
+getrandom03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
+getrandom04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
 
 getrandom = { workspace = true, features = ["js"] }
 thiserror.workspace = true

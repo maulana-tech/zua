@@ -6,18 +6,15 @@
 #[cfg(feature = "wasm")]
 pub mod bindgen;
 
+mod block_cache;
 pub mod disclosure;
 mod error;
 pub mod init;
-pub mod validation;
 
 pub mod wallet;
 pub use wallet::Wallet;
 
 use wasm_bindgen::prelude::*;
-
-/// The maximum number of checkpoints to store in each shard-tree
-pub const PRUNING_DEPTH: usize = 100;
 
 #[cfg(feature = "wasm-parallel")]
 pub use wasm_bindgen_rayon::init_thread_pool;
@@ -26,5 +23,3 @@ pub use wasm_bindgen_rayon::init_thread_pool;
 #[wasm_bindgen(js_name = initThreadPool)]
 pub fn init_thread_pool(_threads: usize) {}
 
-#[wasm_bindgen]
-pub struct BlockRange(pub u32, pub u32);

@@ -35,8 +35,6 @@ pub enum Error {
     Grpc(#[from] tonic::Status),
     #[error("Error handling wallet birthday")]
     Birthday,
-    #[error("Memory client error: {0}")]
-    MemoryClient(#[from] zcash_client_memory::Error),
     #[error("Error scanning: {0}")]
     Scan(zcash_client_backend::scanning::ScanError),
     #[error("IO Error: {0}")]
@@ -61,15 +59,14 @@ pub enum Error {
     #[error("Error decoding memo: {0}")]
     MemoDecoding(#[from] zcash_protocol::memo::Error),
 
-    #[cfg(feature = "sqlite-db")]
-    #[error("Sqlite error: {0}")]
+    #[error("Wallet database error: {0}")]
     Sqlite(#[from] zcash_client_sqlite::error::SqliteClientError),
+    #[error("SQLite error: {0}")]
+    Rusqlite(#[from] rusqlite::Error),
     #[error("Invalid seed phrase")]
     InvalidSeedPhrase,
     #[error("Failed when creating transaction")]
     FailedToCreateTransaction,
-    #[error("Failed to serialize db using postcard: {0}")]
-    FailedSerialization(#[from] postcard::Error),
     #[error("Account with given id not found: {0}")]
     AccountNotFound(u32),
     #[error("Transaction with given txid not found: {0}")]
@@ -80,14 +77,6 @@ pub enum Error {
     SerdeWasmBindgen(#[from] serde_wasm_bindgen::Error),
     #[error("Fail to parse TxIds")]
     TxIdParse,
-    #[error("Failed to create Pczt: {0}")]
-    PcztCreate(String),
-    #[error("Failed to prove Pczt: {0}")]
-    PcztProve(String),
-    #[error("Failed to send Pczt: {0}")]
-    PcztSend(String),
-    #[error("Failed to combine Pczt: {0}")]
-    PcztCombine(String),
     // TODO: Remove this. It is just to help with the inability to handle the generic tests from LRZ at the moment
     #[error("An generic error occurred: {0}")]
     Generic(String),
