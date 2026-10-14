@@ -72,7 +72,9 @@ export const invoicesRouter = createTRPCRouter({
       if (result.becamePaid) {
         void notifyInvoicePaid(ctx.privyUserId, result.invoice).catch(() => {});
         void invoiceClientEmail(input.id)
-          .then((email) => email && emailInvoiceClient(result.invoice, email))
+          .then((email) =>
+            email ? emailInvoiceClient(result.invoice, email) : undefined,
+          )
           .catch(() => {});
       }
       return result.invoice;
