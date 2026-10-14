@@ -345,6 +345,29 @@ impl WebWallet {
         Ok(proposal.into())
     }
 
+    /// Create a transaction proposal like `propose_transfer`, with a UTF-8 memo
+    /// (at most 512 bytes) for a shielded recipient.
+    pub async fn propose_transfer_with_memo(
+        &self,
+        account_id: u32,
+        to_address: String,
+        value: u64,
+        memo: Option<String>,
+    ) -> Result<Proposal, Error> {
+        let to_address = ZcashAddress::try_from_encoded(&to_address)?;
+        let memo = match memo {
+            Some(text) => Some(zcash_protocol::memo::MemoBytes::from(
+                zcash_protocol::memo::Memo::from_str(&text)?,
+            )),
+            None => None,
+        };
+        let proposal = self
+            .inner
+            .propose_transfer_with_memo(AccountId::from(account_id), to_address, value, memo)
+            .await?;
+        Ok(proposal.into())
+    }
+
     /// Generate a valid Zcash transaction from a given proposal
     ///
     /// IMPORTANT: This will spawn a new webworker which will handle the proving task which may take 10s of seconds

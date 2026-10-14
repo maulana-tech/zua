@@ -306,6 +306,21 @@ where
         to_address: ZcashAddress,
         value: u64,
     ) -> Result<Proposal<StandardFeeRule, NoteRef>, Error> {
+        self.propose_transfer_with_memo(account_id, to_address, value, None)
+            .await
+    }
+
+    ///
+    /// Same as `propose_transfer`, attaching a memo to the payment. Only
+    /// shielded recipients can receive memos.
+    ///
+    pub async fn propose_transfer_with_memo(
+        &self,
+        account_id: AccountId,
+        to_address: ZcashAddress,
+        value: u64,
+        memo: Option<zcash_protocol::memo::MemoBytes>,
+    ) -> Result<Proposal<StandardFeeRule, NoteRef>, Error> {
         let input_selector = GreedyInputSelector::new();
 
         let change_strategy = MultiOutputChangeStrategy::new(
@@ -319,10 +334,16 @@ where
                 Zatoshis::from_u64(self.min_split_output_value)?,
             ),
         );
-        let request = TransactionRequest::new(vec![Payment::without_memo(
+        let payment = Payment::new(
             to_address,
-            Zatoshis::from_u64(value)?,
-        )])?;
+            Some(Zatoshis::from_u64(value)?),
+            memo,
+            None,
+            None,
+            vec![],
+        )
+        .ok_or(Error::UnsupportedMemoRecipient)?;
+        let request = TransactionRequest::new(vec![payment])?;
 
         tracing::info!("Chain height: {:?}", self.db.read().await.chain_height()?);
         tracing::info!(
