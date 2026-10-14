@@ -19,7 +19,11 @@ const updateSettingsInput = z
   .object({
     email: z.string().trim(),
     enabled: z.boolean(),
-    events: z.object({ invoicePaid: z.boolean(), paymentPing: z.boolean() }),
+    events: z.object({
+      invoicePaid: z.boolean(),
+      paymentPing: z.boolean(),
+      requestReceived: z.boolean().default(true),
+    }),
   })
   .superRefine((data, ctx) => {
     if (

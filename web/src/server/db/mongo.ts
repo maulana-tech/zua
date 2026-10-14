@@ -31,6 +31,7 @@ export type ProfileDoc = {
   ua: string;
   birthday: number;
   signPubkeyHex: string; // Ed25519
+  msgPubkeyHex: string; // X25519
   claimJson: string; // canonical JSON of the signed claim
   claimSigHex: string;
   createdAt: Date;
@@ -73,11 +74,33 @@ export type InvoiceDoc = {
   updatedAt: Date;
 };
 
+export type SealedDoc = { epk: string; nonce: string; ct: string };
+
+/**
+ * A payment request from one @username to another. Amount and note are
+ * sealed to each party's messaging key; the server sees only who asked whom.
+ */
+export type PaymentRequestDoc = {
+  _id: string; // memo id: the payment's memo is `zua:req:<id>`
+  from: string; // requester username (gets paid)
+  to: string; // payer username
+  forPayer: SealedDoc;
+  forRequester: SealedDoc;
+  status: "pending" | "paid" | "declined" | "cancelled";
+  paidTxids: string[];
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export type NotificationSettingsDoc = {
   _id: string; // Privy user id
   email: string;
   enabled: boolean;
-  events: { invoicePaid: boolean; paymentPing: boolean };
+  events: {
+    invoicePaid: boolean;
+    paymentPing: boolean;
+    requestReceived: boolean;
+  };
   unsubscribeToken: string;
   createdAt: Date;
   updatedAt: Date;
@@ -86,7 +109,7 @@ export type NotificationSettingsDoc = {
 export type NotificationLogDoc = {
   _id: string; // unique event key, e.g. "invoice-paid:<id>"
   recipientEmail: string;
-  eventType: "invoicePaid" | "paymentPing" | "test";
+  eventType: "invoicePaid" | "paymentPing" | "requestReceived" | "test";
   sentAt: Date;
 };
 
@@ -135,6 +158,8 @@ export const getUsers = collection<UserDoc>("users");
 export const getProfiles = collection<ProfileDoc>("profiles");
 export const getPaymentLinks = collection<PaymentLinkDoc>("payment_links");
 export const getInvoices = collection<InvoiceDoc>("invoices");
+export const getPaymentRequests =
+  collection<PaymentRequestDoc>("payment_requests");
 export const getNotificationSettings = collection<NotificationSettingsDoc>(
   "notification_settings",
 );

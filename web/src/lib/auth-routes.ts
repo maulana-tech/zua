@@ -6,6 +6,7 @@ export const SEND_PATH = "/send";
 export const HISTORY_PATH = "/history";
 export const SETTINGS_PATH = "/settings";
 export const INVOICES_PATH = "/invoices";
+export const REQUESTS_PATH = "/requests";
 export const SIGN_IN_PATH = "/";
 export const REFRESH_PATH = "/refresh";
 
@@ -16,6 +17,7 @@ export const DASHBOARD_PATHS = [
   HISTORY_PATH,
   SETTINGS_PATH,
   INVOICES_PATH,
+  REQUESTS_PATH,
 ] as const;
 const authOnlyPublicRoutes = [SIGN_IN_PATH] as const;
 

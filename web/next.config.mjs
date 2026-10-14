@@ -42,7 +42,15 @@ const nextConfig = {
       { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
       { key: "Cross-Origin-Embedder-Policy", value: "credentialless" },
     ];
-    const appRoutes = ["dashboard", "send", "history", "links", "invoices", "settings"];
+    const appRoutes = [
+      "dashboard",
+      "send",
+      "history",
+      "links",
+      "invoices",
+      "requests",
+      "settings",
+    ];
     return [
       ...appRoutes.flatMap((route) => [
         { source: `/${route}`, headers: isolated },

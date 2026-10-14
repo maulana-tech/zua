@@ -33,6 +33,7 @@ export function EmailNotificationsRow() {
   const [events, setEvents] = useState({
     invoicePaid: true,
     paymentPing: true,
+    requestReceived: true,
   });
 
   const hasPrefilledRef = useRef(false);
@@ -44,7 +45,10 @@ export function EmailNotificationsRow() {
     if (query.data?.settings) {
       setEmail(query.data.settings.email);
       setEnabled(query.data.settings.enabled);
-      setEvents(query.data.settings.events);
+      setEvents({
+        ...query.data.settings.events,
+        requestReceived: query.data.settings.events.requestReceived ?? true,
+      });
       hasPrefilledRef.current = true;
     } else if (query.data && !query.data.settings) {
       const privyEmail = user?.email?.address || user?.google?.email || "";
@@ -213,6 +217,26 @@ export function EmailNotificationsRow() {
                   <p className="text-xs text-(--dash-ash)">
                     When someone taps &quot;I&apos;ve paid&quot; on your payment
                     page. No amount or sender is included.
+                  </p>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={events.requestReceived}
+                  onChange={(e) =>
+                    setEvents({ ...events, requestReceived: e.target.checked })
+                  }
+                  className="mt-0.5 size-4 rounded border-(--dash-line-strong) bg-(--dash-surface) text-(--dash-fg) focus:ring-(--dash-fg)"
+                />
+                <div>
+                  <span className="text-sm font-medium text-(--dash-fg)">
+                    Payment request received
+                  </span>
+                  <p className="text-xs text-(--dash-ash)">
+                    When someone requests a payment from you. The amount stays
+                    encrypted.
                   </p>
                 </div>
               </label>

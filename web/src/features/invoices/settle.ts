@@ -34,3 +34,20 @@ export function findInvoicePayments(
     (p) => p.paidZat !== BigInt(open.get(p.id)?.paidZat ?? "0"),
   );
 }
+
+/** Outgoing requests whose `zua:req:<id>` payment shows up in history. */
+export function findRequestPayments(
+  history: WalletTx[],
+  pendingIds: Set<string>,
+): { id: string; txids: string[] }[] {
+  const found = new Map<string, string[]>();
+  for (const tx of history) {
+    if (tx.kind !== "received" || tx.value <= 0n) continue;
+    for (const memo of tx.memos) {
+      const tag = parseMemoTag(memo);
+      if (tag?.kind !== "req" || !pendingIds.has(tag.id)) continue;
+      found.set(tag.id, [...(found.get(tag.id) ?? []), tx.txid]);
+    }
+  }
+  return [...found].map(([id, txids]) => ({ id, txids: [...new Set(txids)] }));
+}

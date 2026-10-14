@@ -22,6 +22,7 @@ const toPublic = (doc: ProfileDoc): PublicProfile => ({
   ua: doc.ua,
   birthday: doc.birthday,
   signPubkeyHex: doc.signPubkeyHex,
+  msgPubkeyHex: doc.msgPubkeyHex,
   claimJson: doc.claimJson,
   claimSigHex: doc.claimSigHex,
 });
@@ -38,6 +39,8 @@ export async function createProfile(
   if (isReservedUsername(claim.username)) throw new UsernameTakenError();
   if (claim.network !== env.NEXT_PUBLIC_ZCASH_NETWORK)
     throw new InvalidClaimError("wrong network");
+  if (!/^[0-9a-f]{64}$/.test(claim.msgPubkeyHex ?? ""))
+    throw new InvalidClaimError("invalid messaging key");
   if (addressKind(claim.ua, claim.network) !== "unified")
     throw new InvalidClaimError("address must be a unified address");
 
@@ -57,6 +60,7 @@ export async function createProfile(
     ua: claim.ua,
     birthday: claim.birthday,
     signPubkeyHex: claim.signPubkeyHex,
+    msgPubkeyHex: claim.msgPubkeyHex,
     claimJson: input.claimJson,
     claimSigHex: input.claimSigHex.toLowerCase(),
     createdAt: new Date(),

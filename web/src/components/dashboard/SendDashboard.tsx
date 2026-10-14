@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, ArrowUpRight, Loader } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import {
   type Recipient,
@@ -12,6 +13,7 @@ import { isShielded } from "../../lib/zcash/address";
 import { MAX_MEMO_BYTES, memoBytes } from "../../lib/zcash/memo";
 import { explorerTxUrl } from "../../lib/zcash/network";
 import { zatToZec, zecToZat } from "../../lib/zcash/units";
+import { trpc } from "../../trpc/react";
 import { Mascot } from "../Mascot";
 import { Input } from "../ui/input";
 import { useWallet } from "../WalletProvider";
@@ -40,9 +42,12 @@ export function SendDashboard() {
   const { accountUnlocked, promptUnlock, recoveryMethod, zcash, send } =
     useWallet();
   const price = useZecPrice();
-  const [to, setTo] = useState("");
-  const [amount, setAmount] = useState("");
-  const [memo, setMemo] = useState("");
+  const params = useSearchParams();
+  const requestId = params.get("request");
+  const markPaid = trpc.requests.markPaid.useMutation();
+  const [to, setTo] = useState(params.get("to") ?? "");
+  const [amount, setAmount] = useState(params.get("amount") ?? "");
+  const [memo, setMemo] = useState(params.get("memo") ?? "");
   const [recipient, setRecipient] = useState<Recipient | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
   const [stage, setStage] = useState<Stage>("idle");
@@ -95,6 +100,10 @@ export function SendDashboard() {
       });
       setTxids(ids);
       setStage("done");
+      if (requestId && ids.length)
+        void markPaid
+          .mutateAsync({ id: requestId, txids: ids })
+          .catch(() => {});
     } catch (cause) {
       setStage("review");
       setError(

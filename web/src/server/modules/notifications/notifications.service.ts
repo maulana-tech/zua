@@ -81,6 +81,27 @@ export async function notifyPaymentPing(username: string, nonce: string) {
   });
 }
 
+/** Someone requested a payment from @to. The amount stays sealed. */
+export async function notifyRequestReceived(
+  to: string,
+  from: string,
+  id: string,
+) {
+  const profile = await (await getProfiles()).findOne({ _id: to });
+  if (!profile) return;
+  await dispatch({
+    userId: profile.userId,
+    eventKey: `request-received:${id}`,
+    eventType: "requestReceived",
+    email: {
+      subject: `@${from} requested a payment`,
+      title: "New payment request",
+      message: `@${from} sent you a payment request. Open ${APP_NAME} to see the details and pay.`,
+      path: "/requests",
+    },
+  });
+}
+
 export async function sendTestEmail(userId: string): Promise<boolean> {
   const env = getServerEnv();
   if (!env.RESEND_API_KEY) return false;

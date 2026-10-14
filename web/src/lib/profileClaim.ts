@@ -11,6 +11,7 @@ export type ProfileClaim = {
   ua: string;
   birthday: number;
   signPubkeyHex: string;
+  msgPubkeyHex: string; // X25519, for encrypted payment requests
   issuedAt: string; // ISO timestamp
 };
 
@@ -21,6 +22,7 @@ const FIELDS: (keyof ProfileClaim)[] = [
   "ua",
   "birthday",
   "signPubkeyHex",
+  "msgPubkeyHex",
   "issuedAt",
 ];
 

@@ -4,6 +4,7 @@ import { invoicesRouter } from "./modules/invoices/invoices.router";
 import { notificationsRouter } from "./modules/notifications/notifications.router";
 import { paymentLinksRouter } from "./modules/paymentLinks/paymentLinks.router";
 import { profilesRouter } from "./modules/profiles/profiles.router";
+import { requestsRouter } from "./modules/requests/requests.router";
 import { createTRPCRouter } from "./trpc";
 
 export const appRouter = createTRPCRouter({
@@ -11,6 +12,7 @@ export const appRouter = createTRPCRouter({
   profiles: profilesRouter,
   paymentLinks: paymentLinksRouter,
   invoices: invoicesRouter,
+  requests: requestsRouter,
   notifications: notificationsRouter,
 });
 

@@ -17,6 +17,7 @@ const claim: ProfileClaim = {
   ua: "u1examplexxxxxxxxxxxx",
   birthday: 3_500_000,
   signPubkeyHex: signingPubkeyHex(seed),
+  msgPubkeyHex: "ab".repeat(32),
   issuedAt: "2026-10-14T00:00:00.000Z",
 };
 

@@ -61,5 +61,6 @@ export const config = {
     "/history/:path*",
     "/settings/:path*",
     "/invoices/:path*",
+    "/requests/:path*",
   ],
 };

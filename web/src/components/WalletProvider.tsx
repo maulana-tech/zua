@@ -12,7 +12,10 @@ import {
   useRef,
   useState,
 } from "react";
-import { findInvoicePayments } from "../features/invoices/settle";
+import {
+  findInvoicePayments,
+  findRequestPayments,
+} from "../features/invoices/settle";
 import { DASHBOARD_PATH, SIGN_IN_PATH } from "../lib/auth-routes";
 import {
   decryptMaster,
@@ -34,8 +37,14 @@ import {
   signClaim,
   signingPubkeyHex,
 } from "../lib/profileClaim";
+import {
+  messagingPubkeyHex,
+  open as openSealed,
+  type Sealed,
+} from "../lib/sealedBox";
 import { network } from "../lib/zcash/network";
 import {
+  messagingSecret,
   mnemonicFromMaster,
   profileSigningSeed,
   walletDbKey,
@@ -103,6 +112,10 @@ type WalletState = {
   send: (input: SendInput) => Promise<string[]>;
   /** 24-word backup for another Zcash wallet; null while locked. */
   revealMnemonic: () => string | null;
+  /** Opens a sealed box addressed to this account; null while locked. */
+  openBox: <T>(box: Sealed) => T | null;
+  /** This account's messaging public key; null while locked. */
+  messagingPubkey: () => string | null;
 };
 
 const EMPTY_ZCASH: ZcashState = {
@@ -198,6 +211,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         paidZat: payment.paidZat.toString(),
       });
     }
+    const outgoing = await api.requests.list.query({ direction: "outgoing" });
+    const pending = new Set(
+      outgoing.filter((r) => r.status === "pending").map((r) => r.id),
+    );
+    for (const paid of findRequestPayments(history, pending))
+      await api.requests.markPaid.mutate(paid);
   }, []);
 
   const runSync = useCallback(
@@ -473,6 +492,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         ua,
         birthday,
         signPubkeyHex: signingPubkeyHex(seed),
+        msgPubkeyHex: messagingPubkeyHex(messagingSecret(master)),
         issuedAt: new Date().toISOString(),
       };
       const { canonicalClaim } = await import("../lib/profileClaim");
@@ -511,6 +531,23 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const revealMnemonic = useCallback(
     () => (masterRef.current ? mnemonicFromMaster(masterRef.current) : null),
+    [],
+  );
+
+  const openBox = useCallback(<T,>(box: Sealed): T | null => {
+    if (!masterRef.current) return null;
+    try {
+      return openSealed<T>(box, messagingSecret(masterRef.current));
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const messagingPubkey = useCallback(
+    () =>
+      masterRef.current
+        ? messagingPubkeyHex(messagingSecret(masterRef.current))
+        : null,
     [],
   );
 
@@ -587,6 +624,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       syncNow,
       send,
       revealMnemonic,
+      openBox,
+      messagingPubkey,
     }),
     [
       authenticated,
@@ -621,6 +660,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       syncNow,
       send,
       revealMnemonic,
+      openBox,
+      messagingPubkey,
     ],
   );
 

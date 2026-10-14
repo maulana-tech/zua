@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { SendDashboard } from "@/components/dashboard/SendDashboard";
 import { useWallet } from "@/components/WalletProvider";
 import { SIGN_IN_PATH } from "@/lib/auth-routes";
@@ -33,5 +33,9 @@ export default function DashboardSendPage() {
     );
   }
 
-  return <SendDashboard />;
+  return (
+    <Suspense>
+      <SendDashboard />
+    </Suspense>
+  );
 }

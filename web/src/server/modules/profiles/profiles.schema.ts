@@ -41,6 +41,7 @@ export const publicProfileOutput = z.object({
   ua: z.string(),
   birthday: z.number().int(),
   signPubkeyHex: z.string(),
+  msgPubkeyHex: z.string(),
   claimJson: z.string(),
   claimSigHex: z.string(),
 });

@@ -34,3 +34,8 @@ export function walletDbKey(master: Uint8Array): Uint8Array {
 export function profileSigningSeed(master: Uint8Array): Uint8Array {
   return hkdf(sha256, master, undefined, utf8(`${KEY_NS}.profile-sign.v1`), 32);
 }
+
+/** X25519 secret for app messages (encrypted payment requests). */
+export function messagingSecret(master: Uint8Array): Uint8Array {
+  return hkdf(sha256, master, undefined, utf8(`${KEY_NS}.msg.v1`), 32);
+}

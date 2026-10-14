@@ -4,6 +4,7 @@ import {
   ArrowUpRight,
   FileText,
   History,
+  Inbox,
   LayoutGrid,
   Link2,
   LogOut,
@@ -20,6 +21,7 @@ import {
   HISTORY_PATH,
   INVOICES_PATH,
   LINKS_PATH,
+  REQUESTS_PATH,
   SEND_PATH,
   SETTINGS_PATH,
 } from "../../lib/auth-routes";
@@ -43,6 +45,7 @@ const NAV_ITEMS = [
   { href: INVOICES_PATH, label: "Invoices", icon: FileText },
   { href: SEND_PATH, label: "Send", icon: ArrowUpRight },
   { href: HISTORY_PATH, label: "History", icon: History },
+  { href: REQUESTS_PATH, label: "Requests", icon: Inbox },
   { href: SETTINGS_PATH, label: "Settings", icon: Settings },
 ] as const;
 
@@ -250,7 +253,7 @@ function MobileTabs({ pathname }: { pathname: string }) {
       aria-label="Dashboard tabs"
       className="overflow-x-auto overscroll-x-contain"
     >
-      <ul className="grid min-w-[22rem] grid-cols-6">
+      <ul className="grid min-w-[26rem] grid-cols-7">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = isActive(pathname, href);
           const badge: number | undefined = undefined;
