@@ -100,8 +100,29 @@ export function AppShell({ children }: { children: ReactNode }) {
     );
   }
 
+  // Widgets framed by merchants' sites (public/embed.js): content only.
+  if (pathname.startsWith("/embed/")) {
+    return (
+      <div className="theme-product contents" data-product-theme="">
+        <DashboardBackground compact>
+          <div
+            id="zua-embed-root"
+            className="mx-auto grid w-full max-w-xl gap-4 p-3"
+          >
+            {children}
+          </div>
+        </DashboardBackground>
+      </div>
+    );
+  }
+
   // Standalone public pages share one shell: back link, the cat, content.
-  if (isPay || pathname === "/verify" || pathname.startsWith("/unsubscribe/")) {
+  if (
+    isPay ||
+    pathname === "/verify" ||
+    pathname === "/claim" ||
+    pathname.startsWith("/unsubscribe/")
+  ) {
     return (
       <div className="theme-product contents" data-product-theme="">
         <DashboardBackground>

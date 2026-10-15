@@ -7,6 +7,7 @@ import { Mascot } from "../../../components/Mascot";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { QrPanel } from "../../../components/zcash/QrPanel";
+import { postToParent, useEmbedBridge } from "../../../features/embed/bridge";
 import { formatUsd, useZecPrice } from "../../../features/zcash/useZecPrice";
 import { verifiedAddress } from "../../../lib/addressClaim";
 import { APP_NAME } from "../../../lib/brand";
@@ -21,10 +22,17 @@ import { trpc } from "../../../trpc/react";
 export function PayView({
   username,
   slug,
+  embed = false,
+  initialAmount,
 }: {
   username: string;
   slug?: string;
+  /** Rendered inside a merchant's site via /embed (public/embed.js). */
+  embed?: boolean;
+  /** Prefilled amount (ZEC) for open-amount pages, e.g. from the embed. */
+  initialAmount?: string;
 }) {
+  useEmbedBridge(embed);
   const profile = trpc.profiles.byUsername.useQuery({ username }, { retry: 1 });
   const link = trpc.paymentLinks.resolve.useQuery(
     { owner: username, slug: slug ?? "" },
@@ -32,7 +40,7 @@ export function PayView({
   );
   const ping = trpc.notifications.paymentPing.useMutation();
   const price = useZecPrice();
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(initialAmount ?? "");
   const [note, setNote] = useState("");
   const [paid, setPaid] = useState(false);
 
@@ -213,6 +221,7 @@ export function PayView({
                   .mutateAsync({ username, nonce: newMemoId() })
                   .catch(() => {});
                 setPaid(true);
+                postToParent({ type: "zua:payer-says-paid" });
               }}
             >
               I&apos;ve paid

@@ -22,7 +22,14 @@ function readMode(): DashboardMode {
     : "light";
 }
 
-export function DashboardBackground({ children }: { children: ReactNode }) {
+export function DashboardBackground({
+  children,
+  compact = false,
+}: {
+  children: ReactNode;
+  /** Size to the content (embedded widgets) instead of filling the screen. */
+  compact?: boolean;
+}) {
   const [mode, setMode] = useState<DashboardMode>("light");
 
   // Follow the toggle wherever it lives: it writes data-dash-mode on <html>.
@@ -37,7 +44,9 @@ export function DashboardBackground({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="theme-product dashboard-app relative isolate min-h-svh overflow-x-clip">
+    <div
+      className={`theme-product dashboard-app relative isolate overflow-x-clip ${compact ? "" : "min-h-svh"}`}
+    >
       {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static, no user input */}
       <script dangerouslySetInnerHTML={{ __html: applyStoredMode }} />
       <div aria-hidden="true" className="fixed inset-0 -z-10">

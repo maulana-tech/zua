@@ -4,7 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Download, ShieldAlert, ShieldCheck } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { postToParent, useEmbedBridge } from "../../features/embed/bridge";
 import { invoiceStatus } from "../../features/invoices/input";
 import { centsToUsd, usdToCents } from "../../features/invoices/money";
 import type { InvoiceView } from "../../features/invoices/types";
@@ -40,7 +41,15 @@ const LABELS = {
 } as const;
 
 /** Public invoice page: verified ZIP-321 QR tagged with the invoice memo. */
-export function InvoiceCheckout({ token }: { token: string }) {
+export function InvoiceCheckout({
+  token,
+  embed = false,
+}: {
+  token: string;
+  /** Rendered inside a merchant's site via /embed (public/embed.js). */
+  embed?: boolean;
+}) {
+  useEmbedBridge(embed);
   const price = useZecPrice();
   const [downloading, setDownloading] = useState(false);
   const query = useQuery({
@@ -142,14 +151,26 @@ export function InvoiceCheckout({ token }: { token: string }) {
         })
       : "";
   const state = invoice ? invoiceStatus(invoice.status, invoice.dueDate) : null;
+  const paidId = invoice?.status === "paid" ? invoice.id : null;
+  useEffect(() => {
+    if (embed && paidId) postToParent({ type: "zua:paid", invoice: paidId });
+  }, [embed, paidId]);
 
+  // Embedded, the /embed shell already draws the background.
+  const Frame = embed ? Fragment : DashboardBackground;
   return (
-    <DashboardBackground>
+    <Frame>
       <main
         id="main-content"
-        className="mx-auto min-h-svh max-w-5xl px-4 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6"
+        className={
+          embed
+            ? "mx-auto max-w-5xl p-4"
+            : "mx-auto min-h-svh max-w-5xl px-4 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6"
+        }
       >
-        <header className="mb-8 flex items-center justify-between gap-4">
+        <header
+          className={`mb-8 flex items-center justify-between gap-4 ${embed ? "hidden" : ""}`}
+        >
           <div className="flex items-center gap-3">
             <BackLink />
             <Link href="/" aria-label={`${APP_NAME} home`}>
@@ -384,6 +405,6 @@ export function InvoiceCheckout({ token }: { token: string }) {
           </div>
         )}
       </main>
-    </DashboardBackground>
+    </Frame>
   );
 }

@@ -21,6 +21,7 @@ import { useWallet } from "../WalletProvider";
 import { ChangeRecoveryPinDialog } from "./ChangeRecoveryPinDialog";
 import { DashboardPageHeader } from "./DashboardPageHeader";
 import { dashButtonPrimary, dashCell, dashLedger } from "./styles";
+import { WebsiteWidgetTile } from "./WebsiteWidgetTile";
 import { ZcashWalletTile } from "./ZcashWalletTile";
 
 export function SettingsDashboard() {
@@ -42,6 +43,7 @@ export function SettingsDashboard() {
       <div className={`${dashLedger} max-w-3xl`}>
         <IdentityTile username={username} onClaim={openUsernameModal} />
         <ZcashWalletTile />
+        {username ? <WebsiteWidgetTile username={username} /> : null}
         <EmailNotificationsRow />
         <RecoveryTile
           method={passkeyProtected ? "passkey" : "pin"}

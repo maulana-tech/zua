@@ -3,6 +3,7 @@
 import {
   Archive,
   Check,
+  Code2,
   Copy,
   ExternalLink,
   Pencil,
@@ -11,8 +12,10 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { useRef, useState } from "react";
+import type { EmbedConfig } from "../../features/embed/snippet";
 import { payUrl } from "../../lib/paymentLinks";
 import { trpc } from "../../trpc/react";
+import { EmbedCodeDialog } from "../embed/EmbedCodeDialog";
 import { Mascot } from "../Mascot";
 import { DashboardPageHeader } from "./DashboardPageHeader";
 import { LinkEditorDialog, type PaymentLink } from "./LinkEditorDialog";
@@ -74,6 +77,7 @@ export function LinksDashboard({
             <LinkRow
               key={link.id}
               url={payUrl(origin, username, link.slug || undefined)}
+              embed={{ to: username, link: link.slug || undefined }}
               title={link.title}
               description={link.description}
               amount={link.amountZec}
@@ -122,6 +126,7 @@ export function LinksDashboard({
 
 function LinkRow({
   url,
+  embed,
   title,
   description,
   amount,
@@ -130,6 +135,7 @@ function LinkRow({
   onArchive,
 }: {
   url: string;
+  embed: EmbedConfig;
   title: string;
   description: string | null;
   amount: string | null;
@@ -139,6 +145,7 @@ function LinkRow({
 }) {
   const [copied, setCopied] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
+  const [embedOpen, setEmbedOpen] = useState(false);
   const qrRef = useRef<HTMLButtonElement>(null);
   return (
     <div
@@ -181,6 +188,14 @@ function LinkRow({
         >
           <QrCode aria-hidden="true" />
         </button>
+        <button
+          type="button"
+          className={dashIconButton}
+          aria-label="Add to your website"
+          onClick={() => setEmbedOpen(true)}
+        >
+          <Code2 aria-hidden="true" />
+        </button>
         <a
           href={url}
           target="_blank"
@@ -220,6 +235,12 @@ function LinkRow({
         onOpenChange={setQrOpen}
         url={url}
         triggerRef={qrRef}
+      />
+      <EmbedCodeDialog
+        open={embedOpen}
+        onOpenChange={setEmbedOpen}
+        config={embed}
+        title={`Add "${title}" to your website`}
       />
     </div>
   );

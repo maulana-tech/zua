@@ -56,7 +56,21 @@ const nextConfig = {
       "claim",
       "claims",
     ];
+    // Only /embed/* may be framed by other sites (public/embed.js). Every
+    // other page refuses, so it can't be used for clickjacking.
+    const noFraming = [
+      { key: "X-Frame-Options", value: "SAMEORIGIN" },
+      { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
+    ];
     return [
+      {
+        source: "/((?!embed/|embed.js|webzjs/|sw.js).*)",
+        headers: noFraming,
+      },
+      {
+        source: "/embed.js",
+        headers: [{ key: "Cache-Control", value: "public, max-age=300" }],
+      },
       ...appRoutes.flatMap((route) => [
         { source: `/${route}`, headers: isolated },
         { source: `/${route}/:path*`, headers: isolated },

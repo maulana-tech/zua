@@ -181,6 +181,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       pathname?.startsWith("/i/") ||
       pathname?.startsWith("/unsubscribe") ||
       pathname?.startsWith("/claim") ||
+      pathname?.startsWith("/embed/") ||
       pathname === "/verify",
   );
   const { ready, authenticated, user, login, logout } = usePrivy();
