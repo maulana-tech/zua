@@ -127,6 +127,91 @@ profiles. Both need TAZ for steps that send.
 Explorer: `https://testnet.zcashexplorer.app/transactions/<txid>` shows the
 transaction is on chain. Shielded amounts and addresses are not visible there.
 
+### 6.1 Automated tests
+
+```sh
+cd web
+pnpm test        # unit tests; MongoDB integration tests skip themselves
+```
+
+The integration tests (recurring and USD invoices, Checkout API, webhooks)
+run against a local MongoDB in throwaway `zua_test_…` databases, never the
+configured one:
+
+```sh
+mkdir -p /tmp/zua-mongo
+mongod --dbpath /tmp/zua-mongo --port 27047 --fork --logpath /tmp/zua-mongo.log
+ZUA_TEST_MONGODB_URI=mongodb://127.0.0.1:27047 pnpm test
+```
+
+### 6.2 Website widget
+
+1. As A, create a payment link (e.g. slug `coffee`, 0.01 ZEC).
+2. Open `http://localhost:3000/embed-demo.html?to=<A>&link=coffee` (or the
+   `</>` icon on the link → **Try it on a demo page**).
+3. Click **Pay with Zcash**: the dialog shows A's signed QR and the event log
+   on the page shows `zua:ready`. Esc closes it (`zua:close`).
+4. To test from another origin, as a real shop would:
+
+   ```sh
+   mkdir -p /tmp/shop
+   sed 's|src="/embed.js"|src="http://localhost:3000/embed.js"|' web/public/embed-demo.html > /tmp/shop/index.html
+   (cd /tmp/shop && python3 -m http.server 8765)
+   ```
+
+   Then open `http://127.0.0.1:8765/?to=<A>&link=coffee`.
+5. Pay from B's wallet. With A's dashboard open, the payment shows up in A's
+   History after a sync.
+
+### 6.3 Checkout API and webhooks
+
+1. As A, open **Developers**:
+   - Create an API key and copy it (shown once).
+   - Set the webhook URL to `http://localhost:4000/hook`, save, then reveal
+     and copy the signing secret.
+   - Check that the address pool shows 10 of 10 ready (**Refill now** if
+     not).
+2. Start the local receiver, which prints each event and checks its
+   signature:
+
+   ```sh
+   node web/scripts/webhook-receiver.mjs whsec_… 4000
+   ```
+
+3. **Send test event** in Developers: the receiver prints `VALID  test`.
+4. Create a checkout:
+
+   ```sh
+   curl -s http://localhost:3000/api/v1/checkouts \
+     -H "Authorization: Bearer zua_sk_…" -H "Content-Type: application/json" \
+     -d '{"amount":"0.01","reference":"order_1","description":"Coffee"}'
+   ```
+
+5. Open the returned `url` (or embed it with `data-invoice=<token>`), press
+   **Copy payment link** and pay it from B's Send page.
+6. Keep A's dashboard open. Once the payment confirms (about 75 s on testnet
+   with `NEXT_PUBLIC_MIN_CONFIRMATIONS=1`), A's wallet reports it and the
+   receiver prints `VALID  checkout.paid` with `"reference": "order_1"`.
+7. Check it from the API:
+
+   ```sh
+   curl -s http://localhost:3000/api/v1/checkouts/<id> -H "Authorization: Bearer zua_sk_…"
+   ```
+
+   Expect `"status": "paid"`.
+
+Also check the failure cases:
+
+| Try | Expected |
+|---|---|
+| No key, or a revoked key | `401` |
+| `{"amount":"1.234","currency":"USD"}` | `400 invalid_amount` |
+| A USD checkout | `amount_zat` is `null` until the checkout page is opened, then the locked quote |
+| Paying less than the total | `"status": "partially_paid"` |
+| Receiver stopped, then **Send test event** | Delivery listed as failed after 3 tries |
+
+See [api.md](api.md) for the full API and widget reference.
+
 ## 7. Switch to mainnet
 
 1. Set `NEXT_PUBLIC_ZCASH_NETWORK=main` and `NEXT_PUBLIC_MIN_CONFIRMATIONS=3`,
