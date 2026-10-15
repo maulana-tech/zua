@@ -1,13 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { receiptFilename } from "../../features/receipts/receipt";
 import { formatUsd, useZecPrice } from "../../features/zcash/useZecPrice";
+import { downloadText } from "../../lib/download";
 import { unlockLabel } from "../../lib/passkey";
 import { zatToZec } from "../../lib/zcash/units";
 import { useWallet } from "../WalletProvider";
 import { ActivityFeed } from "./ActivityFeed";
 import { DashboardNotice } from "./DashboardNotice";
 import { DashboardPageHeader } from "./DashboardPageHeader";
+import { StatementPanel } from "./StatementPanel";
 import { dashButtonPrimary, dashCell, dashLedger } from "./styles";
 
 export function HistoryDashboard() {
@@ -30,7 +33,7 @@ export function HistoryDashboard() {
     <>
       <DashboardPageHeader
         title="History"
-        description="Every shielded payment in and out, decrypted on this device. Download a receipt for any payment you received: it proves the amount on chain without revealing your other payments."
+        description="Every shielded payment in and out, decrypted on this device. Download a receipt for a payment you received, or a proof of payment for one you sent: each proves the amount on chain without revealing your other payments."
       />
       {accountUnlocked ? (
         <div className="grid gap-4">
@@ -56,7 +59,7 @@ export function HistoryDashboard() {
           </dl>
           {receiptBusy ? (
             <p className="text-sm text-(--dash-ash)" aria-live="polite">
-              Building receipt from the chain…
+              Building the proof from the chain…
             </p>
           ) : receiptError ? (
             <p className="text-sm text-destructive" role="alert">
@@ -87,19 +90,17 @@ export function HistoryDashboard() {
                   } finally {
                     setReceiptBusy(false);
                   }
-                  const url = URL.createObjectURL(
-                    new Blob([JSON.stringify(receipt, null, 2)], {
-                      type: "application/json",
-                    }),
+                  downloadText(
+                    receiptFilename(receipt),
+                    JSON.stringify(receipt, null, 2),
+                    "application/json",
                   );
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = `zua-receipt-${tx.txid.slice(0, 12)}.json`;
-                  a.click();
-                  URL.revokeObjectURL(url);
                 }}
               />
             </div>
+          </div>
+          <div className={dashLedger}>
+            <StatementPanel />
           </div>
         </div>
       ) : (

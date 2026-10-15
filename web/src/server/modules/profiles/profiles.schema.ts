@@ -50,3 +50,11 @@ export const isReservedUsername = (name: string) => RESERVED.has(name);
 
 export type CreateProfileInput = z.infer<typeof createProfileInput>;
 export type PublicProfile = z.infer<typeof publicProfileOutput>;
+
+/** A per-invoice/link address signed by the owner (lib/addressClaim). */
+export const signedAddressInput = z
+  .object({
+    claimJson: z.string().min(10).max(1000),
+    sigHex: z.string().regex(/^[0-9a-f]{128}$/),
+  })
+  .strict();

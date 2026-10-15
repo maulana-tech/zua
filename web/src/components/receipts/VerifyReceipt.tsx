@@ -2,12 +2,11 @@
 
 import { CheckCircle2, CircleAlert, Loader } from "lucide-react";
 import { useRef, useState } from "react";
+import { parseReceipt, type Receipt } from "../../features/receipts/receipt";
 import {
-  parseReceipt,
-  type Receipt,
-  receiptSignatureValid,
-} from "../../features/receipts/receipt";
-import { verifyClaim } from "../../lib/profileClaim";
+  type VerifyResult,
+  verifyReceipt,
+} from "../../features/receipts/verify";
 import { latestHeight, rawTransaction } from "../../lib/zcash/lightwalletd";
 import {
   explorerTxUrl,
@@ -18,114 +17,30 @@ import { zatToZec } from "../../lib/zcash/units";
 import { api } from "../../trpc/client";
 import { dashButtonSecondary } from "../dashboard/styles";
 
-type Result =
-  | { status: "verified"; confirmations: number; memo: string }
-  | { status: "invalid"; reason: string }
-  | { status: "unavailable"; reason: string };
+const MAX_FILE_BYTES = 2 * 1024 * 1024; // a statement of a few hundred payments
 
-async function verify(receipt: Receipt): Promise<Result> {
-  if (receipt.network !== network)
-    return {
-      status: "invalid",
-      reason: `This receipt is for Zcash ${receipt.network === "main" ? "mainnet" : "testnet"}.`,
-    };
-  const profile = await api.profiles.byUsername.query({
-    username: receipt.recipient.username,
-  });
-  const claim = profile
-    ? verifyClaim(profile.claimJson, profile.claimSigHex)
-    : null;
-  if (!claim || claim.username !== receipt.recipient.username)
-    return {
-      status: "invalid",
-      reason: `@${receipt.recipient.username} doesn't exist or its profile can't be verified.`,
-    };
-  if (claim.ua !== receipt.recipient.ua)
-    return {
-      status: "invalid",
-      reason:
-        "The address on the receipt doesn't match the recipient's profile.",
-    };
-  if (!receiptSignatureValid(receipt, claim.signPubkeyHex))
-    return {
-      status: "invalid",
-      reason:
-        "The signature doesn't match. The receipt was edited or not issued by this user.",
-    };
-  let raw: Awaited<ReturnType<typeof rawTransaction>>;
-  let tip: number;
-  try {
-    [raw, tip] = await Promise.all([
-      rawTransaction(lightwalletdUrl, receipt.txid),
-      latestHeight(lightwalletdUrl),
-    ]);
-  } catch (e) {
-    return {
-      status: "unavailable",
-      reason:
-        e instanceof Error ? e.message : "Couldn't reach the Zcash network.",
-    };
-  }
-  if (!raw)
-    return {
-      status: "invalid",
-      reason: "This transaction isn't on the Zcash blockchain.",
-    };
-  if (raw.height !== receipt.height)
-    return {
-      status: "invalid",
-      reason: `The transaction is in block ${raw.height}, not ${receipt.height} as the receipt says.`,
-    };
-  // Decrypt each disclosed output and check it against its note commitment.
+const TITLES = {
+  received: "Payment receipt",
+  sent: "Proof of payment",
+  statement: "Income statement",
+} as const;
+
+async function check(receipt: Receipt): Promise<VerifyResult> {
   const { verifyDisclosure } = await import("../../lib/zcash/wallet");
-  const actions = new Set<string>();
-  let total = 0n;
-  const memos: string[] = [];
-  for (const d of receipt.disclosures) {
-    const key = `${d.pool}:${d.action}`;
-    if (actions.has(key))
-      return { status: "invalid", reason: "An output is listed twice." };
-    actions.add(key);
-    try {
-      const out = await verifyDisclosure({
-        tx: raw.data,
-        height: raw.height,
-        pool: d.pool,
-        action: d.action,
-        kEnc: d.kEnc,
-        ua: receipt.recipient.ua,
-      });
-      total += out.value;
-      if (out.memo) memos.push(out.memo);
-    } catch {
-      return {
-        status: "invalid",
-        reason: `Output ${d.action} of this transaction doesn't pay @${receipt.recipient.username} the way the receipt says.`,
-      };
-    }
-  }
-  if (total.toString() !== receipt.amountZat)
-    return {
-      status: "invalid",
-      reason: `The chain shows ${zatToZec(total)} ZEC to this recipient, not ${zatToZec(BigInt(receipt.amountZat))} ZEC.`,
-    };
-  const memo = memos.join("\n");
-  if (memo !== receipt.memo)
-    return {
-      status: "invalid",
-      reason: "The memo on the receipt doesn't match the one on chain.",
-    };
-  return {
-    status: "verified",
-    confirmations: Math.max(0, tip - raw.height + 1),
-    memo,
-  };
+  return verifyReceipt(receipt, {
+    network,
+    profile: (username) => api.profiles.byUsername.query({ username }),
+    addressOwner: (ua) => api.profiles.addressOwner.query({ ua }),
+    rawTransaction: (txid) => rawTransaction(lightwalletdUrl, txid),
+    latestHeight: () => latestHeight(lightwalletdUrl),
+    verifyDisclosure,
+  });
 }
 
 export function VerifyReceipt() {
   const input = useRef<HTMLInputElement>(null);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
-  const [result, setResult] = useState<Result | null>(null);
+  const [result, setResult] = useState<VerifyResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -133,21 +48,19 @@ export function VerifyReceipt() {
     setError("");
     setResult(null);
     setReceipt(null);
-    if (file.size > 64 * 1024)
+    if (file.size > MAX_FILE_BYTES)
       return setError("This file is too large to be a receipt.");
     try {
       const parsed = parseReceipt(await file.text());
       setReceipt(parsed);
       setBusy(true);
-      setResult(await verify(parsed));
+      setResult(await check(parsed));
     } catch (e) {
       setError(e instanceof Error ? e.message : "This file couldn't be read.");
     } finally {
       setBusy(false);
     }
   }
-
-  const url = receipt ? explorerTxUrl(receipt.txid) : null;
 
   return (
     <section
@@ -156,14 +69,13 @@ export function VerifyReceipt() {
     >
       <p className="dashboard-tile-title">Zua verify</p>
       <h1 className="mt-5 text-3xl font-normal tracking-tight">
-        Check a payment receipt
+        Check a receipt, proof of payment or statement
       </h1>
       <p className="mt-3 max-w-xl text-sm leading-6 text-(--dash-ash)">
-        Choose the receipt JSON you were given. Your browser fetches the
-        shielded transaction, decrypts only the outputs the receipt opens and
-        checks them against the Zcash blockchain, then checks the
-        recipient&apos;s signature against their public profile. Nothing is
-        uploaded.
+        Choose the JSON file you were given. Your browser fetches the shielded
+        transactions, decrypts only the outputs the file opens and checks them
+        against the Zcash blockchain, then checks the signature against the
+        signer&apos;s public profile. Nothing is uploaded.
       </p>
       <label
         className="mt-6 grid gap-2 text-sm font-semibold"
@@ -220,55 +132,7 @@ export function VerifyReceipt() {
             <p className="mt-2 text-sm text-(--dash-ash)">{result.reason}</p>
           ) : null}
           {result?.status === "verified" && receipt ? (
-            <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-              <div>
-                <dt className="text-(--dash-ash)">Received by</dt>
-                <dd className="mt-1">
-                  @{receipt.recipient.username} (signature checked)
-                </dd>
-              </div>
-              <div>
-                <dt className="text-(--dash-ash)">Amount (proven on chain)</dt>
-                <dd className="mt-1 tabular-nums">
-                  {zatToZec(BigInt(receipt.amountZat))} ZEC
-                </dd>
-              </div>
-              <div>
-                <dt className="text-(--dash-ash)">Block</dt>
-                <dd className="mt-1 tabular-nums">
-                  {receipt.height.toLocaleString("en-US")} ·{" "}
-                  {result.confirmations} confirmations
-                </dd>
-              </div>
-              <div className="min-w-0">
-                <dt className="text-(--dash-ash)">Transaction</dt>
-                <dd className="mt-1 break-all font-mono text-xs">
-                  {url ? (
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline underline-offset-2"
-                    >
-                      {receipt.txid}
-                    </a>
-                  ) : (
-                    receipt.txid
-                  )}
-                </dd>
-              </div>
-              {result.memo ? (
-                <div className="sm:col-span-2">
-                  <dt className="text-(--dash-ash)">Memo (proven on chain)</dt>
-                  <dd className="mt-1 break-words">{result.memo}</dd>
-                </div>
-              ) : null}
-              <p className="text-xs text-(--dash-ash) sm:col-span-2">
-                The transaction stays shielded. This receipt opens only the
-                outputs listed in it: the sender, the recipient&apos;s other
-                payments and their balance stay private.
-              </p>
-            </dl>
+            <Verified receipt={receipt} result={result} />
           ) : null}
           {result ? (
             <button
@@ -286,5 +150,104 @@ export function VerifyReceipt() {
         </div>
       ) : null}
     </section>
+  );
+}
+
+function Verified({
+  receipt,
+  result,
+}: {
+  receipt: Receipt;
+  result: Extract<VerifyResult, { status: "verified" }>;
+}) {
+  const single = result.items.length === 1 ? result.items[0] : null;
+  return (
+    <div className="mt-4 grid gap-4 text-sm">
+      <dl className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <dt className="text-(--dash-ash)">{TITLES[receipt.kind]}</dt>
+          <dd className="mt-1">
+            {receipt.kind === "sent" ? "Paid by" : "Received by"} @
+            {receipt.signer} (signature checked)
+          </dd>
+        </div>
+        <div>
+          <dt className="text-(--dash-ash)">
+            {result.items.length > 1
+              ? `Total of ${result.items.length} payments (proven on chain)`
+              : "Amount (proven on chain)"}
+          </dt>
+          <dd className="mt-1 tabular-nums">{zatToZec(result.totalZat)} ZEC</dd>
+        </div>
+        {receipt.period ? (
+          <div className="sm:col-span-2">
+            <dt className="text-(--dash-ash)">Period</dt>
+            <dd className="mt-1">
+              {receipt.period.from} to {receipt.period.to} (UTC)
+            </dd>
+          </div>
+        ) : null}
+        {receipt.kind === "sent" && single ? (
+          <div className="sm:col-span-2">
+            <dt className="text-(--dash-ash)">Paid to</dt>
+            <dd className="mt-1">
+              {single.recipient
+                ? `@${single.recipient}`
+                : "A shielded address not registered on Zua"}
+            </dd>
+          </div>
+        ) : null}
+      </dl>
+      <ul className="grid gap-2">
+        {result.items.map((item) => {
+          const url = explorerTxUrl(item.txid);
+          return (
+            <li
+              key={`${item.txid}-${item.amountZat}`}
+              className="rounded-(--dash-radius-sm) border border-(--dash-line) p-3"
+            >
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="tabular-nums">
+                  {zatToZec(item.amountZat)} ZEC
+                  {receipt.kind === "sent" && item.recipient
+                    ? ` to @${item.recipient}`
+                    : ""}
+                </span>
+                <span className="text-xs text-(--dash-ash) tabular-nums">
+                  Block {item.height.toLocaleString("en-US")} ·{" "}
+                  {item.confirmations} confirmations
+                </span>
+              </div>
+              {item.memo ? (
+                <p className="mt-1 break-words text-(--dash-ash)">
+                  Memo: {item.memo}
+                </p>
+              ) : null}
+              <p className="mt-1 break-all font-mono text-[11px] text-(--dash-ash)">
+                {url ? (
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline underline-offset-2"
+                  >
+                    {item.txid}
+                  </a>
+                ) : (
+                  item.txid
+                )}
+              </p>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="text-xs text-(--dash-ash)">
+        The transactions stay shielded. This file opens only the outputs listed
+        in it: other payments and balances stay private.
+        {receipt.kind === "sent"
+          ? " That the signer is the one who paid is their signed statement; the chain proves the payment itself."
+          : ""}
+      </p>
+    </div>
   );
 }

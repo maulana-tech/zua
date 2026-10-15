@@ -12,6 +12,8 @@ export type InvoiceView = {
   token: string;
   username: string;
   ua: string;
+  /** Per-invoice address signed by the owner; null on older invoices. */
+  payAddress: { claimJson: string; sigHex: string } | null;
   number: string;
   clientName: string;
   items: InvoiceLine[];

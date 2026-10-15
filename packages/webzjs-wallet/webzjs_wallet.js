@@ -163,7 +163,7 @@ if (Symbol.dispose) Pczt.prototype[Symbol.dispose] = Pczt.prototype.free;
  * A handler to an immutable proposal. This can be passed to `create_proposed_transactions` to prove/authorize the transactions
  * before they are sent to the network.
  *
- * The proposal can be reviewed by calling `describe` which will return a JSON object with the details of the proposal.
+ * Review it with `fee_zat` and `send_zat` before proving.
  */
 export class Proposal {
     static __wrap(ptr) {
@@ -181,6 +181,23 @@ export class Proposal {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_proposal_free(ptr, 0);
+    }
+    /**
+     * Total fee across all steps, in zatoshi.
+     * @returns {bigint}
+     */
+    fee_zat() {
+        const ret = wasm.proposal_fee_zat(this.__wbg_ptr);
+        return BigInt.asUintN(64, ret);
+    }
+    /**
+     * Total paid to the requested recipients (excluding change), in zatoshi.
+     * For a send-max proposal this is what the recipient receives.
+     * @returns {bigint}
+     */
+    send_zat() {
+        const ret = wasm.proposal_send_zat(this.__wbg_ptr);
+        return BigInt.asUintN(64, ret);
     }
 }
 if (Symbol.dispose) Proposal.prototype[Symbol.dispose] = Proposal.prototype.free;
@@ -326,6 +343,15 @@ export class WebWallet {
         return ret;
     }
     /**
+     * A fresh, unlinkable diversified address for the account.
+     * @param {number} account_id
+     * @returns {Promise<string>}
+     */
+    get_next_address(account_id) {
+        const ret = wasm.webwallet_get_next_address(this.__wbg_ptr, account_id);
+        return ret;
+    }
+    /**
      * Newest-first transactions involving the account.
      * @param {number} account_id
      * @param {number | null} [limit]
@@ -369,6 +395,34 @@ export class WebWallet {
         this.__wbg_ptr = ret[0];
         WebWalletFinalization.register(this, this.__wbg_ptr, this);
         return this;
+    }
+    /**
+     * Proposes one transaction paying several recipients. `payments_json` is
+     * `[{"to": "u1…", "zat": "100000", "memo": "…"}]` (memo optional).
+     * @param {number} account_id
+     * @param {string} payments_json
+     * @returns {Promise<Proposal>}
+     */
+    propose_payments(account_id, payments_json) {
+        const ptr0 = passStringToWasm0(payments_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.webwallet_propose_payments(this.__wbg_ptr, account_id, ptr0, len0);
+        return ret;
+    }
+    /**
+     * Proposes sending everything spendable to `to_address` (fee deducted).
+     * @param {number} account_id
+     * @param {string} to_address
+     * @param {string | null} [memo]
+     * @returns {Promise<Proposal>}
+     */
+    propose_send_max(account_id, to_address, memo) {
+        const ptr0 = passStringToWasm0(to_address, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        var ptr1 = isLikeNone(memo) ? 0 : passStringToWasm0(memo, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len1 = WASM_VECTOR_LEN;
+        const ret = wasm.webwallet_propose_send_max(this.__wbg_ptr, account_id, ptr0, len0, ptr1, len1);
+        return ret;
     }
     /**
      * Proposes a payment with an optional UTF-8 memo (shielded recipients only).
@@ -419,8 +473,11 @@ export function initThreadPool(num_threads) {
 
 /**
  * For every Orchard or Ironwood action in `tx` that pays the account derived
- * from `seed_phrase`, returns `{ pool, action, kEnc, value, memo, internal }`
- * as a JSON array. The seed only lives for the duration of the call.
+ * from `seed_phrase` (`direction: "received"`), or that the account sent to
+ * someone else (`direction: "sent"`, recovered with its outgoing viewing key,
+ * with the `recipient` UA), returns `{ direction, pool, action, kEnc, value,
+ * memo, internal | recipient }` as a JSON array. The seed only lives for the
+ * duration of the call.
  * @param {string} network
  * @param {string} seed_phrase
  * @param {number} account_hd_index
@@ -1199,32 +1256,32 @@ function __wbg_get_imports(memory) {
             console.warn(arg0, arg1, arg2, arg3);
         },
         __wbindgen_generic_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 2263, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 2291, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2d4164a0f0cf4d7b___convert__closures_____invoke___wasm_bindgen_2d4164a0f0cf4d7b___JsValue______true_);
             return ret;
         },
         __wbindgen_generic_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 3902, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 3930, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2d4164a0f0cf4d7b___convert__closures_____invoke___wasm_bindgen_2d4164a0f0cf4d7b___JsValue__core_fb28759eaf8b6199___result__Result_____wasm_bindgen_2d4164a0f0cf4d7b___JsError___true_);
             return ret;
         },
         __wbindgen_generic_0000000000000003: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 3904, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 3932, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2d4164a0f0cf4d7b___convert__closures_____invoke___js_sys_5d4d6018ad607809___futures__task__wait_async_polyfill__MessageEvent______true_);
             return ret;
         },
         __wbindgen_generic_0000000000000004: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Ref(NamedExternref("Event"))], shim_idx: 2217, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Ref(NamedExternref("Event"))], shim_idx: 2250, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2d4164a0f0cf4d7b___convert__closures________invoke___web_sys_f3154cf37e8da907___features__gen_MessageEvent__MessageEvent______true_);
             return ret;
         },
         __wbindgen_generic_0000000000000005: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Ref(NamedExternref("MessageEvent"))], shim_idx: 2217, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2d4164a0f0cf4d7b___convert__closures________invoke___web_sys_f3154cf37e8da907___features__gen_MessageEvent__MessageEvent______true__42);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Ref(NamedExternref("MessageEvent"))], shim_idx: 2250, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2d4164a0f0cf4d7b___convert__closures________invoke___web_sys_f3154cf37e8da907___features__gen_MessageEvent__MessageEvent______true__47);
             return ret;
         },
         __wbindgen_generic_0000000000000006: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 2234, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 2262, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2d4164a0f0cf4d7b___convert__closures_____invoke_______true_);
             return ret;
         },
@@ -1304,8 +1361,8 @@ function wasm_bindgen_2d4164a0f0cf4d7b___convert__closures________invoke___web_s
     wasm.wasm_bindgen_2d4164a0f0cf4d7b___convert__closures________invoke___web_sys_f3154cf37e8da907___features__gen_MessageEvent__MessageEvent______true_(arg0, arg1, arg2);
 }
 
-function wasm_bindgen_2d4164a0f0cf4d7b___convert__closures________invoke___web_sys_f3154cf37e8da907___features__gen_MessageEvent__MessageEvent______true__42(arg0, arg1, arg2) {
-    wasm.wasm_bindgen_2d4164a0f0cf4d7b___convert__closures________invoke___web_sys_f3154cf37e8da907___features__gen_MessageEvent__MessageEvent______true__42(arg0, arg1, arg2);
+function wasm_bindgen_2d4164a0f0cf4d7b___convert__closures________invoke___web_sys_f3154cf37e8da907___features__gen_MessageEvent__MessageEvent______true__47(arg0, arg1, arg2) {
+    wasm.wasm_bindgen_2d4164a0f0cf4d7b___convert__closures________invoke___web_sys_f3154cf37e8da907___features__gen_MessageEvent__MessageEvent______true__47(arg0, arg1, arg2);
 }
 
 function wasm_bindgen_2d4164a0f0cf4d7b___convert__closures_____invoke___wasm_bindgen_2d4164a0f0cf4d7b___JsValue__core_fb28759eaf8b6199___result__Result_____wasm_bindgen_2d4164a0f0cf4d7b___JsError___true_(arg0, arg1, arg2) {

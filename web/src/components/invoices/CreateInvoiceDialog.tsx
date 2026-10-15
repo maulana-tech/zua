@@ -102,6 +102,8 @@ export function CreateInvoiceDialog({
     busy.current = true;
     setWorking(true);
     try {
+      // Each invoice gets its own address so clients can't link payments.
+      const payAddress = await wallet.freshPayAddress();
       const invoice = await api.invoices.create.mutate({
         number,
         clientName,
@@ -109,6 +111,7 @@ export function CreateInvoiceDialog({
         dueDate,
         notes,
         items: inputItems,
+        payAddress,
       });
       if (mounted.current && session.current === at) {
         onCreated(invoice);

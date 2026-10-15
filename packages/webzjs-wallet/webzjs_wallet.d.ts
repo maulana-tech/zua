@@ -54,12 +54,21 @@ export class Pczt {
  * A handler to an immutable proposal. This can be passed to `create_proposed_transactions` to prove/authorize the transactions
  * before they are sent to the network.
  *
- * The proposal can be reviewed by calling `describe` which will return a JSON object with the details of the proposal.
+ * Review it with `fee_zat` and `send_zat` before proving.
  */
 export class Proposal {
     private constructor();
     free(): void;
     [Symbol.dispose](): void;
+    /**
+     * Total fee across all steps, in zatoshi.
+     */
+    fee_zat(): bigint;
+    /**
+     * Total paid to the requested recipients (excluding change), in zatoshi.
+     * For a send-max proposal this is what the recipient receives.
+     */
+    send_zat(): bigint;
 }
 
 export class WalletSummary {
@@ -111,6 +120,10 @@ export class WebWallet {
     get_current_address(account_id: number): Promise<string>;
     get_latest_block(): Promise<bigint>;
     /**
+     * A fresh, unlinkable diversified address for the account.
+     */
+    get_next_address(account_id: number): Promise<string>;
+    /**
      * Newest-first transactions involving the account.
      */
     get_transaction_history(account_id: number, limit?: number | null, offset?: number | null): Promise<any>;
@@ -123,6 +136,15 @@ export class WebWallet {
      * * `db_bytes` - a database from `db_to_bytes` to restore, if any
      */
     constructor(network: string, lightwalletd_url: string, min_confirmations: number, _min_confirmations_untrusted: number, db_bytes?: Uint8Array | null);
+    /**
+     * Proposes one transaction paying several recipients. `payments_json` is
+     * `[{"to": "u1…", "zat": "100000", "memo": "…"}]` (memo optional).
+     */
+    propose_payments(account_id: number, payments_json: string): Promise<Proposal>;
+    /**
+     * Proposes sending everything spendable to `to_address` (fee deducted).
+     */
+    propose_send_max(account_id: number, to_address: string, memo?: string | null): Promise<Proposal>;
     /**
      * Proposes a payment with an optional UTF-8 memo (shielded recipients only).
      */
@@ -141,8 +163,11 @@ export function initThreadPool(num_threads: number): Promise<any>;
 
 /**
  * For every Orchard or Ironwood action in `tx` that pays the account derived
- * from `seed_phrase`, returns `{ pool, action, kEnc, value, memo, internal }`
- * as a JSON array. The seed only lives for the duration of the call.
+ * from `seed_phrase` (`direction: "received"`), or that the account sent to
+ * someone else (`direction: "sent"`, recovered with its outgoing viewing key,
+ * with the `recipient` UA), returns `{ direction, pool, action, kEnc, value,
+ * memo, internal | recipient }` as a JSON array. The seed only lives for the
+ * duration of the call.
  */
 export function orchard_disclose(network: string, seed_phrase: string, account_hd_index: number, tx: Uint8Array, height: number): string;
 
@@ -202,6 +227,8 @@ export interface InitOutput {
     readonly orchard_verify_disclosure: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => [number, number, number, number];
     readonly pczt_from_bytes: (a: number, b: number) => number;
     readonly pczt_serialize: (a: number) => [number, number, number, number];
+    readonly proposal_fee_zat: (a: number) => bigint;
+    readonly proposal_send_zat: (a: number) => bigint;
     readonly start: () => void;
     readonly walletsummary_account_balances: (a: number) => any;
     readonly wasm_thread_entry_point: (a: number) => void;
@@ -214,9 +241,12 @@ export interface InitOutput {
     readonly webwallet_db_to_bytes: (a: number) => any;
     readonly webwallet_get_current_address: (a: number, b: number) => any;
     readonly webwallet_get_latest_block: (a: number) => any;
+    readonly webwallet_get_next_address: (a: number, b: number) => any;
     readonly webwallet_get_transaction_history: (a: number, b: number, c: number, d: number) => any;
     readonly webwallet_get_wallet_summary: (a: number) => any;
     readonly webwallet_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number, number];
+    readonly webwallet_propose_payments: (a: number, b: number, c: number, d: number) => any;
+    readonly webwallet_propose_send_max: (a: number, b: number, c: number, d: number, e: number, f: number) => any;
     readonly rust_sqlite_wasm_abort: () => void;
     readonly rust_sqlite_wasm_assert_fail: (a: number, b: number, c: number, d: number) => void;
     readonly rust_sqlite_wasm_calloc: (a: number, b: number) => number;
@@ -237,7 +267,7 @@ export interface InitOutput {
     readonly wasm_bindgen_2d4164a0f0cf4d7b___convert__closures_____invoke___js_sys_5d4d6018ad607809___Function_fn_wasm_bindgen_2d4164a0f0cf4d7b___JsValue_____wasm_bindgen_2d4164a0f0cf4d7b___sys__Undefined___js_sys_5d4d6018ad607809___Function_fn_wasm_bindgen_2d4164a0f0cf4d7b___JsValue_____wasm_bindgen_2d4164a0f0cf4d7b___sys__Undefined_______true_: (a: number, b: number, c: any, d: any) => void;
     readonly wasm_bindgen_2d4164a0f0cf4d7b___convert__closures_____invoke___wasm_bindgen_2d4164a0f0cf4d7b___JsValue__core_fb28759eaf8b6199___result__Result_____wasm_bindgen_2d4164a0f0cf4d7b___JsError___true_: (a: number, b: number, c: any) => [number, number];
     readonly wasm_bindgen_2d4164a0f0cf4d7b___convert__closures________invoke___web_sys_f3154cf37e8da907___features__gen_MessageEvent__MessageEvent______true_: (a: number, b: number, c: any) => void;
-    readonly wasm_bindgen_2d4164a0f0cf4d7b___convert__closures________invoke___web_sys_f3154cf37e8da907___features__gen_MessageEvent__MessageEvent______true__42: (a: number, b: number, c: any) => void;
+    readonly wasm_bindgen_2d4164a0f0cf4d7b___convert__closures________invoke___web_sys_f3154cf37e8da907___features__gen_MessageEvent__MessageEvent______true__47: (a: number, b: number, c: any) => void;
     readonly wasm_bindgen_2d4164a0f0cf4d7b___convert__closures_____invoke___js_sys_5d4d6018ad607809___futures__task__wait_async_polyfill__MessageEvent______true_: (a: number, b: number, c: any) => void;
     readonly wasm_bindgen_2d4164a0f0cf4d7b___convert__closures_____invoke___wasm_bindgen_2d4164a0f0cf4d7b___JsValue______true_: (a: number, b: number, c: any) => void;
     readonly wasm_bindgen_2d4164a0f0cf4d7b___convert__closures_____invoke_______true_: (a: number, b: number) => void;

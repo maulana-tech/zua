@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { Input } from "../ui/input";
+import { useWallet } from "../WalletProvider";
 
 export type PaymentLink = RouterOutputs["paymentLinks"]["mine"][number];
 
@@ -27,6 +28,7 @@ export function LinkEditorDialog({
   link: PaymentLink | null;
   onSaved: (link: PaymentLink) => void;
 }) {
+  const wallet = useWallet();
   const create = trpc.paymentLinks.create.useMutation();
   const update = trpc.paymentLinks.update.useMutation();
   const [slug, setSlug] = useState("");
@@ -52,7 +54,14 @@ export function LinkEditorDialog({
     try {
       const saved = link
         ? await update.mutateAsync({ id: link.id, title, description, amount })
-        : await create.mutateAsync({ slug, title, description, amount });
+        : await create.mutateAsync({
+            slug,
+            title,
+            description,
+            amount,
+            // Its own address, so payers of different links can't be linked.
+            payAddress: await wallet.freshPayAddress(),
+          });
       onSaved(saved);
       onOpenChange(false);
     } catch (cause) {
@@ -70,8 +79,9 @@ export function LinkEditorDialog({
             {link ? "Edit payment link" : "New payment link"}
           </DialogTitle>
           <DialogDescription>
-            Payments to this link carry a private tag, so you can tell them
-            apart in your activity. Leave the amount empty to let payers choose.
+            Each link gets its own shielded address and a private tag, so payers
+            of different links can't be connected and you can tell payments
+            apart. Leave the amount empty to let payers choose.
           </DialogDescription>
         </DialogHeader>
         <form className="grid gap-4" onSubmit={submit}>

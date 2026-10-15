@@ -16,7 +16,13 @@ import {
   findInvoicePayments,
   findRequestPayments,
 } from "../features/invoices/settle";
-import { type Receipt, signReceipt } from "../features/receipts/receipt";
+import { itemsFromDisclosures, utcDay } from "../features/receipts/build";
+import {
+  type Receipt,
+  signReceipt,
+  sumZat,
+} from "../features/receipts/receipt";
+import { type SignedAddress, signAddressClaim } from "../lib/addressClaim";
 import { DASHBOARD_PATH, SIGN_IN_PATH } from "../lib/auth-routes";
 import {
   decryptMaster,
@@ -50,7 +56,14 @@ import {
   profileSigningSeed,
   walletDbKey,
 } from "../lib/zcash/seed";
-import type { Balances, SyncState, WalletTx } from "../lib/zcash/wallet";
+import type {
+  Balances,
+  Payment,
+  Proposed,
+  SendStage,
+  SyncState,
+  WalletTx,
+} from "../lib/zcash/wallet";
 import { loadWalletDb, saveWalletDb } from "../lib/zcash/walletStore";
 import { api } from "../trpc/client";
 import type { PinMode } from "./PinDialog";
@@ -111,15 +124,32 @@ type WalletState = {
   zcash: ZcashState;
   syncNow: () => Promise<void>;
   send: (input: SendInput) => Promise<string[]>;
+  /** A new unlinkable address, signed by this profile, for one invoice/link. */
+  freshPayAddress: () => Promise<SignedAddress>;
+  /** Builds one transaction paying all rows; review fee, then `proveProposal`. */
+  proposePayments: (payments: Payment[]) => Promise<Proposed>;
+  /** Proves, signs and broadcasts a proposal from `proposePayments`. */
+  proveProposal: (
+    proposed: Proposed,
+    onStage?: (stage: SendStage) => void,
+  ) => Promise<string[]>;
   /** 24-word backup for another Zcash wallet; null while locked. */
   revealMnemonic: () => string | null;
   /** Opens a sealed box addressed to this account; null while locked. */
   openBox: <T>(box: Sealed) => T | null;
   /** This account's messaging public key; null while locked. */
   messagingPubkey: () => string | null;
-  /** Signed receipt for a received, mined payment; null while locked. */
-  /** Builds a receipt that proves amount and memo on chain; throws on failure. */
+  /**
+   * Receipt that proves a mined payment's amount and memo on chain: "received"
+   * for incoming, a payer's proof ("sent") for outgoing. Throws on failure.
+   */
   issueReceipt: (tx: WalletTx) => Promise<Receipt>;
+  /** Signed statement of every payment received from `from` to `to` (UTC days). */
+  issueStatement: (
+    from: string,
+    to: string,
+    onProgress?: (done: number, total: number) => void,
+  ) => Promise<Receipt>;
 };
 
 const EMPTY_ZCASH: ZcashState = {
@@ -533,6 +563,54 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     [username, runSync],
   );
 
+  const persistWallet = useCallback(async () => {
+    const wallet = walletRef.current;
+    const master = masterRef.current;
+    if (wallet && master && username)
+      await saveWalletDb(
+        dbId(username),
+        await wallet.export(),
+        walletDbKey(master),
+      );
+  }, [username]);
+
+  const freshPayAddress = useCallback(async (): Promise<SignedAddress> => {
+    const wallet = walletRef.current;
+    const master = masterRef.current;
+    if (!wallet || !master || !username)
+      throw new Error("Unlock your account first.");
+    const ua = await wallet.nextAddress();
+    // Save now so a reload can't hand the same diversifier out again.
+    await persistWallet();
+    return signAddressClaim(
+      { v: 1, username, network, ua, issuedAt: new Date().toISOString() },
+      profileSigningSeed(master),
+    );
+  }, [username, persistWallet]);
+
+  const proposePayments = useCallback(async (payments: Payment[]) => {
+    const wallet = walletRef.current;
+    if (!wallet || !masterRef.current)
+      throw new Error("Unlock your account first.");
+    return wallet.proposePayments(payments);
+  }, []);
+
+  const proveProposal = useCallback(
+    async (proposed: Proposed, onStage?: (stage: SendStage) => void) => {
+      const wallet = walletRef.current;
+      const master = masterRef.current;
+      if (!wallet || !master) throw new Error("Unlock your account first.");
+      const txids = await wallet.prove(
+        proposed.proposal,
+        mnemonicFromMaster(master),
+        onStage,
+      );
+      if (username) void runSync(username);
+      return txids;
+    },
+    [username, runSync],
+  );
+
   const revealMnemonic = useCallback(
     () => (masterRef.current ? mnemonicFromMaster(masterRef.current) : null),
     [],
@@ -555,49 +633,95 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  /** Receipt items for one mined transaction, from this wallet's keys. */
+  const receiptItems = useCallback(
+    async (txid: string, direction: "received" | "sent") => {
+      const master = masterRef.current;
+      if (!master) throw new Error("Unlock your account first.");
+      const { rawTransaction } = await import("../lib/zcash/lightwalletd");
+      const { discloseOutputs } = await import("../lib/zcash/wallet");
+      const raw = await rawTransaction(lightwalletdUrl, txid);
+      if (!raw) throw new Error("This payment isn't mined yet.");
+      const disclosures = await discloseOutputs({
+        mnemonic: mnemonicFromMaster(master),
+        tx: raw.data,
+        height: raw.height,
+      });
+      return itemsFromDisclosures(txid, raw.height, disclosures, direction);
+    },
+    [],
+  );
+
   const issueReceipt = useCallback(
     async (tx: WalletTx): Promise<Receipt> => {
       const master = masterRef.current;
-      if (!master || !username || !zcash.address)
-        throw new Error("Unlock your account first.");
-      const { rawTransaction } = await import("../lib/zcash/lightwalletd");
-      const { discloseOutputs } = await import("../lib/zcash/wallet");
-      const raw = await rawTransaction(lightwalletdUrl, tx.txid);
-      if (!raw) throw new Error("This payment isn't mined yet.");
-      const received = (
-        await discloseOutputs({
-          mnemonic: mnemonicFromMaster(master),
-          tx: raw.data,
-          height: raw.height,
-        })
-      ).filter((d) => !d.internal);
-      if (!received.length)
+      if (!master || !username) throw new Error("Unlock your account first.");
+      const kind = tx.kind === "sent" ? "sent" : "received";
+      const items = await receiptItems(tx.txid, kind);
+      if (!items.length)
         throw new Error(
-          "No shielded (Orchard or Ironwood) output in this transaction pays you.",
+          kind === "sent"
+            ? "This transaction has no shielded payment to someone else."
+            : "No shielded (Orchard or Ironwood) output in this transaction pays you.",
         );
       return signReceipt(
         {
-          v: 2,
+          v: 3,
+          kind,
           network,
-          txid: tx.txid,
-          height: raw.height,
-          amountZat: received.reduce((sum, d) => sum + d.value, 0n).toString(),
-          memo: received
-            .map((d) => d.memo)
-            .filter(Boolean)
-            .join("\n"),
-          recipient: { username, ua: zcash.address },
-          disclosures: received.map(({ pool, action, kEnc }) => ({
-            pool,
-            action,
-            kEnc,
-          })),
+          signer: username,
+          period: null,
+          items,
+          totalZat: sumZat(items),
           issuedAt: new Date().toISOString(),
         },
         profileSigningSeed(master),
       );
     },
-    [username, zcash.address],
+    [username, receiptItems],
+  );
+
+  const issueStatement = useCallback(
+    async (
+      from: string,
+      to: string,
+      onProgress?: (done: number, total: number) => void,
+    ): Promise<Receipt> => {
+      const master = masterRef.current;
+      if (!master || !username) throw new Error("Unlock your account first.");
+      const txs = zcash.history.filter(
+        (tx) =>
+          tx.kind === "received" &&
+          tx.height !== null &&
+          tx.timestamp !== null &&
+          utcDay(tx.timestamp) >= from &&
+          utcDay(tx.timestamp) <= to,
+      );
+      if (!txs.length)
+        throw new Error("No received payments were mined in this period.");
+      const items = [];
+      for (const [i, tx] of txs.entries()) {
+        onProgress?.(i, txs.length);
+        items.push(...(await receiptItems(tx.txid, "received")));
+      }
+      onProgress?.(txs.length, txs.length);
+      if (!items.length)
+        throw new Error("No shielded payments to you in this period.");
+      return signReceipt(
+        {
+          v: 3,
+          kind: "statement",
+          network,
+          signer: username,
+          period: { from, to },
+          items,
+          totalZat: sumZat(items),
+          issuedAt: new Date().toISOString(),
+        },
+        profileSigningSeed(master),
+      );
+    },
+    [username, zcash.history, receiptItems],
   );
 
   const closeRecoveryModal = useCallback(() => {
@@ -672,10 +796,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       zcash,
       syncNow,
       send,
+      freshPayAddress,
+      proposePayments,
+      proveProposal,
       revealMnemonic,
       openBox,
       messagingPubkey,
       issueReceipt,
+      issueStatement,
     }),
     [
       authenticated,
@@ -709,10 +837,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       zcash,
       syncNow,
       send,
+      freshPayAddress,
+      proposePayments,
+      proveProposal,
       revealMnemonic,
       openBox,
       messagingPubkey,
       issueReceipt,
+      issueStatement,
     ],
   );
 

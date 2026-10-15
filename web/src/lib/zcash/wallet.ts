@@ -56,6 +56,17 @@ export type WalletTx = {
 
 export type SyncState = { tip: number; scanned: number };
 
+export type SendStage = "proposing" | "proving" | "broadcasting";
+
+export type Payment = { to: string; amountZat: bigint; memo?: string };
+
+/** A transaction built but not yet proven, with its cost for review. */
+export type Proposed = {
+  proposal: WebZjs.Proposal;
+  feeZat: bigint;
+  sendZat: bigint;
+};
+
 const big = (v: unknown) =>
   v == null ? 0n : BigInt(v as string | number | bigint);
 
@@ -194,7 +205,7 @@ export class ZcashWallet {
     to: string;
     amountZat: bigint;
     memo?: string;
-    onStage?: (stage: "proposing" | "proving" | "broadcasting") => void;
+    onStage?: (stage: SendStage) => void;
   }): Promise<string[]> {
     opts.onStage?.("proposing");
     const proposal = await this.inner.propose_transfer_with_memo(
@@ -203,15 +214,68 @@ export class ZcashWallet {
       opts.amountZat,
       opts.memo || null,
     );
-    opts.onStage?.("proving");
+    return this.prove(proposal, opts.mnemonic, opts.onStage);
+  }
+
+  /**
+   * Builds (but doesn't prove) one transaction paying every row: the fee is
+   * known before the user confirms. Pass the result to `prove`.
+   */
+  async proposePayments(payments: Payment[]): Promise<Proposed> {
+    const proposal = await this.inner.propose_payments(
+      this.accountId,
+      JSON.stringify(
+        payments.map((p) => ({
+          to: p.to,
+          zat: p.amountZat.toString(),
+          memo: p.memo || null,
+        })),
+      ),
+    );
+    return {
+      proposal,
+      feeZat: proposal.fee_zat(),
+      sendZat: proposal.send_zat(),
+    };
+  }
+
+  /** Everything spendable to `to`, fee deducted (sweeping a claim link). */
+  async proposeSendMax(to: string, memo?: string): Promise<Proposed> {
+    const proposal = await this.inner.propose_send_max(
+      this.accountId,
+      to,
+      memo || null,
+    );
+    return {
+      proposal,
+      feeZat: proposal.fee_zat(),
+      sendZat: proposal.send_zat(),
+    };
+  }
+
+  /** Proves, signs and broadcasts a proposal. Returns display-order txids. */
+  async prove(
+    proposal: WebZjs.Proposal,
+    mnemonic: string,
+    onStage?: (stage: SendStage) => void,
+  ): Promise<string[]> {
+    onStage?.("proving");
     const txids = await this.inner.create_proposed_transactions(
       proposal,
-      opts.mnemonic,
+      mnemonic,
       0,
     );
-    opts.onStage?.("broadcasting");
+    onStage?.("broadcasting");
     await this.inner.send_authorized_transactions(txids);
     return splitTxids(txids);
+  }
+
+  /**
+   * A fresh diversified address: same wallet, but unlinkable to the others.
+   * Persist the wallet DB afterwards so the index isn't handed out twice.
+   */
+  nextAddress(): Promise<string> {
+    return this.inner.get_next_address(this.accountId);
   }
 
   /** Serialized wallet DB for the encrypted cache. */
@@ -244,6 +308,8 @@ export function splitTxids(bytes: Uint8Array): string[] {
 export type ShieldedPool = "orchard" | "ironwood";
 
 export type Disclosure = {
+  /** "received": pays this account. "sent": this account paid `recipient`. */
+  direction: "received" | "sent";
   /** Orchard-shaped bundle the output is in (Ironwood since NU6.3). */
   pool: ShieldedPool;
   action: number;
@@ -251,10 +317,12 @@ export type Disclosure = {
   kEnc: string;
   value: bigint;
   memo: string;
-  internal: boolean;
+  internal?: boolean;
+  /** Orchard-only UA of the payee, for sent outputs. */
+  recipient?: string;
 };
 
-/** Orchard and Ironwood outputs of `tx` that pay the account of `mnemonic`. */
+/** Orchard and Ironwood outputs of `tx` that the account of `mnemonic` received or sent. */
 export async function discloseOutputs(opts: {
   mnemonic: string;
   tx: Uint8Array;

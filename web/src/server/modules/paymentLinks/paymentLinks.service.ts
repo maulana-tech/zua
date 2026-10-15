@@ -2,6 +2,7 @@ import "server-only";
 import type { MongoServerError } from "mongodb";
 import { newMemoId } from "../../../lib/zcash/memo";
 import { getPaymentLinks, type PaymentLinkDoc } from "../../db/mongo";
+import { checkPayAddress } from "../profiles/profiles.service";
 import {
   PaymentLinkNotFoundError,
   PaymentLinkSlugUnavailableError,
@@ -23,6 +24,7 @@ const toOutput = (doc: PaymentLinkDoc): LinkOutput => ({
   description: doc.description,
   amountZat: doc.amountZat,
   amountZec: toZec(doc.amountZat),
+  payAddress: doc.payAddress ?? null,
   state: doc.state,
   createdAt: doc.createdAt.toISOString(),
   updatedAt: doc.updatedAt.toISOString(),
@@ -32,6 +34,9 @@ export async function createLink(
   owner: string,
   input: CreateLinkInput,
 ): Promise<LinkOutput> {
+  const payAddress = input.payAddress
+    ? await checkPayAddress(owner, input.payAddress)
+    : null;
   const now = new Date();
   const doc: PaymentLinkDoc = {
     _id: newMemoId(),
@@ -40,6 +45,7 @@ export async function createLink(
     title: input.title,
     description: input.description,
     amountZat: input.amount,
+    payAddress,
     state: "active",
     createdAt: now,
     updatedAt: now,

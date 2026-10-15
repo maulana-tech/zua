@@ -44,6 +44,9 @@ export type PaymentLinkDoc = {
   title: string;
   description: string | null;
   amountZat: string | null; // null = payer chooses
+  // Own diversified address for this link, signed by the owner. Older links
+  // fall back to the profile address.
+  payAddress?: SignedAddressDoc | null;
   state: "active" | "archived";
   createdAt: Date;
   updatedAt: Date;
@@ -64,6 +67,7 @@ export type InvoiceDoc = {
   clientEmail: string | null;
   items: InvoiceItem[];
   totalZat: string;
+  payAddress?: SignedAddressDoc | null;
   notes: string;
   dueDate: string; // YYYY-MM-DD
   status: "pending" | "paid" | "void";
@@ -72,6 +76,21 @@ export type InvoiceDoc = {
   paidReportedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type SignedAddressDoc = { claimJson: string; sigHex: string };
+
+/**
+ * Every address Zua shows to payers, registered by its owner before use. An
+ * address can belong to only one username, so nobody can later claim (e.g.
+ * in a receipt) an address someone else already registered.
+ */
+export type PayAddressDoc = {
+  _id: string; // the unified address
+  owner: string; // username
+  claimJson: string;
+  sigHex: string;
+  createdAt: Date;
 };
 
 export type SealedDoc = { epk: string; nonce: string; ct: string };
@@ -163,5 +182,6 @@ export const getPaymentRequests =
 export const getNotificationSettings = collection<NotificationSettingsDoc>(
   "notification_settings",
 );
+export const getPayAddresses = collection<PayAddressDoc>("pay_addresses");
 export const getNotificationLogs =
   collection<NotificationLogDoc>("notification_logs");

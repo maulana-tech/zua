@@ -50,6 +50,14 @@ export const invoiceInput = z
       }, "Choose a valid due date."),
     notes: z.string().trim().max(1000).default(""),
     items: z.array(line).min(1).max(25),
+    // Own diversified address for this invoice, signed by the owner.
+    payAddress: z
+      .object({
+        claimJson: z.string().min(10).max(1000),
+        sigHex: z.string().regex(/^[0-9a-f]{128}$/),
+      })
+      .strict()
+      .optional(),
   })
   .strict()
   .refine((v) => {

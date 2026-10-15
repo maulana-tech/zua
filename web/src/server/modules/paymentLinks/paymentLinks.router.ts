@@ -4,6 +4,7 @@ import {
   protectedProcedure,
   publicProcedure,
 } from "../../trpc";
+import { InvalidPayAddressError } from "../profiles/profiles.errors";
 import { requireUsername } from "../profiles/profiles.service";
 import {
   PaymentLinkNotFoundError,
@@ -25,6 +26,8 @@ import {
 } from "./paymentLinks.service";
 
 function mapError(e: unknown): never {
+  if (e instanceof InvalidPayAddressError)
+    throw new TRPCError({ code: "BAD_REQUEST", message: e.message });
   if (e instanceof PaymentLinkSlugUnavailableError)
     throw new TRPCError({ code: "CONFLICT", message: e.message });
   if (e instanceof PaymentLinkNotFoundError)

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { invoiceStatus } from "../../features/invoices/input";
 import { formatUsd, useZecPrice } from "../../features/zcash/useZecPrice";
+import { verifiedAddress } from "../../lib/addressClaim";
 import { APP_NAME } from "../../lib/brand";
 import { downloadInvoicePdf } from "../../lib/invoicePdf";
 import { verifyClaim } from "../../lib/profileClaim";
@@ -63,7 +64,8 @@ export function InvoiceCheckout({ token }: { token: string }) {
       claim.username === invoice.username &&
       claim.network === network &&
       claim.ua === profile.data.ua
-      ? claim.ua
+      ? // The invoice's own address, if it has one, checked against the profile key.
+        verifiedAddress(claim, invoice.payAddress)
       : null;
   }, [profile.data, invoice]);
 

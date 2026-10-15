@@ -57,7 +57,7 @@ export function ActivityFeed({
   showFilters?: boolean;
   showSeeAll?: boolean;
   title?: string;
-  /** Offers a signed receipt for received, mined payments. */
+  /** Offers a receipt (received) or proof of payment (sent) for mined payments. */
   onReceipt?: (tx: WalletTx) => void | Promise<void>;
 }) {
   const [tab, setTab] = useState<Tab>("All");
@@ -156,13 +156,23 @@ export function ActivityFeed({
               </>
             );
             const receipt =
-              onReceipt && tx.kind === "received" && tx.height !== null ? (
+              onReceipt &&
+              (tx.kind === "received" || tx.kind === "sent") &&
+              tx.height !== null ? (
                 <button
                   type="button"
                   onClick={() => onReceipt(tx)}
                   className={`ml-2 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-(--dash-ash) hover:bg-(--dash-tint) hover:text-(--dash-fg) ${dashFocus}`}
-                  aria-label="Download signed receipt"
-                  title="Download signed receipt"
+                  aria-label={
+                    tx.kind === "sent"
+                      ? "Download proof of payment"
+                      : "Download signed receipt"
+                  }
+                  title={
+                    tx.kind === "sent"
+                      ? "Download proof of payment"
+                      : "Download signed receipt"
+                  }
                 >
                   <FileCheck2 className="size-4" aria-hidden="true" />
                 </button>

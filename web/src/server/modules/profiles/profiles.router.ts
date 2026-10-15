@@ -17,6 +17,7 @@ import {
   usernameInput,
 } from "./profiles.schema";
 import {
+  addressOwner,
   createProfile,
   myProfile,
   profileByUsername,
@@ -48,6 +49,14 @@ export const profilesRouter = createTRPCRouter({
     .input(usernameInput)
     .output(publicProfileOutput.nullable())
     .query(({ input }) => profileByUsername(input.username)),
+  /** Who registered a payment address; verifiers recheck the signature. */
+  addressOwner: publicProcedure
+    .input(z.object({ ua: z.string().min(10).max(600) }).strict())
+    .query(async ({ ctx, input }) => {
+      if (!rateLimit(`address-owner:${ctx.ip ?? "unknown"}`, 60, 60_000).ok)
+        throw new TRPCError({ code: "TOO_MANY_REQUESTS" });
+      return addressOwner(input.ua);
+    }),
   available: publicProcedure
     .input(usernameInput)
     .output(z.object({ available: z.boolean() }))

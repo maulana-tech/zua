@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { zatToZec, zecToZat } from "../../../lib/zcash/units";
-import { usernameSchema } from "../profiles/profiles.schema";
+import {
+  signedAddressInput,
+  usernameSchema,
+} from "../profiles/profiles.schema";
 
 const MAX_ZAT = 21_000_000n * 100_000_000n;
 
@@ -44,6 +47,7 @@ export const createLinkInput = z
     title: z.string().trim().min(1, "Give the link a title.").max(80),
     description: text(500),
     amount: zecAmountInput,
+    payAddress: signedAddressInput.optional(),
   })
   .strict();
 
@@ -72,6 +76,9 @@ export const linkOutput = z.object({
   description: z.string().nullable(),
   amountZat: z.string().nullable(),
   amountZec: z.string().nullable(),
+  payAddress: z
+    .object({ claimJson: z.string(), sigHex: z.string() })
+    .nullable(),
   state: z.enum(["active", "archived"]),
   createdAt: z.string(),
   updatedAt: z.string(),

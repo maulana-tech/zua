@@ -6,6 +6,7 @@ import type { InvoiceView } from "../../../features/invoices/types";
 import { newMemoId } from "../../../lib/zcash/memo";
 import { zatToZec, zecToZat } from "../../../lib/zcash/units";
 import { getInvoices, getProfiles, type InvoiceDoc } from "../../db/mongo";
+import { checkPayAddress } from "../profiles/profiles.service";
 import {
   InvoiceClosedError,
   InvoiceNotFoundError,
@@ -19,6 +20,7 @@ type CreateInput = {
   dueDate: string;
   notes: string;
   items: { description: string; quantity: number; unitPrice: string }[];
+  payAddress?: { claimJson: string; sigHex: string };
 };
 
 async function toView(doc: InvoiceDoc): Promise<InvoiceView> {
@@ -28,6 +30,7 @@ async function toView(doc: InvoiceDoc): Promise<InvoiceView> {
     token: doc.token,
     username: doc.owner,
     ua: profile?.ua ?? "",
+    payAddress: doc.payAddress ?? null,
     number: doc.number,
     clientName: doc.clientName,
     items: doc.items.map((i) => ({
@@ -51,6 +54,9 @@ export async function createInvoice(
   owner: string,
   input: CreateInput,
 ): Promise<InvoiceView> {
+  const payAddress = input.payAddress
+    ? await checkPayAddress(owner, input.payAddress)
+    : null;
   const now = new Date();
   const doc: InvoiceDoc = {
     _id: newMemoId(),
@@ -65,6 +71,7 @@ export async function createInvoice(
       unitZat: zecToZat(i.unitPrice).toString(),
     })),
     totalZat: invoiceTotal(input.items).toString(),
+    payAddress,
     notes: input.notes,
     dueDate: input.dueDate,
     status: "pending",

@@ -8,6 +8,7 @@ import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { QrPanel } from "../../../components/zcash/QrPanel";
 import { formatUsd, useZecPrice } from "../../../features/zcash/useZecPrice";
+import { verifiedAddress } from "../../../lib/addressClaim";
 import { APP_NAME } from "../../../lib/brand";
 import { verifyClaim } from "../../../lib/profileClaim";
 import { formatMemoTag, newMemoId } from "../../../lib/zcash/memo";
@@ -45,6 +46,13 @@ export function PayView({
       ? c
       : null;
   }, [profile.data, username]);
+
+  // A link may have its own (signed) address; plain profile pages use the
+  // profile address.
+  const payTo = useMemo(
+    () => (claim ? verifiedAddress(claim, link.data?.payAddress) : null),
+    [claim, link.data?.payAddress],
+  );
 
   const fixedZat = link.data?.amountZat ? BigInt(link.data.amountZat) : null;
   const amountZat = useMemo(() => {
@@ -84,7 +92,7 @@ export function PayView({
       </Card>
     );
 
-  if (!claim)
+  if (!claim || !payTo)
     return (
       <Card appearance="glass" className="gap-3 p-6" role="alert">
         <ShieldAlert className="size-6" aria-hidden="true" />
@@ -106,7 +114,7 @@ export function PayView({
     amountZat === null
       ? null
       : buildPaymentUri({
-          address: claim.ua,
+          address: payTo,
           amountZat,
           memo,
           label: `@${username} on ${APP_NAME}`,
@@ -186,7 +194,7 @@ export function PayView({
               />
             </label>
             {uri ? (
-              <QrPanel uri={uri} copyText={claim.ua} />
+              <QrPanel uri={uri} copyText={payTo} />
             ) : (
               <p className="text-sm text-destructive">
                 Enter a ZEC amount with up to 8 decimals.

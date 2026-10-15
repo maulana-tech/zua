@@ -18,3 +18,10 @@ export class ProfileExistsError extends Error {
     this.name = "ProfileExistsError";
   }
 }
+
+export class InvalidPayAddressError extends Error {
+  constructor() {
+    super("The payment address isn't signed by this account's profile key.");
+    this.name = "InvalidPayAddressError";
+  }
+}

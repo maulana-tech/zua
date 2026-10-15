@@ -15,6 +15,7 @@ import {
   emailInvoiceClient,
   notifyInvoicePaid,
 } from "../notifications/notifications.service";
+import { InvalidPayAddressError } from "../profiles/profiles.errors";
 import { requireUsername } from "../profiles/profiles.service";
 import {
   InvoiceClosedError,
@@ -31,6 +32,8 @@ import {
 } from "./invoices.service";
 
 function mapError(e: unknown): never {
+  if (e instanceof InvalidPayAddressError)
+    throw new TRPCError({ code: "BAD_REQUEST", message: e.message });
   if (e instanceof InvoiceNumberTakenError || e instanceof InvoiceClosedError)
     throw new TRPCError({ code: "CONFLICT", message: e.message });
   if (e instanceof InvoiceNotFoundError)

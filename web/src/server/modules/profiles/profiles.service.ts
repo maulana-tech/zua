@@ -1,11 +1,18 @@
 import "server-only";
 import type { MongoServerError } from "mongodb";
 import { env } from "../../../env";
+import { type SignedAddress, verifiedAddress } from "../../../lib/addressClaim";
 import { verifyClaim } from "../../../lib/profileClaim";
 import { addressKind } from "../../../lib/zcash/address";
-import { getProfiles, getUsers, type ProfileDoc } from "../../db/mongo";
+import {
+  getPayAddresses,
+  getProfiles,
+  getUsers,
+  type ProfileDoc,
+} from "../../db/mongo";
 import {
   InvalidClaimError,
+  InvalidPayAddressError,
   ProfileExistsError,
   UsernameTakenError,
 } from "./profiles.errors";
@@ -99,4 +106,58 @@ export async function requireUsername(userId: string): Promise<string> {
   const doc = await (await getProfiles()).findOne({ userId });
   if (!doc) throw new InvalidClaimError("create your username first");
   return doc._id;
+}
+
+/**
+ * Checks a per-invoice/link address the owner signed (see lib/addressClaim)
+ * against their stored profile claim, then registers it to them. An address
+ * already registered (or used as a profile address) by someone else is
+ * refused, which is what keeps receipts for it sound.
+ */
+export async function checkPayAddress(
+  owner: string,
+  signed: SignedAddress,
+): Promise<SignedAddress> {
+  const profiles = await getProfiles();
+  const doc = await profiles.findOne({ _id: owner });
+  const claim = doc ? verifyClaim(doc.claimJson, doc.claimSigHex) : null;
+  const ua = claim ? verifiedAddress(claim, signed) : null;
+  if (!claim || !ua || addressKind(ua, claim.network) !== "unified")
+    throw new InvalidPayAddressError();
+  if (await profiles.findOne({ ua, _id: { $ne: owner } }))
+    throw new InvalidPayAddressError();
+  const registry = await getPayAddresses();
+  try {
+    await registry.insertOne({
+      _id: ua,
+      owner,
+      claimJson: signed.claimJson,
+      sigHex: signed.sigHex,
+      createdAt: new Date(),
+    });
+  } catch (e) {
+    if ((e as MongoServerError).code !== 11000) throw e;
+    const existing = await registry.findOne({ _id: ua });
+    if (existing?.owner !== owner) throw new InvalidPayAddressError();
+  }
+  return { claimJson: signed.claimJson, sigHex: signed.sigHex };
+}
+
+/**
+ * Who registered `ua`: its profile owner, or the owner of the signed
+ * per-invoice/link address. Payers and verifiers recheck the signature.
+ */
+export async function addressOwner(ua: string): Promise<{
+  username: string;
+  signed: SignedAddress | null;
+} | null> {
+  const profile = await (await getProfiles()).findOne({ ua });
+  if (profile) return { username: profile._id, signed: null };
+  const doc = await (await getPayAddresses()).findOne({ _id: ua });
+  return doc
+    ? {
+        username: doc.owner,
+        signed: { claimJson: doc.claimJson, sigHex: doc.sigHex },
+      }
+    : null;
 }
