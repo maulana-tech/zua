@@ -1,0 +1,30 @@
+# Common
+target
+node_modules
+.DS_STORE
+dist
+
+# Package Manager
+.parcel-cache
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# Developer tools
+.idea
+.vscode
+
+# e2e Tests package
+packages/e2e-tests/dist/*
+!/packages/e2e-tests/dist/serve.json
+
+# Web wallet
+packages/web-wallet/dist/*
+!packages/web-wallet/dist/_headers
+!packages/web-wallet/dist/_redirects
+
+# Local env overrides (dev proxy, etc.)
+.env*.local

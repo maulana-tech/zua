@@ -1,0 +1,13 @@
+version: "3.3"
+
+services:
+  grpc-proxy:
+    image: "traefik:v3.1"
+    container_name: "traefik"
+    ports:
+      - "1234:80"
+      - "8081:8080"  # Dashboard moved to 8081 to avoid conflict with snap
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./dynamic.yml:/etc/traefik/dynamic.yml:ro"
+      - "./traefik.yml:/etc/traefik/traefik.yml:ro"
