@@ -30,7 +30,8 @@ pnpm --filter web migrate:up              # migrate-mongo, reads web/.env.local 
 - Threads need cross-origin isolation: `next.config.mjs` sets COOP/COEP on the signed-in app routes only (login stays on unisolated pages); without isolation the wallet proves on one thread.
 
 ### Server
-- tRPC `appRouter` in `src/server/root.ts`; modules in `src/server/modules/<name>/` split into `*.router.ts` (maps domain errors → `TRPCError`), `*.service.ts`, `*.schema.ts`, `*.errors.ts`. Modules: `accounts` (PIN escrow, passkey record), `profiles` (signed @username → UA claims, verified with `lib/profileClaim.ts`), `paymentLinks`, `invoices` (status reported by the owner's wallet), `notifications`.
+- tRPC `appRouter` in `src/server/root.ts`; modules in `src/server/modules/<name>/` split into `*.router.ts` (maps domain errors → `TRPCError`), `*.service.ts`, `*.schema.ts`, `*.errors.ts`. Modules: `accounts` (PIN escrow, passkey record), `profiles` (signed @username → UA claims, verified with `lib/profileClaim.ts`; per-invoice/link addresses registered to one owner, `lib/addressClaim.ts`), `paymentLinks`, `invoices` (status reported by the owner's wallet; recurring, USD quotes), `requests`, `claimLinks`, `developer` (API keys, webhooks, address pool; REST at `app/api/v1/*`), `notifications`.
+- The server never sees shielded payments: anything "paid" (invoices, checkouts, webhooks) comes from the owner's wallet reporting what it found. Don't add server-side scanning or viewing keys.
 - `protectedProcedure` requires a verified Privy access token (Bearer header or `privy-token` cookie, see `context.ts`). Privy is login only (embedded wallets off).
 - Env: public vars in `src/env.ts` (`NEXT_PUBLIC_*`), server-only in `src/env.server.ts`. Add new vars to the zod schema and `web/.env.example`.
 - MongoDB schema changes go in `web/migrations/` (ESM migrate-mongo). `MONGODB_URI` must include a database name.

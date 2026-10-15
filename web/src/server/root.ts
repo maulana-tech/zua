@@ -1,6 +1,7 @@
 import type { inferRouterOutputs } from "@trpc/server";
 import { accountsRouter } from "./modules/accounts/accounts.router";
 import { claimLinksRouter } from "./modules/claimLinks/claimLinks.router";
+import { developerRouter } from "./modules/developer/developer.router";
 import { invoicesRouter } from "./modules/invoices/invoices.router";
 import { notificationsRouter } from "./modules/notifications/notifications.router";
 import { paymentLinksRouter } from "./modules/paymentLinks/paymentLinks.router";
@@ -15,6 +16,7 @@ export const appRouter = createTRPCRouter({
   invoices: invoicesRouter,
   requests: requestsRouter,
   claimLinks: claimLinksRouter,
+  developer: developerRouter,
   notifications: notificationsRouter,
 });
 

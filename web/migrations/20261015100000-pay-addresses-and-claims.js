@@ -1,8 +1,17 @@
-// Per-invoice/link addresses (owner registry), claim links, recurring and
-// USD invoices.
+// Per-invoice/link addresses (owner registry and API pool), claim links,
+// recurring and USD invoices, API keys and webhook deliveries.
 export const up = async (db) => {
   await db
     .collection("pay_addresses")
+    .createIndex({ owner: 1, createdAt: -1 }, { name: "by_owner" });
+  await db
+    .collection("pay_addresses")
+    .createIndex({ owner: 1, pooled: 1, usedFor: 1 }, { name: "pool" });
+  await db
+    .collection("api_keys")
+    .createIndex({ owner: 1, createdAt: -1 }, { name: "by_owner" });
+  await db
+    .collection("webhook_deliveries")
     .createIndex({ owner: 1, createdAt: -1 }, { name: "by_owner" });
   await db
     .collection("claim_links")
@@ -19,6 +28,11 @@ export const up = async (db) => {
 };
 
 export const down = async (db) => {
+  for (const name of ["api_keys", "webhook_deliveries"])
+    await db
+      .collection(name)
+      .dropIndexes()
+      .catch(() => {});
   await db
     .collection("claim_links")
     .dropIndexes()

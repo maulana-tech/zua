@@ -30,6 +30,9 @@ whom or how much.
 - **Recurring and USD invoices.** Weekly or monthly invoices that issue
   themselves with email reminders; prices in USD paid in ZEC at a rate locked
   for 30 minutes.
+- **On your own site.** A one-line "Pay with Zcash" widget, and a Checkout
+  API with signed webhooks for shops ([docs/api.md](docs/api.md)). Still
+  shielded: a checkout turns paid when your own wallet reports it.
 - **Claim links.** Send ZEC to someone without an address as a link (after
   ZIP 324, draft). The key stays in the URL fragment; the sender can take the
   funds back until they're claimed.

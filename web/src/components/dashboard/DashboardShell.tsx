@@ -2,6 +2,7 @@
 
 import {
   ArrowUpRight,
+  Code2,
   FileText,
   Gift,
   History,
@@ -21,6 +22,7 @@ import type { ReactNode } from "react";
 import {
   CLAIMS_PATH,
   DASHBOARD_PATH,
+  DEVELOPERS_PATH,
   HISTORY_PATH,
   INVOICES_PATH,
   LINKS_PATH,
@@ -53,6 +55,7 @@ const NAV_ITEMS = [
   { href: CLAIMS_PATH, label: "Claim links", icon: Gift },
   { href: HISTORY_PATH, label: "History", icon: History },
   { href: REQUESTS_PATH, label: "Requests", icon: Inbox },
+  { href: DEVELOPERS_PATH, label: "Developers", icon: Code2 },
   { href: SETTINGS_PATH, label: "Settings", icon: Settings },
 ] as const;
 

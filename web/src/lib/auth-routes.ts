@@ -5,6 +5,7 @@ export const LINKS_PATH = "/links";
 export const SEND_PATH = "/send";
 export const PAYROLL_PATH = "/payroll";
 export const CLAIMS_PATH = "/claims";
+export const DEVELOPERS_PATH = "/developers";
 export const HISTORY_PATH = "/history";
 export const SETTINGS_PATH = "/settings";
 export const INVOICES_PATH = "/invoices";
@@ -20,6 +21,7 @@ export const DASHBOARD_PATHS = [
   CLAIMS_PATH,
   HISTORY_PATH,
   SETTINGS_PATH,
+  DEVELOPERS_PATH,
   INVOICES_PATH,
   REQUESTS_PATH,
 ] as const;

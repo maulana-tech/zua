@@ -55,6 +55,7 @@ const nextConfig = {
       "verify",
       "claim",
       "claims",
+      "developers",
     ];
     // Only /embed/* may be framed by other sites (public/embed.js). Every
     // other page refuses, so it can't be used for clickjacking.

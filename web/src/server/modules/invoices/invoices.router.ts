@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { getServerEnv } from "../../../env.server";
 import {
   invoiceId,
   invoiceInput,
@@ -12,6 +13,8 @@ import {
   protectedProcedure,
   publicProcedure,
 } from "../../trpc";
+import { toCheckout } from "../developer/checkouts";
+import { deliverEvent } from "../developer/developer.service";
 import {
   emailInvoiceClient,
   notifyInvoicePaid,
@@ -87,6 +90,18 @@ export const invoicesRouter = createTRPCRouter({
       const result = await reportPayment(owner, input).catch(mapError);
       if (result.becamePaid) {
         void notifyInvoicePaid(ctx.privyUserId, result.invoice).catch(() => {});
+        // Signed webhook to the merchant's server, if they set one up.
+        void deliverEvent(
+          owner,
+          result.invoice.source === "api" ? "checkout.paid" : "invoice.paid",
+          toCheckout(
+            result.invoice,
+            (getServerEnv().APP_URL || "http://localhost:3000").replace(
+              /\/$/,
+              "",
+            ),
+          ),
+        ).catch(() => {});
         void invoiceClientEmail(input.id)
           .then((email) =>
             email ? emailInvoiceClient(result.invoice, email) : undefined,

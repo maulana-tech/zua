@@ -48,6 +48,8 @@ type CreateInput = {
   currency?: Currency;
   recurrence?: Recurrence;
   payAddress?: { claimJson: string; sigHex: string };
+  source?: "dashboard" | "api";
+  reference?: string | null;
 };
 
 function latestQuote(doc: InvoiceDoc): InvoiceView["quote"] {
@@ -109,6 +111,8 @@ async function toView(doc: InvoiceDoc): Promise<InvoiceView> {
     notes: doc.notes,
     dueDate: doc.dueDate,
     status: doc.status,
+    source: doc.source ?? "dashboard",
+    reference: doc.reference ?? null,
     recurrence: doc.recurrence ?? "none",
     nextIssueAt: doc.nextIssueAt?.toISOString() ?? null,
     paidTxids: doc.paidTxids,
@@ -156,6 +160,8 @@ export async function createInvoice(
     notes: input.notes,
     dueDate: input.dueDate,
     status: "pending",
+    source: input.source ?? "dashboard",
+    reference: input.reference ?? null,
     recurrence: input.recurrence ?? "none",
     nextIssueAt: nextIssueAt(now, input.recurrence ?? "none"),
     seriesNumber: input.number,

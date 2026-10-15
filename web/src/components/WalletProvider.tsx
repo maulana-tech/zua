@@ -258,6 +258,36 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       await api.requests.markPaid.mutate(paid);
   }, []);
 
+  /**
+   * Merchant API checkouts get their own address from a pool this wallet
+   * signs ahead (the server can't derive addresses). Refill it after syncs.
+   */
+  const topUpAddressPool = useCallback(async (name: string) => {
+    const wallet = walletRef.current;
+    const master = masterRef.current;
+    if (!wallet || !master) return;
+    const pool = await api.developer.poolStatus.query();
+    const missing = pool.usesApi ? pool.target - pool.unused : 0;
+    if (missing <= 0) return;
+    const seed = profileSigningSeed(master);
+    const addresses = [];
+    for (let i = 0; i < missing; i++)
+      addresses.push(
+        signAddressClaim(
+          {
+            v: 1,
+            username: name,
+            network,
+            ua: await wallet.nextAddress(),
+            issuedAt: new Date().toISOString(),
+          },
+          seed,
+        ),
+      );
+    await saveWalletDb(dbId(name), await wallet.export(), walletDbKey(master));
+    await api.developer.addPoolAddresses.mutate({ addresses });
+  }, []);
+
   const runSync = useCallback(
     async (name: string) => {
       const wallet = walletRef.current;
@@ -287,6 +317,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           walletDbKey(master),
         );
         void settleInvoices(history).catch(() => {});
+        void topUpAddressPool(name).catch(() => {});
       } catch (cause) {
         if (session !== sessionRef.current) return;
         setZcash((z) => ({
@@ -298,7 +329,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         syncingRef.current = false;
       }
     },
-    [settleInvoices],
+    [settleInvoices, topUpAddressPool],
   );
 
   /** Opens (or creates) the wallet for an unlocked master and profile. */

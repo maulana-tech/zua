@@ -84,6 +84,9 @@ export type InvoiceDoc = {
   notes: string;
   dueDate: string; // YYYY-MM-DD
   status: "pending" | "paid" | "void";
+  // Created through the merchant API (a checkout) with their order reference.
+  source?: "dashboard" | "api";
+  reference?: string | null;
   // Recurring series: only the newest invoice keeps the schedule.
   recurrence?: "none" | "weekly" | "monthly";
   nextIssueAt?: Date | null;
@@ -109,6 +112,41 @@ export type PayAddressDoc = {
   owner: string; // username
   claimJson: string;
   sigHex: string;
+  // Spare addresses the owner's wallet signed ahead for API checkouts; each
+  // is handed to one checkout.
+  pooled?: boolean;
+  usedFor?: string | null;
+  createdAt: Date;
+};
+
+/** Merchant API key. Only a hash of the secret is stored. */
+export type ApiKeyDoc = {
+  _id: string; // key id, part of the key
+  owner: string;
+  name: string;
+  secretHash: string; // sha256 hex of the full key
+  createdAt: Date;
+  lastUsedAt: Date | null;
+  revokedAt: Date | null;
+};
+
+/** Where to POST signed events for `owner` (one endpoint per account). */
+export type WebhookDoc = {
+  _id: string; // owner username
+  url: string;
+  secret: string; // HMAC key, shown to the owner to verify signatures
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type WebhookDeliveryDoc = {
+  _id: string;
+  owner: string;
+  event: string;
+  status: "delivered" | "failed";
+  attempts: number;
+  responseStatus: number | null;
+  error: string | null;
   createdAt: Date;
 };
 
@@ -224,6 +262,10 @@ export const getPaymentRequests =
 export const getNotificationSettings = collection<NotificationSettingsDoc>(
   "notification_settings",
 );
+export const getApiKeys = collection<ApiKeyDoc>("api_keys");
+export const getWebhooks = collection<WebhookDoc>("webhooks");
+export const getWebhookDeliveries =
+  collection<WebhookDeliveryDoc>("webhook_deliveries");
 export const getClaimLinks = collection<ClaimLinkDoc>("claim_links");
 export const getPayAddresses = collection<PayAddressDoc>("pay_addresses");
 export const getNotificationLogs =
