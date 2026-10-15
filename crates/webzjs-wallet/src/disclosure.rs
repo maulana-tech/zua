@@ -55,6 +55,55 @@ pub fn disclose_action<V: DomainVersion, T>(
     None
 }
 
+pub struct SentDisclosure {
+    pub k_enc: [u8; 32],
+    pub value: u64,
+    pub memo: String,
+    pub recipient: Address,
+}
+
+/// Recovers, with the account's outgoing viewing key, an output this account
+/// *sent*, and the same note encryption key the recipient would disclose.
+/// Lets a payer prove a payment with `verify_action`, like a recipient can.
+pub fn disclose_sent_action<V: DomainVersion, T>(
+    fvk: &orchard::keys::FullViewingKey,
+    action: &orchard::Action<T>,
+) -> Option<SentDisclosure> {
+    type D<V> = NoteEncryptionDomain<V>;
+    let ovk = fvk.to_ovk(Scope::External);
+    let domain = D::<V>::for_action(action);
+    let enc = action.encrypted_note();
+    let (note, recipient, memo) = zcash_note_encryption::try_output_recovery_with_ovk::<D<V>, _>(
+        &domain,
+        &ovk,
+        action,
+        action.cv_net(),
+        &enc.out_ciphertext,
+    )?;
+    // Repeat the outgoing decryption to get (pk_d, esk), then K_enc.
+    let epk_bytes = zcash_note_encryption::EphemeralKeyBytes(enc.epk_bytes);
+    let ock = D::<V>::derive_ock(&ovk, action.cv_net(), &action.cmx().to_bytes(), &epk_bytes);
+    let mut op = zcash_note_encryption::OutPlaintextBytes([0u8; zcash_note_encryption::OUT_PLAINTEXT_SIZE]);
+    op.0.copy_from_slice(&enc.out_ciphertext[..zcash_note_encryption::OUT_PLAINTEXT_SIZE]);
+    ChaCha20Poly1305::new(ock.as_ref().into())
+        .decrypt_in_place_detached(
+            (&[0u8; 12]).into(),
+            &[],
+            &mut op.0,
+            (&enc.out_ciphertext[zcash_note_encryption::OUT_PLAINTEXT_SIZE..]).into(),
+        )
+        .ok()?;
+    let esk = D::<V>::extract_esk(&op)?;
+    let pk_d = D::<V>::extract_pk_d(&op)?;
+    let k_enc = D::<V>::kdf(D::<V>::ka_agree_enc(&esk, &pk_d), &epk_bytes);
+    Some(SentDisclosure {
+        k_enc: k_enc.as_bytes().try_into().ok()?,
+        value: note.value().inner(),
+        memo: memo_text(memo.as_slice()),
+        recipient,
+    })
+}
+
 /// Decrypts `action` with a disclosed key and proves it pays `address`:
 /// the AEAD authenticates the plaintext, and the rebuilt note must match the
 /// action's on-chain commitment.
@@ -169,6 +218,36 @@ mod tests {
         Action::from_parts(nf, rk, note.commitment().into(), encrypted, cv_net, ()).unwrap()
     }
 
+    /// An Ironwood action sent by `sender` (with its OVK) to `recipient`.
+    fn action_from(
+        sk: &SpendingKey,
+        sender: &FullViewingKey,
+        recipient: &FullViewingKey,
+        value: u64,
+        memo_text: &str,
+    ) -> Action<()> {
+        use rand_chacha::{rand_core::SeedableRng, ChaCha20Rng};
+        let address = recipient.address_at(0u32, Scope::External);
+        let nf = Nullifier::from_bytes(&[0u8; 32]).unwrap();
+        let rho = Rho::from_bytes(&nf.to_bytes()).unwrap();
+        let rseed = (1u8..)
+            .find_map(|b| Option::from(RandomSeed::from_bytes([b; 32], &rho)))
+            .unwrap();
+        let note =
+            Note::from_parts(address, NoteValue::from_raw(value), rho, rseed, NoteVersion::V3).unwrap();
+        let rk: VerificationKey<SpendAuth> =
+            SpendValidatingKey::from(&SpendAuthorizingKey::from(sk)).randomize(&pallas::Scalar::ONE);
+        let cv_net = ValueCommitment::from_bytes(&<[u8; 32]>::from(&rk)).unwrap();
+        let cmx = note.commitment().into();
+        let enc = IronwoodNoteEncryption::new(Some(sender.to_ovk(Scope::External)), note, memo(memo_text));
+        let encrypted = TransmittedNoteCiphertext {
+            epk_bytes: IronwoodDomain::epk_bytes(enc.epk()).0,
+            enc_ciphertext: enc.encrypt_note_plaintext(),
+            out_ciphertext: enc.encrypt_outgoing_plaintext(&cv_net, &cmx, &mut ChaCha20Rng::from_seed([3; 32])),
+        };
+        Action::from_parts(nf, rk, cmx, encrypted, cv_net, ()).unwrap()
+    }
+
     fn round_trip<V: DomainVersion>(ironwood: bool) {
         let (sk, fvk) = key(7);
         let action = action_paying(&sk, &fvk, 80_000_000, "zua:inv:TEST000001", ironwood);
@@ -186,6 +265,25 @@ mod tests {
     fn discloses_and_verifies_orchard_and_ironwood_payments() {
         round_trip::<OrchardVersion>(false);
         round_trip::<IronwoodVersion>(true);
+    }
+
+    #[test]
+    fn sender_recovers_the_recipients_key() {
+        let (sk, fvk) = key(7);
+        let (_, recipient_fvk) = key(9);
+        let action = action_from(&sk, &fvk, &recipient_fvk, 42_000, "zua:inv:SENT000001");
+        let sent = disclose_sent_action::<IronwoodVersion, _>(&fvk, &action).expect("sender recovers");
+        let received = disclose_action::<IronwoodVersion, _>(&recipient_fvk, &action).unwrap();
+        assert_eq!(sent.k_enc, received.k_enc);
+        assert_eq!(sent.value, 42_000);
+        let address = recipient_fvk.address_at(0u32, Scope::External);
+        assert_eq!(sent.recipient, address);
+        assert_eq!(
+            verify_action::<IronwoodVersion, _>(&action, &sent.k_enc, &address),
+            Ok((42_000, "zua:inv:SENT000001".to_string()))
+        );
+        // A stranger's viewing key recovers nothing.
+        assert!(disclose_sent_action::<IronwoodVersion, _>(&recipient_fvk, &action).is_none());
     }
 
     #[test]

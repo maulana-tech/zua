@@ -126,6 +126,60 @@ impl WebWallet {
         Ok(proposal.into())
     }
 
+    /// Proposes one transaction paying several recipients. `payments_json` is
+    /// `[{"to": "u1…", "zat": "100000", "memo": "…"}]` (memo optional).
+    pub async fn propose_payments(
+        &self,
+        account_id: u32,
+        payments_json: &str,
+    ) -> Result<super::proposal::Proposal, Error> {
+        #[derive(serde::Deserialize)]
+        struct Row {
+            to: String,
+            zat: String,
+            memo: Option<String>,
+        }
+        let rows: Vec<Row> = serde_json::from_str(payments_json)
+            .map_err(|e| Error::Generic(format!("invalid payments: {e}")))?;
+        let payments = rows
+            .into_iter()
+            .map(|r| {
+                let to = ZcashAddress::try_from_encoded(&r.to)?;
+                let zat: u64 = r
+                    .zat
+                    .parse()
+                    .map_err(|_| Error::Generic("invalid amount".into()))?;
+                let memo = r
+                    .memo
+                    .filter(|m| !m.is_empty())
+                    .map(|m| zcash_protocol::memo::Memo::from_str(&m).map(Into::into))
+                    .transpose()?;
+                Ok((to, zat, memo))
+            })
+            .collect::<Result<Vec<_>, Error>>()?;
+        Ok(self.inner.propose_payments(account_id, payments).await?.into())
+    }
+
+    /// Proposes sending everything spendable to `to_address` (fee deducted).
+    pub async fn propose_send_max(
+        &self,
+        account_id: u32,
+        to_address: String,
+        memo: Option<String>,
+    ) -> Result<super::proposal::Proposal, Error> {
+        let to = ZcashAddress::try_from_encoded(&to_address)?;
+        let memo = memo
+            .filter(|m| !m.is_empty())
+            .map(|m| zcash_protocol::memo::Memo::from_str(&m).map(Into::into))
+            .transpose()?;
+        Ok(self.inner.propose_send_max(account_id, to, memo).await?.into())
+    }
+
+    /// A fresh, unlinkable diversified address for the account.
+    pub async fn get_next_address(&self, account_id: u32) -> Result<String, Error> {
+        self.inner.next_address(account_id).await
+    }
+
     /// Proves (Halo 2, on worker threads) and signs the proposal. Returns the
     /// txids, 32 bytes each, concatenated.
     pub async fn create_proposed_transactions(

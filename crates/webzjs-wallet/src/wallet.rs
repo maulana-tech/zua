@@ -14,9 +14,13 @@ use secrecy::{ExposeSecret, SecretVec, Zeroize};
 use tokio::sync::Mutex;
 use zcash_address::ZcashAddress;
 use zcash_client_backend::data_api::wallet::input_selection::{GreedyInputSelector, SpendPolicy};
+use zcash_client_backend::data_api::wallet::input_selection::LockedInputPolicy;
 use zcash_client_backend::data_api::wallet::{
-    create_proposed_transactions, propose_transfer, ConfirmationsPolicy, SpendingKeys,
+    create_proposed_transactions, propose_send_max_transfer, propose_transfer,
+    ConfirmationsPolicy, SpendingKeys,
 };
+use zcash_client_backend::data_api::MaxSpendMode;
+use zcash_keys::keys::UnifiedAddressRequest;
 use zcash_client_backend::data_api::{AccountBirthday, WalletRead, WalletSummary, WalletWrite};
 use zcash_client_backend::fees::standard::MultiOutputChangeStrategy;
 use zcash_client_backend::fees::{DustOutputPolicy, SplitPolicy, StandardFeeRule};
@@ -186,9 +190,25 @@ impl Wallet {
         value: u64,
         memo: Option<MemoBytes>,
     ) -> Result<WalletProposal, Error> {
-        let payment = Payment::new(to_address, Some(Zatoshis::from_u64(value)?), memo, None, None, vec![])
-            .map_err(|_| Error::UnsupportedMemoRecipient)?;
-        let request = TransactionRequest::new(vec![payment])?;
+        self.propose_payments(account_index, vec![(to_address, value, memo)])
+            .await
+    }
+
+    /// Proposes one transaction paying every `(address, zatoshi, memo)` in
+    /// `payments` (ZIP-321 multi-payment), e.g. a payroll batch.
+    pub async fn propose_payments(
+        &self,
+        account_index: u32,
+        payments: Vec<(ZcashAddress, u64, Option<MemoBytes>)>,
+    ) -> Result<WalletProposal, Error> {
+        let payments = payments
+            .into_iter()
+            .map(|(to, value, memo)| {
+                Payment::new(to, Some(Zatoshis::from_u64(value)?), memo, None, None, vec![])
+                    .map_err(|_| Error::UnsupportedMemoRecipient)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let request = TransactionRequest::new(payments)?;
         let change_strategy = MultiOutputChangeStrategy::new(
             StandardFeeRule::Zip317,
             None,
@@ -214,6 +234,44 @@ impl Wallet {
             None,
         )
         .map_err(|e| Error::Generic(format!("Could not build the payment: {e}")))
+    }
+
+    /// Proposes sending everything spendable in the shielded pools to
+    /// `to_address`, the fee taken from the amount (used to sweep claim links).
+    pub async fn propose_send_max(
+        &self,
+        account_index: u32,
+        to_address: ZcashAddress,
+        memo: Option<MemoBytes>,
+    ) -> Result<WalletProposal, Error> {
+        let mut db = self.db.lock().await;
+        let account = Self::account_uuid(&db, account_index)?;
+        propose_send_max_transfer::<_, _, _, <Db as zcash_client_backend::data_api::WalletCommitmentTrees>::Error>(
+            &mut *db,
+            &self.network,
+            account,
+            &[ShieldedPool::Ironwood, ShieldedPool::Orchard, ShieldedPool::Sapling],
+            &StandardFeeRule::Zip317,
+            to_address,
+            memo,
+            MaxSpendMode::MaxSpendable,
+            self.min_confirmations,
+            &LockedInputPolicy::default(),
+            None,
+        )
+        .map_err(|e| Error::Generic(format!("Could not build the payment: {e}")))
+    }
+
+    /// A fresh diversified address for the account. All of an account's
+    /// addresses share one viewing key, so the wallet sees payments to any of
+    /// them, but outsiders cannot link two addresses to each other.
+    pub async fn next_address(&self, account_index: u32) -> Result<String, Error> {
+        let mut db = self.db.lock().await;
+        let account = Self::account_uuid(&db, account_index)?;
+        let (ua, _) = db
+            .get_next_available_address(account, UnifiedAddressRequest::ALLOW_ALL)?
+            .ok_or(Error::AccountNotFound(account_index))?;
+        Ok(ua.encode(&self.network))
     }
 
     /// Proves and signs the proposal; the transactions are stored in the

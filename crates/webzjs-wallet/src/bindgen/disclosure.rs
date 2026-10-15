@@ -14,7 +14,7 @@ use webzjs_common::Network;
 use zcash_primitives::transaction::Transaction;
 use zcash_protocol::consensus::{BlockHeight, BranchId};
 
-use crate::disclosure::{disclose_action, verify_action};
+use crate::disclosure::{disclose_action, disclose_sent_action, verify_action};
 use orchard::note_encryption::{IronwoodVersion, OrchardVersion};
 use crate::wallet::usk_from_seed_str;
 
@@ -58,8 +58,11 @@ fn json_str(s: &str) -> String {
 }
 
 /// For every Orchard or Ironwood action in `tx` that pays the account derived
-/// from `seed_phrase`, returns `{ pool, action, kEnc, value, memo, internal }`
-/// as a JSON array. The seed only lives for the duration of the call.
+/// from `seed_phrase` (`direction: "received"`), or that the account sent to
+/// someone else (`direction: "sent"`, recovered with its outgoing viewing key,
+/// with the `recipient` UA), returns `{ direction, pool, action, kEnc, value,
+/// memo, internal | recipient }` as a JSON array. The seed only lives for the
+/// duration of the call.
 #[wasm_bindgen]
 pub fn orchard_disclose(
     network: &str,
@@ -77,17 +80,32 @@ pub fn orchard_disclose(
     let mut found = Vec::new();
     let mut push = |pool: &str, i: usize, d: crate::disclosure::Disclosure| {
         found.push(format!(
-            "{{\"pool\":\"{pool}\",\"action\":{i},\"kEnc\":\"{}\",\"value\":\"{}\",\"memo\":{},\"internal\":{}}}",
+            "{{\"direction\":\"received\",\"pool\":\"{pool}\",\"action\":{i},\"kEnc\":\"{}\",\"value\":\"{}\",\"memo\":{},\"internal\":{}}}",
             hex(&d.k_enc),
             d.value,
             json_str(&d.memo),
             d.internal
         ))
     };
+    let mut sent = Vec::new();
+    let mut push_sent = |pool: &str, i: usize, d: crate::disclosure::SentDisclosure| -> Result<(), JsValue> {
+        let ua = zcash_keys::address::UnifiedAddress::from_receivers(Some(d.recipient), None, None, None, None)
+            .ok_or_else(|| err("cannot encode recipient"))?
+            .encode(&network);
+        sent.push(format!(
+            "{{\"direction\":\"sent\",\"pool\":\"{pool}\",\"action\":{i},\"kEnc\":\"{}\",\"value\":\"{}\",\"memo\":{},\"recipient\":\"{ua}\"}}",
+            hex(&d.k_enc),
+            d.value,
+            json_str(&d.memo),
+        ));
+        Ok(())
+    };
     if let Some(bundle) = tx.orchard_bundle() {
         for (i, action) in bundle.actions().iter().enumerate() {
             if let Some(d) = disclose_action::<OrchardVersion, _>(fvk, action) {
                 push("orchard", i, d);
+            } else if let Some(d) = disclose_sent_action::<OrchardVersion, _>(fvk, action) {
+                push_sent("orchard", i, d)?;
             }
         }
     }
@@ -95,9 +113,12 @@ pub fn orchard_disclose(
         for (i, action) in bundle.actions().iter().enumerate() {
             if let Some(d) = disclose_action::<IronwoodVersion, _>(fvk, action) {
                 push("ironwood", i, d);
+            } else if let Some(d) = disclose_sent_action::<IronwoodVersion, _>(fvk, action) {
+                push_sent("ironwood", i, d)?;
             }
         }
     }
+    found.extend(sent);
     Ok(format!("[{}]", found.join(",")))
 }
 

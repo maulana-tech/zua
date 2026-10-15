@@ -73,6 +73,7 @@ tokio.workspace = true
 zcash_client_sqlite = { workspace = true }
 async-trait = "0.1"
 rand_chacha = "0.10"
+serde_json = "1"
 rusqlite = { version = "0.39", features = ["serialize"] }
 uuid = { version = "1", features = ["js"] }
 getrandom03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
