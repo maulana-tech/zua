@@ -51,6 +51,7 @@ import {
 } from "../lib/sealedBox";
 import { lightwalletdUrl, network } from "../lib/zcash/network";
 import {
+  claimLinkKey,
   messagingSecret,
   mnemonicFromMaster,
   profileSigningSeed,
@@ -124,6 +125,8 @@ type WalletState = {
   zcash: ZcashState;
   syncNow: () => Promise<void>;
   send: (input: SendInput) => Promise<string[]>;
+  /** Key of this account's claim link `index`; throws while locked. */
+  claimKey: (index: number) => Uint8Array;
   /** A new unlinkable address, signed by this profile, for one invoice/link. */
   freshPayAddress: () => Promise<SignedAddress>;
   /** Builds one transaction paying all rows; review fee, then `proveProposal`. */
@@ -177,6 +180,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     pathname?.startsWith("/pay") ||
       pathname?.startsWith("/i/") ||
       pathname?.startsWith("/unsubscribe") ||
+      pathname?.startsWith("/claim") ||
       pathname === "/verify",
   );
   const { ready, authenticated, user, login, logout } = usePrivy();
@@ -574,6 +578,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       );
   }, [username]);
 
+  const claimKey = useCallback((index: number) => {
+    if (!masterRef.current) throw new Error("Unlock your account first.");
+    return claimLinkKey(masterRef.current, index);
+  }, []);
+
   const freshPayAddress = useCallback(async (): Promise<SignedAddress> => {
     const wallet = walletRef.current;
     const master = masterRef.current;
@@ -796,6 +805,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       zcash,
       syncNow,
       send,
+      claimKey,
       freshPayAddress,
       proposePayments,
       proveProposal,
@@ -837,6 +847,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       zcash,
       syncNow,
       send,
+      claimKey,
       freshPayAddress,
       proposePayments,
       proveProposal,

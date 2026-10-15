@@ -3,6 +3,7 @@
 import {
   ArrowUpRight,
   FileText,
+  Gift,
   History,
   Inbox,
   LayoutGrid,
@@ -18,6 +19,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import {
+  CLAIMS_PATH,
   DASHBOARD_PATH,
   HISTORY_PATH,
   INVOICES_PATH,
@@ -48,6 +50,7 @@ const NAV_ITEMS = [
   { href: INVOICES_PATH, label: "Invoices", icon: FileText },
   { href: SEND_PATH, label: "Send", icon: ArrowUpRight },
   { href: PAYROLL_PATH, label: "Payroll", icon: Users },
+  { href: CLAIMS_PATH, label: "Claim links", icon: Gift },
   { href: HISTORY_PATH, label: "History", icon: History },
   { href: REQUESTS_PATH, label: "Requests", icon: Inbox },
   { href: SETTINGS_PATH, label: "Settings", icon: Settings },

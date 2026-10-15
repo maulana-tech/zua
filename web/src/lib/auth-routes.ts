@@ -4,6 +4,7 @@ export const DASHBOARD_PATH = "/dashboard";
 export const LINKS_PATH = "/links";
 export const SEND_PATH = "/send";
 export const PAYROLL_PATH = "/payroll";
+export const CLAIMS_PATH = "/claims";
 export const HISTORY_PATH = "/history";
 export const SETTINGS_PATH = "/settings";
 export const INVOICES_PATH = "/invoices";
@@ -16,6 +17,7 @@ export const DASHBOARD_PATHS = [
   LINKS_PATH,
   SEND_PATH,
   PAYROLL_PATH,
+  CLAIMS_PATH,
   HISTORY_PATH,
   SETTINGS_PATH,
   INVOICES_PATH,

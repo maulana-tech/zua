@@ -39,3 +39,18 @@ export function profileSigningSeed(master: Uint8Array): Uint8Array {
 export function messagingSecret(master: Uint8Array): Uint8Array {
   return hkdf(sha256, master, undefined, utf8(`${KEY_NS}.msg.v1`), 32);
 }
+
+/**
+ * Key of claim link `index` (see features/claims): 32 bytes that become a
+ * throwaway wallet's seed. Derived from the master, as ZIP 324 suggests, so a
+ * sender who lost the link can still cancel it after recovering the account.
+ */
+export function claimLinkKey(master: Uint8Array, index: number): Uint8Array {
+  return hkdf(
+    sha256,
+    master,
+    undefined,
+    utf8(`${KEY_NS}.claim-link.v1:${index}`),
+    32,
+  );
+}

@@ -53,6 +53,8 @@ const nextConfig = {
       "requests",
       "settings",
       "verify",
+      "claim",
+      "claims",
     ];
     return [
       ...appRoutes.flatMap((route) => [

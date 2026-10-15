@@ -4,6 +4,9 @@ export const up = async (db) => {
   await db
     .collection("pay_addresses")
     .createIndex({ owner: 1, createdAt: -1 }, { name: "by_owner" });
+  await db
+    .collection("claim_links")
+    .createIndex({ owner: 1, createdAt: -1 }, { name: "by_owner" });
   const invoices = db.collection("invoices");
   await invoices.createIndex(
     { recurrence: 1, nextIssueAt: 1 },
@@ -16,6 +19,10 @@ export const up = async (db) => {
 };
 
 export const down = async (db) => {
+  await db
+    .collection("claim_links")
+    .dropIndexes()
+    .catch(() => {});
   for (const name of ["recurring_due", "reminders_due"])
     await db
       .collection("invoices")

@@ -34,6 +34,7 @@ export type ProfileDoc = {
   msgPubkeyHex: string; // X25519
   claimJson: string; // canonical JSON of the signed claim
   claimSigHex: string;
+  claimLinkCount?: number; // next claim link index
   createdAt: Date;
 };
 
@@ -109,6 +110,23 @@ export type PayAddressDoc = {
   claimJson: string;
   sigHex: string;
   createdAt: Date;
+};
+
+/**
+ * A claim link the sender created (features/claims). The key is never
+ * stored: the sender re-derives it from their master and `index`.
+ */
+export type ClaimLinkDoc = {
+  _id: string;
+  owner: string; // username
+  index: number;
+  amountZat: string;
+  description: string;
+  birthday: number;
+  fundTxid: string | null;
+  state: "funding" | "active" | "cancelled";
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 export type SealedDoc = { epk: string; nonce: string; ct: string };
@@ -206,6 +224,7 @@ export const getPaymentRequests =
 export const getNotificationSettings = collection<NotificationSettingsDoc>(
   "notification_settings",
 );
+export const getClaimLinks = collection<ClaimLinkDoc>("claim_links");
 export const getPayAddresses = collection<PayAddressDoc>("pay_addresses");
 export const getNotificationLogs =
   collection<NotificationLogDoc>("notification_logs");
