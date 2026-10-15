@@ -65,8 +65,9 @@ sees your seed, viewing keys, balance, history, senders or amounts.
   - `src/lib/profileClaim.ts` - signed username → address claims.
   - `src/server/modules/` - `accounts`, `profiles`, `paymentLinks`, `invoices`,
     `notifications`.
-- `packages/webzjs-wallet/` - prebuilt wallet (WASM) from our fork of
-  [ChainSafe WebZjs](https://github.com/ChainSafe/WebZjs), ported to the
+- `webzjs/` - the wallet's Rust source: our fork of
+  [ChainSafe WebZjs](https://github.com/ChainSafe/WebZjs) (MIT/Apache-2.0,
+  history kept), ported to the
   current Zcash crates (mainnet NU6.3, testnet NU7): it scans and spends the **Ironwood** pool,
   stores the wallet in `zcash_client_sqlite` on SQLite compiled to WASM, sends
   memos, and discloses single payments for receipts.
@@ -96,17 +97,14 @@ small amounts on mainnet: the wallet library is unaudited.
 ### Rebuilding the wallet package
 
 Upstream WebZjs stops at NU6.1, so transactions it builds are rejected on
-today's mainnet. Our port lives on the `zua/nu63` branch of the WebZjs fork:
+today's mainnet. Our port lives in `webzjs/`; `packages/webzjs-wallet/` is its
+prebuilt output, so the app runs without a Rust toolchain.
 
 ```sh
-cd WebZjs && git checkout zua/nu7
 brew install wasm-pack just llvm
 cargo +stable install wasm-bindgen-cli --version 0.2.129 --locked
-PATH=$(brew --prefix llvm)/bin:$PATH \
-CC_wasm32_unknown_unknown=$(brew --prefix llvm)/bin/clang \
-AR_wasm32_unknown_unknown=$(brew --prefix llvm)/bin/llvm-ar \
-  just build-wallet
-cp -R packages/webzjs-wallet ../zua/packages/
+pnpm wallet:build   # webzjs/ → packages/webzjs-wallet → web/public/webzjs
+pnpm wallet:test    # native Rust tests (payment disclosure)
 ```
 
 `pnpm dev` / `pnpm build` copy the package to `web/public/webzjs`

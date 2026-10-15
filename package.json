@@ -6,7 +6,9 @@
     "dev": "pnpm --filter web dev",
     "build": "pnpm --filter web build",
     "build:local": "pnpm --filter web build:local",
-    "lint": "pnpm --filter web lint"
+    "lint": "pnpm --filter web lint",
+    "wallet:build": "scripts/build-wallet.sh",
+    "wallet:test": "cd webzjs/crates/webzjs-wallet && cargo test --lib"
   },
   "workspaces": [
     "web",

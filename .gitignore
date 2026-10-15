@@ -23,3 +23,6 @@ coverage/
 backups/
 design-ref/
 web/public/webzjs/
+
+# Wallet build output inside the Rust tree (installed into packages/)
+webzjs/packages/webzjs-wallet/

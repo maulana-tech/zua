@@ -319,7 +319,7 @@ minutes for an old account.
 
 ### 9.5 Rebuilding the wallet (optional)
 
-You only need this if you change the Rust wallet. It requires the WebZjs fork
-(branch `zua/nu7`), Rust nightly and LLVM; see the README section "Rebuilding
-the wallet package". Move the fork the same way as above (GitHub or
-`git bundle`).
+You only need this if you change the Rust wallet in `webzjs/` (it comes with
+the clone). Install Rust, wasm-pack, just, LLVM and wasm-bindgen-cli 0.2.129,
+then run `pnpm wallet:build`; see the README section "Rebuilding the wallet
+package".
