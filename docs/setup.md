@@ -116,6 +116,13 @@ profiles. Both need TAZ for steps that send.
 | 9 | Verify | Open `/verify`, choose the receipt | "Verified on Zcash": amount and memo **proven on chain**, recipient signature checked |
 | 10 | Tamper | Edit the amount in the receipt JSON and verify again | Rejected |
 | 11 | Restore | Reload the page and unlock again | Fast start from the encrypted local cache, same balance |
+| 12 | Address per invoice | Create two invoices, open both public pages | Different `utest1…` addresses, both "signed by @A"; payments to either show in A's history |
+| 13 | Proof of payment | B: History → icon on the sent payment → open it in `/verify` | "Proof of payment", paid to @A, amount proven |
+| 14 | Statement | A: History → Income statement → this month → Download, then `/verify` it | Total of all payments in the period, each proven; CSV export matches |
+| 15 | Payroll | B: Payroll → two rows (@A and another address) → Review → Pay | One transaction; fee shown before paying; each recipient sees only their row's note |
+| 16 | Recurring | A: new invoice, Repeat monthly. Trigger `GET /api/cron/invoices` (Bearer `CRON_SECRET`) after editing `nextIssueAt` in Mongo to the past, or wait | A new invoice `<number>-2` appears; client emailed if Resend is set |
+| 17 | USD invoice | A: new invoice priced in USD → open the public page | ZEC amount locked for 30 minutes at the shown rate; paying it marks the invoice paid |
+| 18 | Claim link | B: Claim links → 0.01 → Create → open the link in another profile → Claim to @A | After confirmations the link shows "ready"; claiming sweeps it to A; B's "Check status" shows Claimed. Try "Take back" on another link. |
 
 Explorer: `https://testnet.zcashexplorer.app/transactions/<txid>` shows the
 transaction is on chain. Shielded amounts and addresses are not visible there.

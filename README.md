@@ -18,6 +18,21 @@ whom or how much.
 - **Verified usernames.** `@username → address` is a claim signed with a key
   derived from the owner's passkey/PIN. Payers check the signature in their
   browser before a QR code is shown, so the server can't swap an address.
+- **An address per invoice and link.** Each invoice and payment link gets its
+  own diversified address, signed by the owner. Two clients can't tell they
+  paid the same person.
+- **Receipts proven on chain.** A receipt (or a payer's proof of payment, or
+  a period statement for an accountant) carries the note keys of just those
+  outputs. `/verify` decrypts them from the chain and checks the commitments:
+  amounts and memos are proven, nothing else is opened.
+- **Payroll.** Pay up to 50 people in one shielded transaction, from a form or
+  a CSV, each with a private note.
+- **Recurring and USD invoices.** Weekly or monthly invoices that issue
+  themselves with email reminders; prices in USD paid in ZEC at a rate locked
+  for 30 minutes.
+- **Claim links.** Send ZEC to someone without an address as a link (after
+  ZIP 324, draft). The key stays in the URL fragment; the sender can take the
+  funds back until they're claimed.
 
 Built for **ZECATHON** (Shielded Payments track).
 
@@ -116,3 +131,12 @@ its thread workers resolve.
   the app warns before it does.
 - The ZIP-317 fee shown before sending is an estimate; the wallet computes the
   exact fee.
+- What the server knows (metadata): usernames, the invoices and links you
+  create (amounts, client names), who requested payment from whom (request
+  contents are end-to-end encrypted) and paid status as your wallet reports
+  it. It never sees balances, history or who actually paid.
+- A payer's "proof of payment" proves the payment on chain; that the signer
+  is the payer is their signed statement (the recipient knows the same note
+  key).
+- Claim links are bearer links: anyone who sees one can claim it. Their format
+  is Zua's own (ZIP 324 is a Sapling-era draft).

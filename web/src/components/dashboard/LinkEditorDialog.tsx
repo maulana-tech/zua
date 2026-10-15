@@ -80,7 +80,7 @@ export function LinkEditorDialog({
           </DialogTitle>
           <DialogDescription>
             Each link gets its own shielded address and a private tag, so payers
-            of different links can't be connected and you can tell payments
+            of different links can&apos;t be connected and you can tell payments
             apart. Leave the amount empty to let payers choose.
           </DialogDescription>
         </DialogHeader>

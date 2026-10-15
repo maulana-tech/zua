@@ -63,18 +63,21 @@ export function InvoiceCheckout({ token }: { token: string }) {
   const [quoteError, setQuoteError] = useState("");
   const polled = query.data ?? null;
   // Whichever is newer: the polled invoice (payments, status) or the quote.
-  const invoice =
-    polled &&
-    quoted &&
-    polled.status === "pending" &&
-    (polled.quote?.expiresAt ?? "") < (quoted.quote?.expiresAt ?? "")
-      ? {
-          ...polled,
-          quote: quoted.quote,
-          totalZat: quoted.totalZat,
-          totalZec: quoted.totalZec,
-        }
-      : (polled ?? quoted);
+  const invoice = useMemo(
+    () =>
+      polled &&
+      quoted &&
+      polled.status === "pending" &&
+      (polled.quote?.expiresAt ?? "") < (quoted.quote?.expiresAt ?? "")
+        ? {
+            ...polled,
+            quote: quoted.quote,
+            totalZat: quoted.totalZat,
+            totalZec: quoted.totalZec,
+          }
+        : (polled ?? quoted),
+    [polled, quoted],
+  );
   const needsQuote =
     invoice?.currency === "USD" &&
     invoice.status === "pending" &&
