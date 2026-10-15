@@ -3,6 +3,7 @@ export const PRIVY_SESSION_COOKIE = "privy-session";
 export const DASHBOARD_PATH = "/dashboard";
 export const LINKS_PATH = "/links";
 export const SEND_PATH = "/send";
+export const PAYROLL_PATH = "/payroll";
 export const HISTORY_PATH = "/history";
 export const SETTINGS_PATH = "/settings";
 export const INVOICES_PATH = "/invoices";
@@ -14,6 +15,7 @@ export const DASHBOARD_PATHS = [
   DASHBOARD_PATH,
   LINKS_PATH,
   SEND_PATH,
+  PAYROLL_PATH,
   HISTORY_PATH,
   SETTINGS_PATH,
   INVOICES_PATH,

@@ -58,6 +58,7 @@ export const config = {
     "/dashboard/:path*",
     "/links/:path*",
     "/send/:path*",
+    "/payroll/:path*",
     "/history/:path*",
     "/settings/:path*",
     "/invoices/:path*",

@@ -46,6 +46,7 @@ const nextConfig = {
     const appRoutes = [
       "dashboard",
       "send",
+      "payroll",
       "history",
       "links",
       "invoices",
