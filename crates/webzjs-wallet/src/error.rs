@@ -78,7 +78,7 @@ pub enum Error {
     #[error("Fail to parse TxIds")]
     TxIdParse,
     // TODO: Remove this. It is just to help with the inability to handle the generic tests from LRZ at the moment
-    #[error("An generic error occurred: {0}")]
+    #[error("{0}")]
     Generic(String),
 }
 
