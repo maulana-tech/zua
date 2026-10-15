@@ -42,4 +42,4 @@ Vitest, `node` environment by default; component tests use `// @vitest-environme
 ## Conventions
 - Formatting: Biome (2-space, double quotes, organized imports).
 - Commit messages in Indonesian, short and imperative, no co-author trailer.
-- The repo has no git remote right now; commit locally and don't push unless asked.
+- Remote: `origin` = github.com/maulana-tech/zua, working branch `zecathon`. Push only when asked.
