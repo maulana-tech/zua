@@ -26,6 +26,8 @@ pub struct Disclosure {
     pub value: u64,
     pub memo: String,
     pub internal: bool,
+    /// The (possibly diversified) address the note was sent to.
+    pub recipient: Address,
 }
 
 /// Trial-decrypts `action` with the account's viewing key and, if it pays the
@@ -38,7 +40,7 @@ pub fn disclose_action<V: DomainVersion, T>(
     for scope in [Scope::External, Scope::Internal] {
         let ivk = fvk.to_ivk(scope).prepare();
         let domain = D::<V>::for_action(action);
-        let Some((note, _, memo)) = try_note_decryption(&domain, &ivk, action) else {
+        let Some((note, recipient, memo)) = try_note_decryption(&domain, &ivk, action) else {
             continue;
         };
         let epk_bytes = zcash_note_encryption::EphemeralKeyBytes(action.encrypted_note().epk_bytes);
@@ -50,6 +52,7 @@ pub fn disclose_action<V: DomainVersion, T>(
             value: note.value().inner(),
             memo: memo_text(memo.as_slice()),
             internal: scope == Scope::Internal,
+            recipient,
         });
     }
     None

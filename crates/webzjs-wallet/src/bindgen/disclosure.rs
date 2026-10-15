@@ -77,21 +77,28 @@ pub fn orchard_disclose(
     let fvk = ufvk.orchard().ok_or_else(|| err("account has no Orchard key"))?;
     let tx = read_tx(&network, tx, height)?;
 
+    let encode_ua = |address: orchard::Address| -> Result<String, JsValue> {
+        Ok(
+            zcash_keys::address::UnifiedAddress::from_receivers(Some(address), None, None, None, None)
+                .ok_or_else(|| err("cannot encode recipient"))?
+                .encode(&network),
+        )
+    };
     let mut found = Vec::new();
-    let mut push = |pool: &str, i: usize, d: crate::disclosure::Disclosure| {
+    let mut push = |pool: &str, i: usize, d: crate::disclosure::Disclosure| -> Result<(), JsValue> {
         found.push(format!(
-            "{{\"direction\":\"received\",\"pool\":\"{pool}\",\"action\":{i},\"kEnc\":\"{}\",\"value\":\"{}\",\"memo\":{},\"internal\":{}}}",
+            "{{\"direction\":\"received\",\"pool\":\"{pool}\",\"action\":{i},\"kEnc\":\"{}\",\"value\":\"{}\",\"memo\":{},\"internal\":{},\"recipient\":\"{}\"}}",
             hex(&d.k_enc),
             d.value,
             json_str(&d.memo),
-            d.internal
-        ))
+            d.internal,
+            encode_ua(d.recipient)?
+        ));
+        Ok(())
     };
     let mut sent = Vec::new();
     let mut push_sent = |pool: &str, i: usize, d: crate::disclosure::SentDisclosure| -> Result<(), JsValue> {
-        let ua = zcash_keys::address::UnifiedAddress::from_receivers(Some(d.recipient), None, None, None, None)
-            .ok_or_else(|| err("cannot encode recipient"))?
-            .encode(&network);
+        let ua = encode_ua(d.recipient)?;
         sent.push(format!(
             "{{\"direction\":\"sent\",\"pool\":\"{pool}\",\"action\":{i},\"kEnc\":\"{}\",\"value\":\"{}\",\"memo\":{},\"recipient\":\"{ua}\"}}",
             hex(&d.k_enc),
@@ -103,7 +110,7 @@ pub fn orchard_disclose(
     if let Some(bundle) = tx.orchard_bundle() {
         for (i, action) in bundle.actions().iter().enumerate() {
             if let Some(d) = disclose_action::<OrchardVersion, _>(fvk, action) {
-                push("orchard", i, d);
+                push("orchard", i, d)?;
             } else if let Some(d) = disclose_sent_action::<OrchardVersion, _>(fvk, action) {
                 push_sent("orchard", i, d)?;
             }
@@ -112,7 +119,7 @@ pub fn orchard_disclose(
     if let Some(bundle) = tx.ironwood_bundle() {
         for (i, action) in bundle.actions().iter().enumerate() {
             if let Some(d) = disclose_action::<IronwoodVersion, _>(fvk, action) {
-                push("ironwood", i, d);
+                push("ironwood", i, d)?;
             } else if let Some(d) = disclose_sent_action::<IronwoodVersion, _>(fvk, action) {
                 push_sent("ironwood", i, d)?;
             }
