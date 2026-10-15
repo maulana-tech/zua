@@ -3,6 +3,7 @@
 import { Plus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { invoiceInput, invoiceTotal } from "../../features/invoices/input";
+import { type Currency, centsToUsd } from "../../features/invoices/money";
 import type { Recurrence } from "../../features/invoices/recurrence";
 import type { InvoiceView } from "../../features/invoices/types";
 import { zatToZec } from "../../lib/zcash/units";
@@ -41,6 +42,7 @@ export function CreateInvoiceDialog({
     ),
     [notes, setNotes] = useState("");
   const [recurrence, setRecurrence] = useState<Recurrence>("none");
+  const [currency, setCurrency] = useState<Currency>("ZEC");
   const [clientEmail, setClientEmail] = useState(""),
     [lines, setLines] = useState([emptyLine()]),
     [error, setError] = useState(""),
@@ -68,10 +70,12 @@ export function CreateInvoiceDialog({
         (l) =>
           Number.isInteger(Number(l.quantity)) &&
           Number(l.quantity) > 0 &&
-          /^\d+(\.\d{1,8})?$/.test(l.unitPrice),
+          (currency === "USD" ? /^\d+(\.\d{1,2})?$/ : /^\d+(\.\d{1,8})?$/).test(
+            l.unitPrice,
+          ),
       )
     )
-      total = invoiceTotal(inputItems);
+      total = invoiceTotal(inputItems, currency);
   } catch {}
   function change(
     id: string,
@@ -93,6 +97,7 @@ export function CreateInvoiceDialog({
       dueDate,
       notes,
       items: inputItems,
+      currency,
       recurrence,
     });
     if (!parsed.success) {
@@ -114,6 +119,7 @@ export function CreateInvoiceDialog({
         dueDate,
         notes,
         items: inputItems,
+        currency,
         recurrence,
         payAddress,
       });
@@ -125,6 +131,7 @@ export function CreateInvoiceDialog({
         setClientEmail("");
         setNotes("");
         setRecurrence("none");
+        setCurrency("ZEC");
         setLines([emptyLine()]);
       }
     } catch (e) {
@@ -196,6 +203,18 @@ export function CreateInvoiceDialog({
                 onChange={(e) => setDueDate(e.target.value)}
                 required
               />
+            </label>
+            <label className="grid gap-2 text-sm" htmlFor="invoice-currency">
+              Priced in
+              <select
+                id="invoice-currency"
+                className="min-h-11 rounded-(--dash-radius-sm) border border-(--dash-line-strong) bg-transparent px-3 text-sm"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value as Currency)}
+              >
+                <option value="ZEC">ZEC</option>
+                <option value="USD">USD (paid in ZEC at a locked rate)</option>
+              </select>
             </label>
             <label className="grid gap-2 text-sm" htmlFor="invoice-repeat">
               Repeat
@@ -271,7 +290,7 @@ export function CreateInvoiceDialog({
                     className="grid gap-2 text-sm"
                     htmlFor={`invoice-price-${item.id}`}
                   >
-                    Unit price {index + 1} · ZEC
+                    Unit price {index + 1} · {currency}
                     <Input
                       id={`invoice-price-${item.id}`}
                       appearance="linen"
@@ -332,7 +351,11 @@ export function CreateInvoiceDialog({
           <div className="flex flex-wrap items-baseline justify-between gap-3 border-t border-border pt-4">
             <span>Total</span>
             <strong className="text-xl font-medium tabular-nums">
-              {total === null ? "—" : `${zatToZec(total)} ZEC`}
+              {total === null
+                ? "—"
+                : currency === "USD"
+                  ? centsToUsd(total)
+                  : `${zatToZec(total)} ZEC`}
             </strong>
           </div>
           <p className="text-xs leading-5 text-muted-foreground">

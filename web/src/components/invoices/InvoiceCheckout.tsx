@@ -4,8 +4,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Download, ShieldAlert, ShieldCheck } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { invoiceStatus } from "../../features/invoices/input";
+import { centsToUsd, usdToCents } from "../../features/invoices/money";
+import type { InvoiceView } from "../../features/invoices/types";
 import { formatUsd, useZecPrice } from "../../features/zcash/useZecPrice";
 import { verifiedAddress } from "../../lib/addressClaim";
 import { APP_NAME } from "../../lib/brand";
@@ -55,7 +57,59 @@ export function InvoiceCheckout({ token }: { token: string }) {
     queryFn: () =>
       api.profiles.byUsername.query({ username: query.data?.username ?? "" }),
   });
-  const invoice = query.data ?? null;
+  // USD invoices: lock a ZEC amount for 30 minutes, and re-lock when it
+  // expires while the page is open (until a payment freezes it).
+  const [quoted, setQuoted] = useState<InvoiceView | null>(null);
+  const [quoteError, setQuoteError] = useState("");
+  const polled = query.data ?? null;
+  // Whichever is newer: the polled invoice (payments, status) or the quote.
+  const invoice =
+    polled &&
+    quoted &&
+    polled.status === "pending" &&
+    (polled.quote?.expiresAt ?? "") < (quoted.quote?.expiresAt ?? "")
+      ? {
+          ...polled,
+          quote: quoted.quote,
+          totalZat: quoted.totalZat,
+          totalZec: quoted.totalZec,
+        }
+      : (polled ?? quoted);
+  const needsQuote =
+    invoice?.currency === "USD" &&
+    invoice.status === "pending" &&
+    invoice.paidZat === "0" &&
+    (!invoice.quote || Date.parse(invoice.quote.expiresAt) <= Date.now());
+  useEffect(() => {
+    if (!needsQuote) return;
+    let cancelled = false;
+    api.invoices.quote
+      .mutate({ token })
+      .then((v) => {
+        if (!cancelled && v) {
+          setQuoted(v);
+          setQuoteError("");
+        }
+      })
+      .catch((e) => {
+        if (!cancelled)
+          setQuoteError(
+            e instanceof Error ? e.message : "Couldn't get the ZEC amount.",
+          );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [needsQuote, token]);
+  const quoteExpiry = invoice?.quote?.expiresAt;
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (!quoteExpiry) return;
+    const ms = Date.parse(quoteExpiry) - Date.now();
+    if (ms <= 0) return;
+    const id = window.setTimeout(() => tick((n) => n + 1), ms + 500);
+    return () => window.clearTimeout(id);
+  }, [quoteExpiry]);
 
   const ua = useMemo(() => {
     if (!profile.data || !invoice) return null;
@@ -191,10 +245,15 @@ export function InvoiceCheckout({ token }: { token: string }) {
                           {item.quantity}
                         </td>
                         <td className="py-4 text-right tabular-nums">
-                          {zatToZec(
-                            zecToZat(item.unitPrice) * BigInt(item.quantity),
-                          )}{" "}
-                          ZEC
+                          {invoice.currency === "USD"
+                            ? centsToUsd(
+                                usdToCents(item.unitPrice) *
+                                  BigInt(item.quantity),
+                              )
+                            : `${zatToZec(
+                                zecToZat(item.unitPrice) *
+                                  BigInt(item.quantity),
+                              )} ZEC`}
                         </td>
                       </tr>
                     ))}
@@ -204,10 +263,16 @@ export function InvoiceCheckout({ token }: { token: string }) {
               <p className="mt-6 flex items-baseline justify-between gap-4 text-lg">
                 <span>Total</span>
                 <span className="tabular-nums">
-                  {invoice.totalZec} ZEC{" "}
-                  <span className="text-sm text-(--dash-ash)">
-                    {formatUsd(BigInt(invoice.totalZat), price)}
-                  </span>
+                  {invoice.currency === "USD" ? (
+                    invoice.totalUsd
+                  ) : (
+                    <>
+                      {invoice.totalZec} ZEC{" "}
+                      <span className="text-sm text-(--dash-ash)">
+                        {formatUsd(BigInt(invoice.totalZat), price)}
+                      </span>
+                    </>
+                  )}
                 </span>
               </p>
               {invoice.notes ? (
@@ -257,6 +322,11 @@ export function InvoiceCheckout({ token }: { token: string }) {
                   This invoice was voided. Ask @{invoice.username} for a new
                   one.
                 </p>
+              ) : invoice.currency === "USD" &&
+                (!invoice.quote || remaining <= 0n) ? (
+                <p className="text-sm text-(--dash-ash)" role="status">
+                  {quoteError || "Locking the ZEC amount at the current rate…"}
+                </p>
               ) : !ua ? (
                 profile.isLoading ? (
                   <p role="status">Checking the address…</p>
@@ -280,6 +350,16 @@ export function InvoiceCheckout({ token }: { token: string }) {
                       {formatUsd(remaining, price)}
                     </span>
                   </p>
+                  {invoice.currency === "USD" && invoice.quote ? (
+                    <p className="text-xs text-(--dash-ash)">
+                      {invoice.totalUsd} at $
+                      {invoice.quote.usdPerZec.toFixed(2)}/ZEC
+                      {invoice.paidZat === "0"
+                        ? `, locked until ${new Date(invoice.quote.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                        : ", locked by your first payment"}
+                      .
+                    </p>
+                  ) : null}
                   {invoice.paidZat !== "0" ? (
                     <p className="text-xs text-(--dash-ash)">
                       {zatToZec(BigInt(invoice.paidZat))} ZEC already received.

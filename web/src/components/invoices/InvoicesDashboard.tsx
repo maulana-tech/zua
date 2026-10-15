@@ -241,7 +241,9 @@ export function InvoiceRow({
         </div>
         <div className="flex items-center gap-4">
           <p className="text-lg whitespace-nowrap tabular-nums">
-            {invoice.totalZec} ZEC
+            {invoice.currency === "USD"
+              ? invoice.totalUsd
+              : `${invoice.totalZec} ZEC`}
           </p>
           <span className="rounded-full border border-(--dash-line) px-3 py-1 text-xs">
             {labels[status]}

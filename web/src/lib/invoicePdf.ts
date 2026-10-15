@@ -1,4 +1,5 @@
 import type { jsPDF } from "jspdf";
+import { centsToUsd, usdToCents } from "../features/invoices/money";
 import type { InvoiceView } from "../features/invoices/types";
 import { APP_NAME } from "./brand";
 import { zatToZec, zecToZat } from "./zcash/units";
@@ -206,9 +207,13 @@ export async function renderInvoicePdf(
   doc.setFontSize(9.5);
 
   for (const item of invoice.items) {
-    const itemTotalBigInt = zecToZat(item.unitPrice) * BigInt(item.quantity);
-    const itemTotalFormatted = `${zatToZec(itemTotalBigInt)} ZEC`;
-    const unitPriceFormatted = `${item.unitPrice} ZEC`;
+    const usd = invoice.currency === "USD";
+    const itemTotalFormatted = usd
+      ? centsToUsd(usdToCents(item.unitPrice) * BigInt(item.quantity))
+      : `${zatToZec(zecToZat(item.unitPrice) * BigInt(item.quantity))} ZEC`;
+    const unitPriceFormatted = usd
+      ? centsToUsd(usdToCents(item.unitPrice))
+      : `${item.unitPrice} ZEC`;
 
     // Description text wrapping
     const descLines = doc.splitTextToSize(
@@ -235,7 +240,11 @@ export async function renderInvoicePdf(
 
   // Summary block
   currentY += 20;
-  const totalFormatted = `${invoice.totalZec} ZEC`;
+  // USD invoices: dollars, with the locked ZEC amount once there is a quote.
+  const totalFormatted =
+    invoice.currency === "USD"
+      ? `${invoice.totalUsd}${invoice.quote ? ` (${invoice.totalZec} ZEC)` : ""}`
+      : `${invoice.totalZec} ZEC`;
 
   // Left: Notes (if present)
   if (invoice.notes) {

@@ -6,6 +6,7 @@ import {
   invoiceToken,
   txidSchema,
 } from "../../../features/invoices/input";
+import { rateLimit } from "../../lib/rateLimit";
 import {
   createTRPCRouter,
   protectedProcedure,
@@ -21,12 +22,14 @@ import {
   InvoiceClosedError,
   InvoiceNotFoundError,
   InvoiceNumberTakenError,
+  QuoteUnavailableError,
 } from "./invoices.errors";
 import {
   createInvoice,
   invoiceClientEmail,
   listInvoices,
   publicInvoice,
+  quoteInvoice,
   reportPayment,
   stopRecurring,
   voidInvoice,
@@ -37,6 +40,8 @@ function mapError(e: unknown): never {
     throw new TRPCError({ code: "BAD_REQUEST", message: e.message });
   if (e instanceof InvoiceNumberTakenError || e instanceof InvoiceClosedError)
     throw new TRPCError({ code: "CONFLICT", message: e.message });
+  if (e instanceof QuoteUnavailableError)
+    throw new TRPCError({ code: "SERVICE_UNAVAILABLE", message: e.message });
   if (e instanceof InvoiceNotFoundError)
     throw new TRPCError({ code: "NOT_FOUND", message: e.message });
   throw e;
@@ -89,6 +94,14 @@ export const invoicesRouter = createTRPCRouter({
           .catch(() => {});
       }
       return result.invoice;
+    }),
+  /** Locks the ZEC amount of a USD invoice for 30 minutes. */
+  quote: publicProcedure
+    .input(z.object({ token: invoiceToken }).strict())
+    .mutation(async ({ ctx, input }) => {
+      if (!rateLimit(`invoice-quote:${ctx.ip ?? "unknown"}`, 30, 60_000).ok)
+        throw new TRPCError({ code: "TOO_MANY_REQUESTS" });
+      return quoteInvoice(input.token).catch(mapError);
     }),
   public: publicProcedure
     .input(z.object({ token: invoiceToken }).strict())

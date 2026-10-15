@@ -1,14 +1,17 @@
 import { z } from "zod";
 import { zecToZat } from "../../lib/zcash/units";
+import { CURRENCIES, type Currency, usdToCents } from "./money";
 import { RECURRENCES } from "./recurrence";
 import type { InvoiceState } from "./types";
 
 const MAX_ZAT = 21_000_000n * 100_000_000n;
+const MAX_CENTS = 1_000_000_000n * 100n; // $1B
 
+// Checked per currency in `invoiceInput` (ZEC: 8 decimals, USD: 2).
 const unitPrice = z
   .string()
   .trim()
-  .regex(/^\d{1,8}(\.\d{1,8})?$/, "Use a ZEC price with up to 8 decimals.");
+  .regex(/^\d{1,9}(\.\d{1,8})?$/, "Enter a price.");
 
 const line = z
   .object({
@@ -18,11 +21,14 @@ const line = z
   })
   .strict();
 
+/** Total in the invoice currency's minor unit: zatoshi (ZEC) or cents (USD). */
 export function invoiceTotal(
   items: { quantity: number; unitPrice: string }[],
+  currency: Currency = "ZEC",
 ): bigint {
+  const unit = currency === "USD" ? usdToCents : zecToZat;
   return items.reduce(
-    (total, item) => total + BigInt(item.quantity) * zecToZat(item.unitPrice),
+    (total, item) => total + BigInt(item.quantity) * unit(item.unitPrice),
     0n,
   );
 }
@@ -51,6 +57,7 @@ export const invoiceInput = z
       }, "Choose a valid due date."),
     notes: z.string().trim().max(1000).default(""),
     items: z.array(line).min(1).max(25),
+    currency: z.enum(CURRENCIES).default("ZEC"),
     recurrence: z.enum(RECURRENCES).default("none"),
     // Own diversified address for this invoice, signed by the owner.
     payAddress: z
@@ -64,12 +71,14 @@ export const invoiceInput = z
   .strict()
   .refine((v) => {
     try {
-      const total = invoiceTotal(v.items);
-      return total > 0n && total <= MAX_ZAT;
+      const total = invoiceTotal(v.items, v.currency);
+      return (
+        total > 0n && total <= (v.currency === "USD" ? MAX_CENTS : MAX_ZAT)
+      );
     } catch {
       return false;
     }
-  }, "Invoice total must be positive and within the supported range.");
+  }, "Use prices with up to 8 decimals for ZEC or 2 for USD, and a positive total.");
 
 export type InvoiceInput = z.input<typeof invoiceInput>;
 

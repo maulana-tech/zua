@@ -18,3 +18,10 @@ export class InvoiceClosedError extends Error {
     this.name = "InvoiceClosedError";
   }
 }
+
+export class QuoteUnavailableError extends Error {
+  constructor() {
+    super("The ZEC price is unavailable right now. Try again in a minute.");
+    this.name = "QuoteUnavailableError";
+  }
+}

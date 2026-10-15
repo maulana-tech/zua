@@ -3,7 +3,7 @@ export type InvoiceState = "pending" | "paid" | "void";
 export type InvoiceLine = {
   description: string;
   quantity: number;
-  unitPrice: string; // ZEC decimal
+  unitPrice: string; // decimal in the invoice currency
 };
 
 /** What the owner and the public invoice page see. */
@@ -17,6 +17,12 @@ export type InvoiceView = {
   number: string;
   clientName: string;
   items: InvoiceLine[];
+  currency: "ZEC" | "USD";
+  /** USD invoices: the dollar total, e.g. "$1,250.00". */
+  totalUsd: string | null;
+  /** USD invoices: the ZEC amount locked for payers, or null before one. */
+  quote: { zat: string; usdPerZec: number; expiresAt: string } | null;
+  /** ZEC due: the invoice total, or the current quote for USD invoices. */
   totalZat: string;
   totalZec: string;
   paidZat: string;

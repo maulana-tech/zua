@@ -3,6 +3,15 @@ import { randomBytes } from "node:crypto";
 import type { MongoServerError } from "mongodb";
 import { invoiceTotal } from "../../../features/invoices/input";
 import {
+  type Currency,
+  centsToUsd,
+  priceMicro,
+  QUOTE_GRACE_MS,
+  QUOTE_TTL_MS,
+  quoteZat,
+  usdToCents,
+} from "../../../features/invoices/money";
+import {
   nextDay,
   nextIssueAt,
   type Recurrence,
@@ -10,7 +19,13 @@ import {
 import type { InvoiceView } from "../../../features/invoices/types";
 import { newMemoId } from "../../../lib/zcash/memo";
 import { zatToZec, zecToZat } from "../../../lib/zcash/units";
-import { getInvoices, getProfiles, type InvoiceDoc } from "../../db/mongo";
+import {
+  getInvoices,
+  getProfiles,
+  type InvoiceDoc,
+  type InvoiceQuote,
+} from "../../db/mongo";
+import { zecUsd } from "../../lib/zecPrice";
 import {
   emailInvoiceReminder,
   emailNewInvoice,
@@ -20,6 +35,7 @@ import {
   InvoiceClosedError,
   InvoiceNotFoundError,
   InvoiceNumberTakenError,
+  QuoteUnavailableError,
 } from "./invoices.errors";
 
 type CreateInput = {
@@ -29,9 +45,41 @@ type CreateInput = {
   dueDate: string;
   notes: string;
   items: { description: string; quantity: number; unitPrice: string }[];
+  currency?: Currency;
   recurrence?: Recurrence;
   payAddress?: { claimJson: string; sigHex: string };
 };
+
+function latestQuote(doc: InvoiceDoc): InvoiceView["quote"] {
+  const q = doc.quotes?.at(-1);
+  return q
+    ? {
+        zat: q.zat,
+        usdPerZec: Number(q.priceMicro) / 1_000_000,
+        expiresAt: q.expiresAt.toISOString(),
+      }
+    : null;
+}
+
+/** ZEC needed to settle: the invoice total, or for USD invoices the lowest
+ *  quote issued in the grace window (a payer may pay a quote they were shown
+ *  just before it was refreshed). */
+function requiredZat(doc: InvoiceDoc, now: Date): bigint {
+  if (doc.currency !== "USD") return BigInt(doc.totalZat);
+  const recent = (doc.quotes ?? []).filter(
+    (q) => q.expiresAt.getTime() >= now.getTime() - QUOTE_GRACE_MS,
+  );
+  // Past the grace window the latest quote applies; with no quote at all the
+  // payer never saw a ZEC amount, so nothing settles it.
+  if (!recent.length) {
+    const latest = doc.quotes?.at(-1);
+    return latest ? BigInt(latest.zat) : 2n ** 63n;
+  }
+  return recent.reduce(
+    (min, q) => (BigInt(q.zat) < min ? BigInt(q.zat) : min),
+    BigInt(recent[0].zat),
+  );
+}
 
 async function toView(doc: InvoiceDoc): Promise<InvoiceView> {
   const profile = await (await getProfiles()).findOne({ _id: doc.owner });
@@ -46,8 +94,15 @@ async function toView(doc: InvoiceDoc): Promise<InvoiceView> {
     items: doc.items.map((i) => ({
       description: i.description,
       quantity: i.quantity,
-      unitPrice: zatToZec(BigInt(i.unitZat)),
+      unitPrice:
+        doc.currency === "USD"
+          ? centsToUsd(BigInt(i.unitCents ?? "0")).replace(/[$,]/g, "")
+          : zatToZec(BigInt(i.unitZat)),
     })),
+    currency: doc.currency ?? "ZEC",
+    totalUsd:
+      doc.currency === "USD" ? centsToUsd(BigInt(doc.totalCents ?? "0")) : null,
+    quote: latestQuote(doc),
     totalZat: doc.totalZat,
     totalZec: zatToZec(BigInt(doc.totalZat)),
     paidZat: doc.paidZat,
@@ -69,6 +124,7 @@ export async function createInvoice(
   const payAddress = input.payAddress
     ? await checkPayAddress(owner, input.payAddress)
     : null;
+  const usd = input.currency === "USD";
   const now = new Date();
   const doc: InvoiceDoc = {
     _id: newMemoId(),
@@ -77,12 +133,25 @@ export async function createInvoice(
     token: randomBytes(24).toString("base64url"),
     clientName: input.clientName,
     clientEmail: input.clientEmail,
-    items: input.items.map((i) => ({
-      description: i.description,
-      quantity: i.quantity,
-      unitZat: zecToZat(i.unitPrice).toString(),
-    })),
-    totalZat: invoiceTotal(input.items).toString(),
+    items: input.items.map((i) =>
+      usd
+        ? {
+            description: i.description,
+            quantity: i.quantity,
+            unitZat: "0",
+            unitCents: usdToCents(i.unitPrice).toString(),
+          }
+        : {
+            description: i.description,
+            quantity: i.quantity,
+            unitZat: zecToZat(i.unitPrice).toString(),
+          },
+    ),
+    // USD invoices get their ZEC amount from a quote when a payer opens them.
+    totalZat: usd ? "0" : invoiceTotal(input.items).toString(),
+    currency: input.currency ?? "ZEC",
+    totalCents: usd ? invoiceTotal(input.items, "USD").toString() : null,
+    quotes: [],
     payAddress,
     notes: input.notes,
     dueDate: input.dueDate,
@@ -143,7 +212,11 @@ export async function issueDueRecurring(
       clientName: due.clientName,
       clientEmail: due.clientEmail,
       items: due.items,
-      totalZat: due.totalZat,
+      // A USD series gets a fresh quote for each invoice.
+      totalZat: due.currency === "USD" ? "0" : due.totalZat,
+      currency: due.currency ?? "ZEC",
+      totalCents: due.totalCents ?? null,
+      quotes: [],
       // Same signed address as the series: the server can't sign new ones.
       payAddress: due.payAddress ?? null,
       notes: due.notes,
@@ -253,7 +326,7 @@ export async function reportPayment(
   if (!current) throw new InvoiceNotFoundError();
   if (current.status === "void") throw new InvoiceClosedError();
   const paid = BigInt(input.paidZat);
-  const status = paid >= BigInt(current.totalZat) ? "paid" : "pending";
+  const status = paid >= requiredZat(current, new Date()) ? "paid" : "pending";
   const doc = await invoices.findOneAndUpdate(
     { _id: input.id, owner },
     {
@@ -304,4 +377,49 @@ export async function runInvoiceSchedule(now = new Date(), owner?: string) {
     ),
   ]);
   return { issued: issued.length, reminded: reminders.length };
+}
+
+/**
+ * Public: locks the ZEC amount of a pending USD invoice for QUOTE_TTL_MS.
+ * Reuses a live quote; once a payment is reported the quote is frozen, so a
+ * partial payment is completed at the same rate.
+ */
+export async function quoteInvoice(token: string): Promise<InvoiceView | null> {
+  const invoices = await getInvoices();
+  const doc = await invoices.findOne({ token });
+  if (!doc) return null;
+  const now = new Date();
+  const live = doc.quotes?.at(-1);
+  if (
+    doc.currency !== "USD" ||
+    doc.status !== "pending" ||
+    BigInt(doc.paidZat) > 0n ||
+    (live && live.expiresAt > now)
+  )
+    return toView(doc);
+  const price = await zecUsd();
+  if (!price) throw new QuoteUnavailableError();
+  const micro = priceMicro(price.usd);
+  const zat = quoteZat(BigInt(doc.totalCents ?? "0"), micro).toString();
+  const quote: InvoiceQuote = {
+    zat,
+    priceMicro: micro.toString(),
+    issuedAt: now,
+    expiresAt: new Date(now.getTime() + QUOTE_TTL_MS),
+  };
+  // Only replace the quote that was stale when we read it (no double quotes).
+  const updated = await invoices.findOneAndUpdate(
+    {
+      _id: doc._id,
+      status: "pending",
+      paidZat: doc.paidZat,
+      ...(live ? { "quotes.expiresAt": live.expiresAt } : {}),
+    },
+    {
+      $push: { quotes: { $each: [quote], $slice: -10 } },
+      $set: { totalZat: zat, updatedAt: now },
+    },
+    { returnDocument: "after" },
+  );
+  return toView(updated ?? (await invoices.findOne({ _id: doc._id })) ?? doc);
 }

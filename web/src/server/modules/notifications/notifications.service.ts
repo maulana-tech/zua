@@ -109,7 +109,7 @@ async function emailInvoiceLink(
     kind === "invoiceIssued"
       ? {
           title: `Invoice ${invoice.number} from @${invoice.username}`,
-          message: `A new invoice for ${invoice.totalZec} ZEC is due on ${invoice.dueDate}. Pay it from any shielded Zcash wallet.`,
+          message: `A new invoice for ${invoice.currency === "USD" ? `${invoice.totalUsd} (paid in ZEC)` : `${invoice.totalZec} ZEC`} is due on ${invoice.dueDate}. Pay it from any shielded Zcash wallet.`,
           actionLabel: "View invoice",
           actionUrl: `${appUrl}/i/${invoice.token}`,
         }

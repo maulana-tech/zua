@@ -55,7 +55,16 @@ export type PaymentLinkDoc = {
 export type InvoiceItem = {
   description: string;
   quantity: number;
-  unitZat: string;
+  unitZat: string; // ZEC invoices ("0" for USD ones)
+  unitCents?: string; // USD invoices
+};
+
+/** A ZEC amount locked for a USD invoice (see features/invoices/money). */
+export type InvoiceQuote = {
+  zat: string;
+  priceMicro: string; // µ$ per ZEC
+  issuedAt: Date;
+  expiresAt: Date;
 };
 
 export type InvoiceDoc = {
@@ -66,7 +75,10 @@ export type InvoiceDoc = {
   clientName: string;
   clientEmail: string | null;
   items: InvoiceItem[];
-  totalZat: string;
+  totalZat: string; // USD invoices: the latest quote, "0" before one
+  currency?: "ZEC" | "USD";
+  totalCents?: string | null;
+  quotes?: InvoiceQuote[]; // newest last, at most 10
   payAddress?: SignedAddressDoc | null;
   notes: string;
   dueDate: string; // YYYY-MM-DD
