@@ -94,6 +94,47 @@ export async function emailInvoiceClient(
   });
 }
 
+/** Emails a client an invoice: a new one of a series, or a due reminder. */
+async function emailInvoiceLink(
+  invoice: InvoiceView,
+  clientEmail: string,
+  kind: "invoiceIssued" | "invoiceReminder",
+) {
+  const env = getServerEnv();
+  if (!env.RESEND_API_KEY) return;
+  const key = `${kind === "invoiceIssued" ? "invoice-issued" : "invoice-reminder"}:${invoice.id}`;
+  if (!(await recordNotificationLog(key, clientEmail, kind))) return;
+  const appUrl = env.APP_URL || "http://localhost:3000";
+  const content =
+    kind === "invoiceIssued"
+      ? {
+          title: `Invoice ${invoice.number} from @${invoice.username}`,
+          message: `A new invoice for ${invoice.totalZec} ZEC is due on ${invoice.dueDate}. Pay it from any shielded Zcash wallet.`,
+          actionLabel: "View invoice",
+          actionUrl: `${appUrl}/i/${invoice.token}`,
+        }
+      : {
+          title: `Invoice ${invoice.number} is overdue`,
+          message: `A friendly reminder: invoice ${invoice.number} from @${invoice.username} was due on ${invoice.dueDate}.`,
+          actionLabel: "Pay invoice",
+          actionUrl: `${appUrl}/i/${invoice.token}`,
+        };
+  await sendEmail({
+    to: clientEmail,
+    subject: content.title,
+    html: buildEmailHtml(content),
+    text: buildEmailText(content),
+  });
+}
+
+export const emailNewInvoice = (invoice: InvoiceView, clientEmail: string) =>
+  emailInvoiceLink(invoice, clientEmail, "invoiceIssued");
+
+export const emailInvoiceReminder = (
+  invoice: InvoiceView,
+  clientEmail: string,
+) => emailInvoiceLink(invoice, clientEmail, "invoiceReminder");
+
 /**
  * A payer pressed "I've paid" on a payment page. No amount, address or txid:
  * the server never learns those, and the email must not leak them either.

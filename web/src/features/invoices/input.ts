@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { zecToZat } from "../../lib/zcash/units";
+import { RECURRENCES } from "./recurrence";
 import type { InvoiceState } from "./types";
 
 const MAX_ZAT = 21_000_000n * 100_000_000n;
@@ -50,6 +51,7 @@ export const invoiceInput = z
       }, "Choose a valid due date."),
     notes: z.string().trim().max(1000).default(""),
     items: z.array(line).min(1).max(25),
+    recurrence: z.enum(RECURRENCES).default("none"),
     // Own diversified address for this invoice, signed by the owner.
     payAddress: z
       .object({

@@ -2,10 +2,19 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import type { MongoServerError } from "mongodb";
 import { invoiceTotal } from "../../../features/invoices/input";
+import {
+  nextDay,
+  nextIssueAt,
+  type Recurrence,
+} from "../../../features/invoices/recurrence";
 import type { InvoiceView } from "../../../features/invoices/types";
 import { newMemoId } from "../../../lib/zcash/memo";
 import { zatToZec, zecToZat } from "../../../lib/zcash/units";
 import { getInvoices, getProfiles, type InvoiceDoc } from "../../db/mongo";
+import {
+  emailInvoiceReminder,
+  emailNewInvoice,
+} from "../notifications/notifications.service";
 import { checkPayAddress } from "../profiles/profiles.service";
 import {
   InvoiceClosedError,
@@ -20,6 +29,7 @@ type CreateInput = {
   dueDate: string;
   notes: string;
   items: { description: string; quantity: number; unitPrice: string }[];
+  recurrence?: Recurrence;
   payAddress?: { claimJson: string; sigHex: string };
 };
 
@@ -44,6 +54,8 @@ async function toView(doc: InvoiceDoc): Promise<InvoiceView> {
     notes: doc.notes,
     dueDate: doc.dueDate,
     status: doc.status,
+    recurrence: doc.recurrence ?? "none",
+    nextIssueAt: doc.nextIssueAt?.toISOString() ?? null,
     paidTxids: doc.paidTxids,
     paidReportedAt: doc.paidReportedAt?.toISOString() ?? null,
     createdAt: doc.createdAt.toISOString(),
@@ -75,6 +87,11 @@ export async function createInvoice(
     notes: input.notes,
     dueDate: input.dueDate,
     status: "pending",
+    recurrence: input.recurrence ?? "none",
+    nextIssueAt: nextIssueAt(now, input.recurrence ?? "none"),
+    seriesNumber: input.number,
+    seriesIndex: 1,
+    reminderSentAt: null,
     paidZat: "0",
     paidTxids: [],
     paidReportedAt: null,
@@ -91,7 +108,120 @@ export async function createInvoice(
   return toView(doc);
 }
 
+/**
+ * Issues the next invoice of every series that is due (all owners, or one).
+ * The schedule moves to the new invoice; claiming the due one atomically
+ * keeps a cron run and a dashboard visit from issuing it twice.
+ */
+export async function issueDueRecurring(
+  now = new Date(),
+  owner?: string,
+): Promise<{ invoice: InvoiceView; clientEmail: string | null }[]> {
+  const invoices = await getInvoices();
+  const issued: { invoice: InvoiceView; clientEmail: string | null }[] = [];
+  for (;;) {
+    const due = await invoices.findOneAndUpdate(
+      {
+        ...(owner ? { owner } : {}),
+        recurrence: { $in: ["weekly", "monthly"] },
+        nextIssueAt: { $lte: now },
+        status: { $ne: "void" },
+      },
+      { $set: { recurrence: "none", nextIssueAt: null, updatedAt: now } },
+      { returnDocument: "before" },
+    );
+    if (!due) break;
+    const recurrence = due.recurrence ?? "none";
+    const index = (due.seriesIndex ?? 1) + 1;
+    const series = due.seriesNumber ?? due.number;
+    const issuedAt = due.nextIssueAt ?? now;
+    const child: InvoiceDoc = {
+      _id: newMemoId(),
+      owner: due.owner,
+      number: `${series}-${index}`,
+      token: randomBytes(24).toString("base64url"),
+      clientName: due.clientName,
+      clientEmail: due.clientEmail,
+      items: due.items,
+      totalZat: due.totalZat,
+      // Same signed address as the series: the server can't sign new ones.
+      payAddress: due.payAddress ?? null,
+      notes: due.notes,
+      dueDate: nextDay(due.dueDate, recurrence),
+      status: "pending",
+      recurrence,
+      nextIssueAt: nextIssueAt(issuedAt, recurrence),
+      seriesNumber: series,
+      seriesIndex: index,
+      reminderSentAt: null,
+      paidZat: "0",
+      paidTxids: [],
+      paidReportedAt: null,
+      createdAt: issuedAt,
+      updatedAt: now,
+    };
+    try {
+      await invoices.insertOne(child).catch(async (e) => {
+        // The owner already used this number by hand: keep it unique.
+        if ((e as MongoServerError).code !== 11000) throw e;
+        child.number = `${series}-${index}-${child._id.slice(0, 4)}`;
+        await invoices.insertOne(child);
+      });
+    } catch (e) {
+      // Put the schedule back so the next run retries.
+      await invoices.updateOne(
+        { _id: due._id },
+        { $set: { recurrence, nextIssueAt: due.nextIssueAt ?? null } },
+      );
+      throw e;
+    }
+    issued.push({
+      invoice: await toView(child),
+      clientEmail: child.clientEmail,
+    });
+  }
+  return issued;
+}
+
+/** Overdue, unpaid invoices whose client hasn't been reminded yet. */
+export async function claimDueReminders(
+  now = new Date(),
+  owner?: string,
+): Promise<{ invoice: InvoiceView; clientEmail: string }[]> {
+  const invoices = await getInvoices();
+  const today = now.toISOString().slice(0, 10);
+  const out: { invoice: InvoiceView; clientEmail: string }[] = [];
+  for (;;) {
+    const doc = await invoices.findOneAndUpdate(
+      {
+        ...(owner ? { owner } : {}),
+        status: "pending",
+        dueDate: { $lt: today },
+        clientEmail: { $ne: null },
+        reminderSentAt: null, // also matches invoices from before reminders
+      },
+      { $set: { reminderSentAt: now } },
+      { returnDocument: "after" },
+    );
+    if (!doc?.clientEmail) break;
+    out.push({ invoice: await toView(doc), clientEmail: doc.clientEmail });
+  }
+  return out;
+}
+
+export async function stopRecurring(owner: string, id: string) {
+  const doc = await (await getInvoices()).findOneAndUpdate(
+    { _id: id, owner },
+    { $set: { recurrence: "none", nextIssueAt: null, updatedAt: new Date() } },
+    { returnDocument: "after" },
+  );
+  if (!doc) throw new InvoiceNotFoundError();
+  return toView(doc);
+}
+
 export async function listInvoices(owner: string): Promise<InvoiceView[]> {
+  // Catch up on this owner's schedule even if the cron hasn't run.
+  await runInvoiceSchedule(new Date(), owner).catch(() => {});
   const docs = await (await getInvoices())
     .find({ owner })
     .sort({ createdAt: -1 })
@@ -155,4 +285,23 @@ export async function invoiceClientEmail(id: string): Promise<string | null> {
   return (
     (await (await getInvoices()).findOne({ _id: id }))?.clientEmail ?? null
   );
+}
+
+/**
+ * The schedule job: issue due recurring invoices and remind clients of
+ * overdue ones, by email when configured. Run by the cron route for
+ * everyone and when an owner opens their invoices.
+ */
+export async function runInvoiceSchedule(now = new Date(), owner?: string) {
+  const issued = await issueDueRecurring(now, owner);
+  const reminders = await claimDueReminders(now, owner);
+  await Promise.allSettled([
+    ...issued.flatMap(({ invoice, clientEmail }) =>
+      clientEmail ? [emailNewInvoice(invoice, clientEmail)] : [],
+    ),
+    ...reminders.map(({ invoice, clientEmail }) =>
+      emailInvoiceReminder(invoice, clientEmail),
+    ),
+  ]);
+  return { issued: issued.length, reminded: reminders.length };
 }

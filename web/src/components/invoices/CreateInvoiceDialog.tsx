@@ -3,6 +3,7 @@
 import { Plus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { invoiceInput, invoiceTotal } from "../../features/invoices/input";
+import type { Recurrence } from "../../features/invoices/recurrence";
 import type { InvoiceView } from "../../features/invoices/types";
 import { zatToZec } from "../../lib/zcash/units";
 import { api } from "../../trpc/client";
@@ -39,6 +40,7 @@ export function CreateInvoiceDialog({
       new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
     ),
     [notes, setNotes] = useState("");
+  const [recurrence, setRecurrence] = useState<Recurrence>("none");
   const [clientEmail, setClientEmail] = useState(""),
     [lines, setLines] = useState([emptyLine()]),
     [error, setError] = useState(""),
@@ -91,6 +93,7 @@ export function CreateInvoiceDialog({
       dueDate,
       notes,
       items: inputItems,
+      recurrence,
     });
     if (!parsed.success) {
       setError(
@@ -111,6 +114,7 @@ export function CreateInvoiceDialog({
         dueDate,
         notes,
         items: inputItems,
+        recurrence,
         payAddress,
       });
       if (mounted.current && session.current === at) {
@@ -120,6 +124,7 @@ export function CreateInvoiceDialog({
         setClientName("");
         setClientEmail("");
         setNotes("");
+        setRecurrence("none");
         setLines([emptyLine()]);
       }
     } catch (e) {
@@ -191,6 +196,19 @@ export function CreateInvoiceDialog({
                 onChange={(e) => setDueDate(e.target.value)}
                 required
               />
+            </label>
+            <label className="grid gap-2 text-sm" htmlFor="invoice-repeat">
+              Repeat
+              <select
+                id="invoice-repeat"
+                className="min-h-11 rounded-(--dash-radius-sm) border border-(--dash-line-strong) bg-transparent px-3 text-sm"
+                value={recurrence}
+                onChange={(e) => setRecurrence(e.target.value as Recurrence)}
+              >
+                <option value="none">Does not repeat</option>
+                <option value="weekly">Every week</option>
+                <option value="monthly">Every month</option>
+              </select>
             </label>
             <label className="grid gap-2 text-sm" htmlFor="invoice-email">
               Client email (optional)

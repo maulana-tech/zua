@@ -23,6 +23,9 @@ export type InvoiceView = {
   notes: string;
   dueDate: string;
   status: InvoiceState;
+  recurrence: "none" | "weekly" | "monthly";
+  /** ISO time the next invoice of the series is issued, if it repeats. */
+  nextIssueAt: string | null;
   paidTxids: string[];
   paidReportedAt: string | null;
   createdAt: string;

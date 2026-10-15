@@ -28,6 +28,7 @@ import {
   listInvoices,
   publicInvoice,
   reportPayment,
+  stopRecurring,
   voidInvoice,
 } from "./invoices.service";
 
@@ -56,6 +57,13 @@ export const invoicesRouter = createTRPCRouter({
     .input(z.object({ id: invoiceId }).strict())
     .mutation(async ({ ctx, input }) =>
       voidInvoice(await requireUsername(ctx.privyUserId), input.id).catch(
+        mapError,
+      ),
+    ),
+  stopRecurring: protectedProcedure
+    .input(z.object({ id: invoiceId }).strict())
+    .mutation(async ({ ctx, input }) =>
+      stopRecurring(await requireUsername(ctx.privyUserId), input.id).catch(
         mapError,
       ),
     ),

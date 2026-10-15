@@ -71,6 +71,12 @@ export type InvoiceDoc = {
   notes: string;
   dueDate: string; // YYYY-MM-DD
   status: "pending" | "paid" | "void";
+  // Recurring series: only the newest invoice keeps the schedule.
+  recurrence?: "none" | "weekly" | "monthly";
+  nextIssueAt?: Date | null;
+  seriesNumber?: string; // number of the first invoice in the series
+  seriesIndex?: number; // 1 for the first invoice
+  reminderSentAt?: Date | null;
   paidZat: string;
   paidTxids: string[];
   paidReportedAt: Date | null;
@@ -128,7 +134,13 @@ export type NotificationSettingsDoc = {
 export type NotificationLogDoc = {
   _id: string; // unique event key, e.g. "invoice-paid:<id>"
   recipientEmail: string;
-  eventType: "invoicePaid" | "paymentPing" | "requestReceived" | "test";
+  eventType:
+    | "invoicePaid"
+    | "invoiceIssued"
+    | "invoiceReminder"
+    | "paymentPing"
+    | "requestReceived"
+    | "test";
   sentAt: Date;
 };
 

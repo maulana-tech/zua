@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Copy, Download, ExternalLink, Plus, QrCode } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { invoiceStatus } from "../../features/invoices/input";
+import { recurrenceLabel } from "../../features/invoices/recurrence";
 import type { InvoiceView } from "../../features/invoices/types";
 import { SIGN_IN_PATH } from "../../lib/auth-routes";
 import { downloadInvoicePdf } from "../../lib/invoicePdf";
@@ -175,6 +176,25 @@ export function InvoiceRow({
       if (alive.current) setDownloading(false);
     }
   }
+  async function stopRepeating() {
+    if (busy.current) return;
+    busy.current = true;
+    setWorking(true);
+    setMessage("");
+    try {
+      await api.invoices.stopRecurring.mutate({ id: invoice.id });
+      if (alive.current) {
+        setMessage("This invoice won't repeat anymore.");
+        onChanged();
+      }
+    } catch (e) {
+      if (alive.current)
+        setMessage(e instanceof Error ? e.message : "Couldn't stop it.");
+    } finally {
+      busy.current = false;
+      if (alive.current) setWorking(false);
+    }
+  }
   async function cancel() {
     if (busy.current) return;
     busy.current = true;
@@ -211,6 +231,9 @@ export function InvoiceRow({
           </a>
           <p className="mt-1 break-words text-sm text-(--dash-ash)">
             {invoice.clientName} · Due {invoice.dueDate} UTC
+            {invoice.recurrence !== "none" && invoice.nextIssueAt
+              ? ` · ${recurrenceLabel(invoice.recurrence)}, next on ${invoice.nextIssueAt.slice(0, 10)}`
+              : ""}
             {invoice.status === "pending" && invoice.paidZat !== "0"
               ? ` · ${zatToZec(BigInt(invoice.paidZat))} ZEC received so far`
               : ""}
@@ -261,6 +284,16 @@ export function InvoiceRow({
             onClick={() => setVoidOpen(true)}
           >
             Void invoice
+          </button>
+        )}
+        {invoice.recurrence !== "none" && (
+          <button
+            type="button"
+            className={`${dashButtonSecondary} min-h-11`}
+            disabled={working}
+            onClick={() => void stopRepeating()}
+          >
+            Stop repeating
           </button>
         )}
       </div>

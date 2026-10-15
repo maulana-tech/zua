@@ -65,7 +65,11 @@ pnpm --filter web migrate:up
 
 - `RESEND_API_KEY`, `EMAIL_FROM`, `APP_URL`: emails for paid invoices, payment
   pings and new requests, plus the paid-invoice receipt email to clients.
-- `CRON_SECRET`: only needed if you call cron routes.
+- `CRON_SECRET`: protects `GET /api/cron/invoices`, which issues the next
+  invoice of recurring series and emails overdue reminders. Call it hourly
+  with `Authorization: Bearer $CRON_SECRET` (for example a Vercel cron or
+  `curl` from any scheduler). Without it, a series still catches up whenever
+  its owner opens Invoices.
 
 ## 4. Run
 
