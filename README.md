@@ -1,81 +1,117 @@
 # Zua: shielded ZEC payments
 
-Zua lets freelancers and small businesses get paid in **ZEC** with a username,
-a payment link or an invoice. Every payment is a **shielded Zcash
-transaction**: the blockchain records that something happened, not who paid
-whom or how much.
+Zua lets freelancers, creators and small shops get paid in **ZEC** with a
+username, a payment link, an invoice or a widget on their own site. Every
+payment is a **shielded Zcash transaction**: the blockchain records that
+something happened, not who paid whom or how much. The wallet runs in the
+browser; Zua's server never holds keys and never sees a payment.
 
-- **No seed phrase.** Sign in with email or Google, protect the account with a
-  passkey (or a 6-digit PIN). The Zcash wallet is derived from it on each
-  device and lives in browser memory only.
-- **Any Zcash wallet can pay.** Links and invoices are standard
-  [ZIP-321](https://zips.z.cash/zip-0321) payment requests, so clients scan a QR
-  code with Zodl or any shielded wallet. No Zua account needed.
-- **Invoices mark themselves paid.** Each invoice carries an encrypted memo tag
-  (`zua:inv:<id>`). When the owner's wallet syncs and finds a payment with that
-  tag, the invoice turns paid, partial payments included. The server never sees
-  the payment.
-- **Verified usernames.** `@username → address` is a claim signed with a key
-  derived from the owner's passkey/PIN. Payers check the signature in their
-  browser before a QR code is shown, so the server can't swap an address.
-- **An address per invoice and link.** Each invoice and payment link gets its
-  own diversified address, signed by the owner. Two clients can't tell they
-  paid the same person.
-- **Receipts proven on chain.** A receipt (or a payer's proof of payment, or
-  a period statement for an accountant) carries the note keys of just those
-  outputs. `/verify` decrypts them from the chain and checks the commitments:
-  amounts and memos are proven, nothing else is opened.
-- **Payroll.** Pay up to 50 people in one shielded transaction, from a form or
-  a CSV, each with a private note.
+Built for **ZECATHON**, Shielded Payments track.
+
+## Features
+
+**Get paid**
+
+- **@username and payment links.** Public pages with a
+  [ZIP-321](https://zips.z.cash/zip-0321) QR that any shielded Zcash wallet
+  (Zodl, …) can pay. Payers need no Zua account.
+- **Invoices that mark themselves paid.** Each invoice carries an encrypted
+  memo tag (`zua:inv:<id>`). When the owner's wallet syncs and finds a
+  payment with that tag, the invoice turns paid, partial payments included.
+  PDF export and a client receipt email.
 - **Recurring and USD invoices.** Weekly or monthly invoices that issue
-  themselves with email reminders; prices in USD paid in ZEC at a rate locked
-  for 30 minutes.
+  themselves, with overdue reminders. Prices in USD, paid in ZEC at a rate
+  locked for 30 minutes.
+- **Payment requests.** Ask another @username for a payment, end-to-end
+  encrypted (the server stores ciphertext only).
 - **On your own site.** A one-line "Pay with Zcash" widget, and a Checkout
-  API with signed webhooks for shops ([docs/api.md](docs/api.md)). Still
-  shielded: a checkout turns paid when your own wallet reports it.
-- **Claim links.** Send ZEC to someone without an address as a link (after
-  ZIP 324, draft). The key stays in the URL fragment; the sender can take the
-  funds back until they're claimed.
+  API with HMAC-signed webhooks for shops ([docs/api.md](docs/api.md)).
 
-Built for **ZECATHON** (Shielded Payments track).
+**Pay**
+
+- **Send** to a @username, an address or a `zcash:` link, with a private
+  memo. Proving (Halo 2) happens in the browser.
+- **Payroll.** Pay up to 50 people in one shielded transaction, from a form
+  or a CSV, each with their own note.
+- **Claim links.** Send ZEC to someone without a wallet as a link, after
+  [ZIP 324](https://zips.z.cash/zip-0324) (draft). The key stays in the URL
+  fragment; the sender can take the funds back until they are claimed.
+
+**Prove**
+
+- **Receipts proven on chain.** A receipt for a payment received, a payer's
+  proof of payment, or a period **income statement** for an accountant. Each
+  carries the note encryption keys of just those outputs; `/verify` decrypts
+  them from the chain and checks the note commitments. Amounts and memos are
+  proven; no viewing key, balance or other payment is revealed.
+
+**Privacy by construction**
+
+- **No seed phrase.** Sign in with email or Google, protect the account with
+  a passkey (PRF) or a 6-digit PIN. The Zcash wallet is derived from it in the
+  browser; the 24 words can be exported to any Zcash wallet.
+- **Verified usernames.** `@username → address` is signed with a key derived
+  from the owner's passkey/PIN. Payers check it in their browser, so the
+  server can't swap an address.
+- **An address per invoice, link and checkout.** Diversified addresses, each
+  signed by the owner: two payers can't tell they paid the same person.
 
 ## How it works
 
 ```
-Browser                                        Server (Next.js + MongoDB)
-├─ Passkey PRF / PIN escrow → account master   ├─ accounts: PIN escrow, passkey record
-├─ HKDF → BIP39 seed (24 words, memory only)   ├─ profiles: @username → UA + signed claim
-├─ WebZjs (WASM): ZIP-32 account, sync,        ├─ paymentLinks, invoices (no payment data)
-│  balance, memos, Halo 2 proving, send        └─ notifications (email, opt-in)
-└─ Encrypted wallet DB cache (IndexedDB)
+Browser                                          Server (Next.js + MongoDB)
+├─ Passkey PRF / PIN escrow → account master     ├─ accounts, profiles (signed claims)
+├─ HKDF → BIP39 seed, signing & messaging keys   ├─ paymentLinks, invoices, requests
+├─ Wallet (Rust → WASM, webzjs/):                ├─ claimLinks, developer (API keys, webhooks)
+│  ZIP-32 account, sync, Ironwood + Orchard,     ├─ REST /api/v1/checkouts, cron /api/cron/invoices
+│  memos, Halo 2 proving, payment disclosure     └─ email notifications (opt-in)
+├─ Encrypted wallet DB cache (IndexedDB)
+└─ Reports "paid" for its own invoices/checkouts ──▶ webhooks to the merchant
         │ gRPC-web
         ▼
-lightwalletd (ChainSafe proxy) → zebrad → Zcash mainnet
+lightwalletd (ChainSafe proxy) → Zebra → Zcash (mainnet NU6.3 / testnet NU7)
 ```
 
-What the server knows: your email, username, public address, the links and
-invoices you create, and invoice status as reported by your own wallet. It never
-sees your seed, viewing keys, balance, history, senders or amounts.
+**What the server knows:** your email, username and public addresses; the
+invoices, links and checkouts you create (amounts, client names); who
+requested payment from whom (contents encrypted); and paid status *as your
+own wallet reports it*. **It never sees** your seed or viewing keys, balance,
+history, who paid you or what you sent. There is deliberately no server-side
+scanning: a checkout turns paid when your wallet, open in a browser, finds
+the payment.
+
+### Zcash under the hood
+
+- **Network upgrades:** mainnet NU6.3 (Ironwood pool) and testnet NU7, from
+  one WASM build. Upstream WebZjs stops at NU6.1, whose transactions mainnet
+  now rejects, so we ported it to the current librustzcash crates
+  (`zcash_client_backend`, `zcash_client_sqlite` on SQLite compiled to WASM).
+- **ZIPs:** 321 (payment URIs), 316 (unified addresses), 32 (HD keys), 317
+  (fees), 302 (memos), 212/2005 (Orchard v2 / Ironwood v3 note plaintexts),
+  318 (pool migration, via the library), 324 (inspiration for claim links).
+- **Payment disclosure** (`webzjs/crates/webzjs-wallet/src/disclosure.rs`):
+  the recipient reveals K_enc = KDF(KA.Agree(ivk, epk), epk) for one output;
+  the sender can recover the same key from its outgoing viewing key. The
+  verifier decrypts that output with ChaCha20-Poly1305, rebuilds the note
+  and checks it against `cmx` on chain.
 
 ## Repository
 
-- `web/` - Next.js 15 app (React 19, tRPC 11, MongoDB, Privy for login).
-  - `src/lib/zcash/` - wallet wrapper (WebZjs), ZIP-321, memo tags, units,
-    address checks, seed derivation, encrypted wallet cache.
-  - `src/lib/profileClaim.ts` - signed username → address claims.
-  - `src/server/modules/` - `accounts`, `profiles`, `paymentLinks`, `invoices`,
-    `notifications`.
-- `webzjs/` - the wallet's Rust source: our fork of
-  [ChainSafe WebZjs](https://github.com/ChainSafe/WebZjs) (MIT/Apache-2.0,
-  history kept), ported to the
-  current Zcash crates (mainnet NU6.3, testnet NU7): it scans and spends the **Ironwood** pool,
-  stores the wallet in `zcash_client_sqlite` on SQLite compiled to WASM, sends
-  memos, and discloses single payments for receipts.
-- `docs/superpowers/` - migration plan and design spec.
+| Path | What |
+|---|---|
+| `web/` | Next.js 15 app (React 19, tRPC 11, MongoDB, Privy for login only) |
+| `web/src/lib/zcash/` | wallet wrapper, ZIP-321, memo tags, units, seed derivation, encrypted cache |
+| `web/src/lib/` | `profileClaim.ts` and `addressClaim.ts` (signed username/address claims), `sealedBox.ts` |
+| `web/src/features/` | receipts (v3 + verifier), invoices (recurrence, USD money), claim links, payroll CSV, embed |
+| `web/src/server/modules/` | `accounts`, `profiles`, `paymentLinks`, `invoices`, `requests`, `claimLinks`, `developer`, `notifications` |
+| `web/public/embed.js` | the "Pay with Zcash" widget (no build step) |
+| `webzjs/` | the wallet's Rust source: our fork of [ChainSafe WebZjs](https://github.com/ChainSafe/WebZjs) (MIT/Apache-2.0, history kept) |
+| `packages/webzjs-wallet/` | prebuilt WASM of `webzjs/`, so the app runs without a Rust toolchain |
+| `docs/` | [`setup.md`](docs/setup.md) (setup, testnet, test checklist), [`api.md`](docs/api.md) (widget, API, webhooks), `superpowers/` (design spec) |
 
 ## Run locally
 
-Full walkthrough, including free testnet coins and a test checklist:
+Full walkthrough, including free testnet coins and an end-to-end checklist:
 [`docs/setup.md`](docs/setup.md).
 
 Requirements: Node 22+, pnpm 10, MongoDB (local or Atlas), a Privy app with
@@ -83,33 +119,44 @@ Requirements: Node 22+, pnpm 10, MongoDB (local or Atlas), a Privy app with
 
 ```sh
 pnpm install
-cp web/.env.example web/.env.local   # fill in Privy + MongoDB
+cp web/.env.example web/.env.local   # Privy, MongoDB; NEXT_PUBLIC_ZCASH_NETWORK=test for free TAZ
 pnpm --filter web migrate:up
 pnpm dev                             # http://localhost:3000
-pnpm --filter web test
 ```
 
-`NEXT_PUBLIC_ZCASH_NETWORK=main` works out of the box. For free testing set
-`NEXT_PUBLIC_ZCASH_NETWORK=test` (testnet, NU7) and get TAZ from a testnet
-faucet; the lightwalletd proxy and explorer default to the chosen network. Use
-small amounts on mainnet: the wallet library is unaudited.
+Use small amounts on mainnet: the wallet library is unaudited.
 
-### Rebuilding the wallet package
+## Tests
 
-Upstream WebZjs stops at NU6.1, so transactions it builds are rejected on
-today's mainnet. Our port lives in `webzjs/`; `packages/webzjs-wallet/` is its
-prebuilt output, so the app runs without a Rust toolchain.
+```sh
+pnpm --filter web test        # unit tests (Vitest)
+pnpm wallet:test              # native Rust tests: payment disclosure, sender recovery
+```
+
+Integration tests (recurring and USD invoices, Checkout API, signed webhooks)
+run against a local MongoDB in throwaway databases:
+
+```sh
+mongod --dbpath /tmp/zua-mongo --port 27047 --fork --logpath /tmp/zua-mongo.log
+ZUA_TEST_MONGODB_URI=mongodb://127.0.0.1:27047 pnpm --filter web test
+```
+
+`pnpm --filter web biome:check`, `pnpm lint` and
+`pnpm --filter web exec tsc --noEmit` keep style, lint and types clean.
+`web/scripts/webhook-receiver.mjs` prints and verifies webhooks locally.
+
+## Rebuilding the wallet
 
 ```sh
 brew install wasm-pack just llvm
 cargo +stable install wasm-bindgen-cli --version 0.2.129 --locked
 pnpm wallet:build   # webzjs/ → packages/webzjs-wallet → web/public/webzjs
-pnpm wallet:test    # native Rust tests (payment disclosure)
 ```
 
+The build is reproducible: rebuilding gives the committed WASM byte for byte.
 `pnpm dev` / `pnpm build` copy the package to `web/public/webzjs`
-(`web/scripts/sync-webzjs.mjs`); the browser loads it as native ES modules so
-its thread workers resolve.
+(`web/scripts/sync-webzjs.mjs`), where the browser loads it as native ES
+modules so its thread workers resolve.
 
 ## Environment
 
@@ -120,24 +167,28 @@ its thread workers resolve.
 | `NEXT_PUBLIC_ZCASH_EXPLORER_TX_URL` | optional, `{txid}` is replaced (defaults to zcashexplorer.app) |
 | `NEXT_PUBLIC_MIN_CONFIRMATIONS` | confirmations before funds are spendable (default 3) |
 | `NEXT_PUBLIC_PRIVY_APP_ID`, `PRIVY_APP_ID`, `PRIVY_APP_SECRET` | login |
-| `MONGODB_URI` | include a database name, e.g. `/zcash-app` |
-| `RESEND_API_KEY`, `EMAIL_FROM`, `APP_URL` | optional email notifications |
+| `MONGODB_URI` | include a database name, e.g. `/zua` |
+| `CRON_SECRET` | protects `/api/cron/invoices` (recurring invoices, reminders) |
+| `RESEND_API_KEY`, `EMAIL_FROM`, `APP_URL` | optional email; `APP_URL` also builds API and webhook links |
 
 ## Limits and honest caveats
 
-- WebZjs and lightwalletd access are unaudited; treat Zua as experimental.
-- Invoice "paid" status is reported by the owner's wallet; the server cannot
-  verify shielded payments by design.
-- Cashing out to a transparent address (an exchange) makes that payment public;
-  the app warns before it does.
-- The ZIP-317 fee shown before sending is an estimate; the wallet computes the
-  exact fee.
-- What the server knows (metadata): usernames, the invoices and links you
-  create (amounts, client names), who requested payment from whom (request
-  contents are end-to-end encrypted) and paid status as your wallet reports
-  it. It never sees balances, history or who actually paid.
-- A payer's "proof of payment" proves the payment on chain; that the signer
-  is the payer is their signed statement (the recipient knows the same note
-  key).
-- Claim links are bearer links: anyone who sees one can claim it. Their format
-  is Zua's own (ZIP 324 is a Sapling-era draft).
+- The wallet library and lightwalletd access are unaudited, and the Zcash
+  crates are pre-releases: treat Zua as experimental.
+- "Paid" (invoices, checkouts, webhooks) is reported by the owner's wallet;
+  the server can't verify shielded payments by design, and confirmations
+  arrive while the owner's dashboard is open.
+- Cashing out to a transparent address (an exchange) makes that payment
+  public; the app warns first. Payers sending from transparent addresses
+  reveal their side.
+- A payer's proof of payment proves the payment on chain; that the signer is
+  the payer is their signed statement (the recipient knows the same key).
+- Claim links are bearer links: anyone who sees one can claim it. Their
+  format is Zua's own (ZIP 324 is a Sapling-era draft).
+- The ZIP-317 fee shown before a simple send is an estimate; the wallet
+  computes the exact fee (batch payments show it before you confirm).
+
+## License
+
+The app is unlicensed for now. `webzjs/` keeps ChainSafe's MIT/Apache-2.0
+licenses (`webzjs/LICENSE-MIT`, `webzjs/LICENSE-APACHE`).
