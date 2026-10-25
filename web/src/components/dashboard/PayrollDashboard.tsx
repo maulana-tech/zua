@@ -12,7 +12,7 @@ import {
   type Recipient,
   resolveRecipient,
 } from "../../features/zcash/resolveRecipient";
-import { formatUsd, useZecPrice } from "../../features/zcash/useZecPrice";
+import { useFiat } from "../../features/zcash/useZecPrice";
 import { downloadText } from "../../lib/download";
 import { unlockLabel } from "../../lib/passkey";
 import { isShielded } from "../../lib/zcash/address";
@@ -60,7 +60,7 @@ export function PayrollDashboard() {
     proposePayments,
     proveProposal,
   } = useWallet();
-  const price = useZecPrice();
+  const fiat = useFiat();
   const file = useRef<HTMLInputElement>(null);
   const [rows, setRows] = useState<Row[]>(() => [blankRow(), blankRow()]);
   const [stage, setStage] = useState<Stage>("edit");
@@ -388,7 +388,7 @@ export function PayrollDashboard() {
                       <dt>Total</dt>
                       <dd className="tabular-nums">
                         {zatToZec(proposed.sendZat + proposed.feeZat)} ZEC ·{" "}
-                        {formatUsd(proposed.sendZat + proposed.feeZat, price)}
+                        {fiat.format(proposed.sendZat + proposed.feeZat)}
                       </dd>
                     </div>
                   </dl>

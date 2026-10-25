@@ -9,7 +9,7 @@ import {
   sweepClaim,
 } from "../../features/claims/ephemeral";
 import { CLAIM_SWEEP_FEE_ZAT, claimLinkUrl } from "../../features/claims/link";
-import { formatUsd, useZecPrice } from "../../features/zcash/useZecPrice";
+import { useFiat } from "../../features/zcash/useZecPrice";
 import { unlockLabel } from "../../lib/passkey";
 import { memoBytes } from "../../lib/zcash/memo";
 import { zatToZec, zecToZat } from "../../lib/zcash/units";
@@ -43,7 +43,7 @@ export function ClaimLinksDashboard() {
     send,
     claimKey,
   } = useWallet();
-  const price = useZecPrice();
+  const fiat = useFiat();
   const utils = trpc.useUtils();
   const list = trpc.claimLinks.list.useQuery(undefined, {
     enabled: accountUnlocked,
@@ -183,7 +183,8 @@ export function ClaimLinksDashboard() {
                   ? (() => {
                       try {
                         const zat = zecToZat(amount) + CLAIM_SWEEP_FEE_ZAT;
-                        return `You send ${zatToZec(zat)} ZEC (${formatUsd(zat, price)}), which includes the fee the claimer pays to move it, plus the network fee for this transaction.`;
+                        const value = fiat.format(zat);
+                        return `You send ${zatToZec(zat)} ZEC${value ? ` (${value})` : ""}, which includes the fee the claimer pays to move it, plus the network fee for this transaction.`;
                       } catch {
                         return "";
                       }

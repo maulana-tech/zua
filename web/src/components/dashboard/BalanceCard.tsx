@@ -2,7 +2,7 @@
 
 import { ArrowDownLeft, ArrowUpRight, Lock, RefreshCw } from "lucide-react";
 import Link from "next/link";
-import { formatUsd, useZecPrice } from "../../features/zcash/useZecPrice";
+import { useFiat } from "../../features/zcash/useZecPrice";
 import { SEND_PATH } from "../../lib/auth-routes";
 import { zatToZec } from "../../lib/zcash/units";
 import type { ZcashState } from "../WalletProvider";
@@ -38,7 +38,7 @@ export function BalanceCard({
   onReceive?: () => void;
   onSync: () => void;
 }) {
-  const price = useZecPrice();
+  const fiat = useFiat();
   const spendable = zcash.balances?.spendable ?? null;
   const pending =
     (zcash.balances?.pendingChange ?? 0n) +
@@ -97,7 +97,7 @@ export function BalanceCard({
             <span className="text-[0.45em] text-(--dash-ash)">ZEC</span>
           </p>
           <p className="mt-2 text-sm text-(--dash-ash) tabular-nums">
-            {spendable !== null ? formatUsd(spendable, price) : null}
+            {spendable !== null ? fiat.format(spendable) : null}
             {pending > 0n ? ` · ${zatToZec(pending)} ZEC confirming` : null}
           </p>
           <p className="mt-4 text-xs text-(--dash-ash)" role="status">

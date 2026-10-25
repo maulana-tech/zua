@@ -8,7 +8,7 @@ import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { QrPanel } from "../../../components/zcash/QrPanel";
 import { postToParent, useEmbedBridge } from "../../../features/embed/bridge";
-import { formatUsd, useZecPrice } from "../../../features/zcash/useZecPrice";
+import { useFiat } from "../../../features/zcash/useZecPrice";
 import { verifiedAddress } from "../../../lib/addressClaim";
 import { APP_NAME } from "../../../lib/brand";
 import { verifyClaim } from "../../../lib/profileClaim";
@@ -39,7 +39,7 @@ export function PayView({
     { enabled: Boolean(slug), retry: 1 },
   );
   const ping = trpc.notifications.paymentPing.useMutation();
-  const price = useZecPrice();
+  const fiat = useFiat();
   const [amount, setAmount] = useState(initialAmount ?? "");
   const [note, setNote] = useState("");
   const [paid, setPaid] = useState(false);
@@ -168,7 +168,7 @@ export function PayView({
               <p className="text-2xl font-semibold tabular-nums">
                 {link.data?.amountZec} ZEC{" "}
                 <span className="text-sm font-normal opacity-70">
-                  {formatUsd(fixedZat, price)}
+                  {fiat.format(fixedZat)}
                 </span>
               </p>
             ) : (
@@ -186,7 +186,7 @@ export function PayView({
                 />
                 {typeof amountZat === "bigint" ? (
                   <span className="text-xs font-normal opacity-70">
-                    {formatUsd(amountZat, price)}
+                    {fiat.format(amountZat)}
                   </span>
                 ) : null}
               </label>

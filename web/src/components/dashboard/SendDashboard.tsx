@@ -7,7 +7,7 @@ import {
   type Recipient,
   resolveRecipient,
 } from "../../features/zcash/resolveRecipient";
-import { formatUsd, useZecPrice } from "../../features/zcash/useZecPrice";
+import { useFiat } from "../../features/zcash/useZecPrice";
 import { unlockLabel } from "../../lib/passkey";
 import { isShielded } from "../../lib/zcash/address";
 import { MAX_MEMO_BYTES, memoBytes } from "../../lib/zcash/memo";
@@ -41,7 +41,7 @@ type Stage =
 export function SendDashboard() {
   const { accountUnlocked, promptUnlock, recoveryMethod, zcash, send } =
     useWallet();
-  const price = useZecPrice();
+  const fiat = useFiat();
   const params = useSearchParams();
   const requestId = params.get("request");
   const markPaid = trpc.requests.markPaid.useMutation();
@@ -224,8 +224,7 @@ export function SendDashboard() {
                   disabled={busy}
                 />
                 <span className="text-xs font-normal text-(--dash-ash)">
-                  Available: {zatToZec(spendable)} ZEC{" "}
-                  {formatUsd(spendable, price)}
+                  Available: {zatToZec(spendable)} ZEC {fiat.format(spendable)}
                 </span>
               </label>
               <label className="grid gap-1.5 text-sm font-medium">
@@ -275,7 +274,7 @@ export function SendDashboard() {
                 <div>
                   <dt className="text-(--dash-ash)">Amount</dt>
                   <dd className="mt-1 tabular-nums">
-                    {amount} ZEC {formatUsd(zecToZat(amount), price)}
+                    {amount} ZEC {fiat.format(zecToZat(amount))}
                   </dd>
                 </div>
                 <div>

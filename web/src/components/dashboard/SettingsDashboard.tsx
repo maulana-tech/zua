@@ -12,6 +12,8 @@ import {
 import { EmailNotificationsRow } from "../../features/notifications/EmailNotificationsRow";
 import { useChangeRecoveryPin } from "../../features/recovery/hooks/useChangeRecoveryPin";
 import { PaymentAlertsRow } from "../../features/zcash/PaymentAlertsRow";
+import { setDisplayCurrency, useFiat } from "../../features/zcash/useZecPrice";
+import { FIAT_CURRENCIES, isFiatCode } from "../../lib/fiat";
 import { trpc } from "../../trpc/react";
 import { ACCOUNT_TYPE_ICONS } from "../AccountTypeDialog";
 import { Badge } from "../ui/badge";
@@ -53,6 +55,7 @@ export function SettingsDashboard() {
       <div className={`${dashLedger} max-w-3xl`}>
         <IdentityTile username={username} onClaim={openUsernameModal} />
         <AccountTypeTile />
+        <DisplayCurrencyRow />
         <ZcashWalletTile />
         {username ? <WebsiteWidgetTile username={username} /> : null}
         <PaymentAlertsRow />
@@ -273,6 +276,41 @@ function AccountTypeTile() {
           </ul>
         </div>
       ) : null}
+    </SettingsRow>
+  );
+}
+
+function DisplayCurrencyRow() {
+  const fiat = useFiat();
+  return (
+    <SettingsRow
+      title="Display currency"
+      description="Balances and amounts also show an estimate in this currency. Payments are always made in ZEC."
+      aside={
+        fiat.rate ? (
+          <span className="text-xs text-(--dash-ash) tabular-nums">
+            1 ZEC {fiat.format(100_000_000n)}
+          </span>
+        ) : null
+      }
+    >
+      <label className="sr-only" htmlFor="display-currency">
+        Display currency
+      </label>
+      <select
+        id="display-currency"
+        value={fiat.currency}
+        onChange={(e) => {
+          if (isFiatCode(e.target.value)) setDisplayCurrency(e.target.value);
+        }}
+        className={`h-11 w-full max-w-xs rounded-(--dash-radius-sm) border border-(--dash-line-strong) bg-(--dash-surface) px-3 text-sm text-(--dash-fg) ${dashFocus}`}
+      >
+        {FIAT_CURRENCIES.map(({ code, name }) => (
+          <option key={code} value={code}>
+            {code} · {name}
+          </option>
+        ))}
+      </select>
     </SettingsRow>
   );
 }

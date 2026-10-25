@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { receiptFilename } from "../../features/receipts/receipt";
-import { formatUsd, useZecPrice } from "../../features/zcash/useZecPrice";
+import { useFiat } from "../../features/zcash/useZecPrice";
 import { downloadText } from "../../lib/download";
 import { unlockLabel } from "../../lib/passkey";
 import { zatToZec } from "../../lib/zcash/units";
@@ -16,7 +16,7 @@ import { dashButtonPrimary, dashCell, dashLedger } from "./styles";
 export function HistoryDashboard() {
   const { accountUnlocked, promptUnlock, recoveryMethod, zcash, issueReceipt } =
     useWallet();
-  const price = useZecPrice();
+  const fiat = useFiat();
   const [receiptError, setReceiptError] = useState("");
   const [receiptBusy, setReceiptBusy] = useState(false);
   const totals = useMemo(() => {
@@ -48,7 +48,7 @@ export function HistoryDashboard() {
                   {zatToZec(zat as bigint)} ZEC
                 </dd>
                 <dd className="mt-1 text-xs text-(--dash-ash)">
-                  {formatUsd(zat as bigint, price)}
+                  {fiat.format(zat as bigint)}
                 </dd>
               </div>
             ))}

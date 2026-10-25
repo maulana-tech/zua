@@ -9,7 +9,7 @@ import { postToParent, useEmbedBridge } from "../../features/embed/bridge";
 import { invoiceStatus } from "../../features/invoices/input";
 import { centsToUsd, usdToCents } from "../../features/invoices/money";
 import type { InvoiceView } from "../../features/invoices/types";
-import { formatUsd, useZecPrice } from "../../features/zcash/useZecPrice";
+import { useFiat } from "../../features/zcash/useZecPrice";
 import { verifiedAddress } from "../../lib/addressClaim";
 import { APP_NAME } from "../../lib/brand";
 import { downloadInvoicePdf } from "../../lib/invoicePdf";
@@ -50,7 +50,7 @@ export function InvoiceCheckout({
   embed?: boolean;
 }) {
   useEmbedBridge(embed);
-  const price = useZecPrice();
+  const fiat = useFiat();
   const [downloading, setDownloading] = useState(false);
   const query = useQuery({
     queryKey: ["public-invoice", token],
@@ -293,7 +293,7 @@ export function InvoiceCheckout({
                     <>
                       {invoice.totalZec} ZEC{" "}
                       <span className="text-sm text-(--dash-ash)">
-                        {formatUsd(BigInt(invoice.totalZat), price)}
+                        {fiat.format(BigInt(invoice.totalZat))}
                       </span>
                     </>
                   )}
@@ -371,7 +371,7 @@ export function InvoiceCheckout({
                   <p className="text-2xl tabular-nums">
                     {zatToZec(remaining)} ZEC{" "}
                     <span className="text-sm text-(--dash-ash)">
-                      {formatUsd(remaining, price)}
+                      {fiat.format(remaining)}
                     </span>
                   </p>
                   {invoice.currency === "USD" && invoice.quote ? (
