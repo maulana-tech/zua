@@ -25,6 +25,7 @@ import { isShielded } from "../../lib/zcash/address";
 import { MAX_MEMO_BYTES, memoBytes, parseMemoTag } from "../../lib/zcash/memo";
 import { explorerTxUrl } from "../../lib/zcash/network";
 import { zatToZec, zecToZat } from "../../lib/zcash/units";
+import type { Proposed } from "../../lib/zcash/wallet";
 import { trpc } from "../../trpc/react";
 import { Mascot } from "../Mascot";
 import { Input } from "../ui/input";
@@ -39,9 +40,12 @@ import {
   dashLedger,
 } from "./styles";
 
-// ZIP-317 fee for a simple shielded send (two logical actions). The wallet
-// computes the exact fee when it builds the transaction.
-const ESTIMATED_FEE_ZAT = 10_000n;
+// ZIP-317 minimum fee (two logical actions), for a quick balance check. The
+// review shows the exact fee of the transaction the wallet builds, which is
+// higher when change is split into several notes.
+const MIN_FEE_ZAT = 10_000n;
+const NOT_ENOUGH =
+  "Not enough shielded balance for this amount plus the network fee.";
 const SHOWN_CONTACTS = 6;
 
 type Stage =
@@ -58,7 +62,8 @@ export function SendDashboard() {
     promptUnlock,
     recoveryMethod,
     zcash,
-    send,
+    proposePayments,
+    proveProposal,
     loadLocal,
     saveLocal,
   } = useWallet();
@@ -70,6 +75,8 @@ export function SendDashboard() {
   const [amount, setAmount] = useState(params.get("amount") ?? "");
   const [memo, setMemo] = useState(params.get("memo") ?? "");
   const [recipient, setRecipient] = useState<Recipient | null>(null);
+  const [proposed, setProposed] = useState<Proposed | null>(null);
+  const [checking, setChecking] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
   const [stage, setStage] = useState<Stage>("idle");
   const [error, setError] = useState("");
@@ -99,15 +106,14 @@ export function SendDashboard() {
 
   async function review(e: React.FormEvent) {
     e.preventDefault();
+    if (checking) return;
     setError("");
+    setChecking(true);
     try {
       const r = await resolveRecipient(to);
       const zat = amount.trim() ? zecToZat(amount) : r.amountZat;
       if (!zat || zat <= 0n) throw new Error("Enter an amount to send.");
-      if (zat + ESTIMATED_FEE_ZAT > spendable)
-        throw new Error(
-          "Not enough shielded balance for this amount plus the network fee.",
-        );
+      if (zat + MIN_FEE_ZAT > spendable) throw new Error(NOT_ENOUGH);
       const note = memo.trim() || r.memo || "";
       if (note && !isShielded(r.kind))
         throw new Error(
@@ -115,8 +121,17 @@ export function SendDashboard() {
         );
       if (memoBytes(note) > MAX_MEMO_BYTES)
         throw new Error("The note is too long.");
+      // Built now (not proved) so the review shows the exact fee.
+      const next = await proposePayments([
+        { to: r.address, amountZat: zat, memo: note || undefined },
+      ]).catch((cause) => {
+        throw /insufficient/i.test(String(cause))
+          ? new Error(NOT_ENOUGH)
+          : cause;
+      });
       if (!amount.trim()) setAmount(zatToZec(zat));
       if (!memo.trim() && r.memo) setMemo(r.memo);
+      setProposed(next);
       setRecipient(r);
       setAcknowledged(isShielded(r.kind));
       setStage("review");
@@ -126,19 +141,16 @@ export function SendDashboard() {
           ? cause.message
           : "Check the details and try again.",
       );
+    } finally {
+      setChecking(false);
     }
   }
 
   async function confirm() {
-    if (!recipient) return;
+    if (!recipient || !proposed) return;
     setError("");
     try {
-      const ids = await send({
-        to: recipient.address,
-        amountZat: zecToZat(amount),
-        memo: memo.trim() || undefined,
-        onStage: setStage,
-      });
+      const ids = await proveProposal(proposed, setStage);
       setTxids(ids);
       setStage("done");
       // An address from a tagged invoice/sale link pays that one bill, so it
@@ -168,6 +180,7 @@ export function SendDashboard() {
     setAmount("");
     setMemo("");
     setRecipient(null);
+    setProposed(null);
     setTxids([]);
     setStage("idle");
     setError("");
@@ -355,8 +368,9 @@ export function SendDashboard() {
                 <button
                   type="submit"
                   className={`${dashButtonPrimary} justify-self-start`}
+                  disabled={checking}
                 >
-                  Review payment
+                  {checking ? "Checking…" : "Review payment"}
                 </button>
               ) : null}
             </form>
@@ -383,9 +397,9 @@ export function SendDashboard() {
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-(--dash-ash)">Network fee (estimate)</dt>
+                  <dt className="text-(--dash-ash)">Network fee</dt>
                   <dd className="mt-1 tabular-nums">
-                    {zatToZec(ESTIMATED_FEE_ZAT)} ZEC
+                    {zatToZec(proposed?.feeZat ?? 0n)} ZEC
                   </dd>
                 </div>
                 <div>
