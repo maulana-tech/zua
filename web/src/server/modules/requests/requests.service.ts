@@ -22,7 +22,6 @@ const view = (doc: PaymentRequestDoc, me: string): RequestOutput => ({
   to: doc.to,
   sealed: doc.from === me ? doc.forRequester : doc.forPayer,
   status: doc.status,
-  paidTxids: doc.paidTxids,
   createdAt: doc.createdAt.toISOString(),
   updatedAt: doc.updatedAt.toISOString(),
 });
@@ -43,7 +42,6 @@ export async function createRequest(
     forPayer: input.forPayer,
     forRequester: input.forRequester,
     status: "pending",
-    paidTxids: [],
     createdAt: now,
     updatedAt: now,
   };
@@ -89,7 +87,6 @@ export async function markRequestPaid(
     },
     {
       $set: { status: "paid", updatedAt: new Date() },
-      $addToSet: { paidTxids: { $each: input.txids } },
     },
     { returnDocument: "after" },
   );

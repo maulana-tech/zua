@@ -5,7 +5,6 @@ import {
   invoiceId,
   invoiceInput,
   invoiceToken,
-  txidSchema,
 } from "../../../features/invoices/input";
 import { rateLimit } from "../../lib/rateLimit";
 import {
@@ -80,7 +79,6 @@ export const invoicesRouter = createTRPCRouter({
       z
         .object({
           id: invoiceId,
-          txids: z.array(txidSchema).min(1).max(50),
           paidZat: z.string().regex(/^\d{1,17}$/),
         })
         .strict(),

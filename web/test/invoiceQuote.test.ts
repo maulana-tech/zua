@@ -63,10 +63,20 @@ describe.skipIf(!available)("USD invoices (MongoDB)", () => {
     // A memo-tagged payment before any quote settles nothing.
     const { invoice } = await service.reportPayment("dinar", {
       id: inv.id,
-      txids: ["aa".repeat(32)],
       paidZat: "999999999",
     });
     expect(invoice.status).toBe("pending");
+  });
+
+  it("never stores or exposes the paying transaction", async () => {
+    const inv = await create("USD-0");
+    await service.quoteInvoice(inv.token);
+    await service.reportPayment("dinar", { id: inv.id, paidZat: "100000000" });
+    const raw = await (await mongo.getInvoices()).findOne({ _id: inv.id });
+    expect(raw).not.toHaveProperty("paidTxids");
+    const shown = await service.publicInvoice(inv.token);
+    expect(shown?.status).toBe("paid");
+    expect(shown).not.toHaveProperty("paidTxids");
   });
 
   it("locks a quote, reuses it, and settles at it", async () => {
@@ -79,7 +89,6 @@ describe.skipIf(!available)("USD invoices (MongoDB)", () => {
     expect(q2?.totalZat).toBe("100000000");
     const { invoice } = await service.reportPayment("dinar", {
       id: inv.id,
-      txids: ["bb".repeat(32)],
       paidZat: "100000000",
     });
     expect(invoice.status).toBe("paid");
@@ -101,7 +110,6 @@ describe.skipIf(!available)("USD invoices (MongoDB)", () => {
     // Paying the fresh quote settles it (any quote from the last 24 h does).
     const { invoice } = await service.reportPayment("dinar", {
       id: inv.id,
-      txids: ["cc".repeat(32)],
       paidZat: "50000000",
     });
     expect(invoice.status).toBe("paid");
@@ -110,7 +118,6 @@ describe.skipIf(!available)("USD invoices (MongoDB)", () => {
     await service.quoteInvoice(partial.token);
     await service.reportPayment("dinar", {
       id: partial.id,
-      txids: ["dd".repeat(32)],
       paidZat: "10000000",
     });
     await invoices.updateOne(

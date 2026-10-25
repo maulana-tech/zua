@@ -115,7 +115,6 @@ async function toView(doc: InvoiceDoc): Promise<InvoiceView> {
     reference: doc.reference ?? null,
     recurrence: doc.recurrence ?? "none",
     nextIssueAt: doc.nextIssueAt?.toISOString() ?? null,
-    paidTxids: doc.paidTxids,
     paidReportedAt: doc.paidReportedAt?.toISOString() ?? null,
     createdAt: doc.createdAt.toISOString(),
   };
@@ -168,7 +167,6 @@ export async function createInvoice(
     seriesIndex: 1,
     reminderSentAt: null,
     paidZat: "0",
-    paidTxids: [],
     paidReportedAt: null,
     createdAt: now,
     updatedAt: now,
@@ -234,7 +232,6 @@ export async function issueDueRecurring(
       seriesIndex: index,
       reminderSentAt: null,
       paidZat: "0",
-      paidTxids: [],
       paidReportedAt: null,
       createdAt: issuedAt,
       updatedAt: now,
@@ -325,7 +322,7 @@ export async function voidInvoice(owner: string, id: string) {
  */
 export async function reportPayment(
   owner: string,
-  input: { id: string; txids: string[]; paidZat: string },
+  input: { id: string; paidZat: string },
 ): Promise<{ invoice: InvoiceView; becamePaid: boolean }> {
   const invoices = await getInvoices();
   const current = await invoices.findOne({ _id: input.id, owner });
@@ -338,7 +335,6 @@ export async function reportPayment(
     {
       $set: {
         paidZat: paid.toString(),
-        paidTxids: [...new Set(input.txids)].slice(0, 50),
         status,
         paidReportedAt: new Date(),
         updatedAt: new Date(),

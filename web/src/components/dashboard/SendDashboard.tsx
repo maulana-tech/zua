@@ -101,9 +101,7 @@ export function SendDashboard() {
       setTxids(ids);
       setStage("done");
       if (requestId && ids.length)
-        void markPaid
-          .mutateAsync({ id: requestId, txids: ids })
-          .catch(() => {});
+        void markPaid.mutateAsync({ id: requestId }).catch(() => {});
     } catch (cause) {
       setStage("review");
       setError(

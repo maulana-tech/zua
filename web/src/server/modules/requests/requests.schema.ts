@@ -25,15 +25,7 @@ export const createRequestInput = z
 
 export const requestIdInput = z.object({ id: requestId }).strict();
 
-export const markPaidInput = z
-  .object({
-    id: requestId,
-    txids: z
-      .array(z.string().regex(/^[0-9a-f]{64}$/))
-      .min(1)
-      .max(20),
-  })
-  .strict();
+export const markPaidInput = requestIdInput;
 
 export const requestOutput = z.object({
   id: z.string(),
@@ -41,7 +33,6 @@ export const requestOutput = z.object({
   to: z.string(),
   sealed: sealedSchema, // the caller's own copy
   status: z.enum(["pending", "paid", "declined", "cancelled"]),
-  paidTxids: z.array(z.string()),
   createdAt: z.string(),
   updatedAt: z.string(),
 });

@@ -94,7 +94,6 @@ export type InvoiceDoc = {
   seriesIndex?: number; // 1 for the first invoice
   reminderSentAt?: Date | null;
   paidZat: string;
-  paidTxids: string[];
   paidReportedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -180,7 +179,6 @@ export type PaymentRequestDoc = {
   forPayer: SealedDoc;
   forRequester: SealedDoc;
   status: "pending" | "paid" | "declined" | "cancelled";
-  paidTxids: string[];
   createdAt: Date;
   updatedAt: Date;
 };

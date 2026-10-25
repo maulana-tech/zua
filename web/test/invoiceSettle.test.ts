@@ -17,7 +17,6 @@ const invoice = (id: string, over: Partial<InvoiceView> = {}): InvoiceView => ({
   notes: "",
   dueDate: "2026-12-31",
   status: "pending",
-  paidTxids: [],
   paidReportedAt: null,
   createdAt: "2026-10-14T00:00:00Z",
   ...over,

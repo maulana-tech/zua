@@ -242,11 +242,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const settleInvoices = useCallback(async (history: WalletTx[]) => {
     if (!history.some((tx) => tx.kind === "received")) return;
+    // Only the paid total is reported, never txids: the server must not be
+    // able to tie an invoice (and its client) to a transaction on chain.
     const invoices = await api.invoices.list.query();
     for (const payment of findInvoicePayments(history, invoices)) {
       await api.invoices.reportPayment.mutate({
         id: payment.id,
-        txids: payment.txids,
         paidZat: payment.paidZat.toString(),
       });
     }
@@ -255,7 +256,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       outgoing.filter((r) => r.status === "pending").map((r) => r.id),
     );
     for (const paid of findRequestPayments(history, pending))
-      await api.requests.markPaid.mutate(paid);
+      await api.requests.markPaid.mutate({ id: paid.id });
   }, []);
 
   /**
