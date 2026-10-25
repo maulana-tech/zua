@@ -304,6 +304,8 @@ function ClaimLinkRow({
   const cancel = trpc.claimLinks.cancel.useMutation();
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  // Only this device learns it (the server never hears about claims).
+  const [claimed, setClaimed] = useState(false);
 
   async function withWallet<T>(
     fn: (cw: Awaited<ReturnType<typeof openClaimWallet>>) => Promise<T>,
@@ -325,6 +327,7 @@ function ClaimLinkRow({
   async function check() {
     try {
       const s = await withWallet(claimStatus);
+      if (s.kind === "claimed") setClaimed(true);
       setMessage(
         s.kind === "ready"
           ? `Unclaimed: ${zatToZec(s.amountZat)} ZEC waiting.`
@@ -344,8 +347,10 @@ function ClaimLinkRow({
     try {
       const result = await withWallet(async (cw) => {
         const s = await claimStatus(cw);
-        if (s.kind === "claimed")
+        if (s.kind === "claimed") {
+          setClaimed(true);
           return "Already claimed: nothing to take back.";
+        }
         if (s.kind !== "ready")
           return "Nothing spendable yet. Try again after a few confirmations.";
         setMessage("Taking it back (proving takes 10–60 s)…");
@@ -374,9 +379,11 @@ function ClaimLinkRow({
         <span className="text-xs text-(--dash-ash)">
           {link.state === "cancelled"
             ? "Taken back"
-            : link.state === "funding"
-              ? "Not funded"
-              : "Sent"}{" "}
+            : claimed
+              ? "Claimed"
+              : link.state === "funding"
+                ? "Not funded"
+                : "Sent"}{" "}
           · {new Date(link.createdAt).toLocaleDateString()}
         </span>
       </div>
@@ -400,14 +407,16 @@ function ClaimLinkRow({
           >
             Check status
           </button>
-          <button
-            type="button"
-            className={dashButtonSecondary}
-            disabled={busy}
-            onClick={() => void takeBack()}
-          >
-            <Undo2 aria-hidden="true" /> Take back
-          </button>
+          {claimed ? null : (
+            <button
+              type="button"
+              className={dashButtonSecondary}
+              disabled={busy}
+              onClick={() => void takeBack()}
+            >
+              <Undo2 aria-hidden="true" /> Take back
+            </button>
+          )}
         </div>
       ) : null}
       {message ? (
