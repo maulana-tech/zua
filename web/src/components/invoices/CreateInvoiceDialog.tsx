@@ -2,7 +2,11 @@
 
 import { Plus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { invoiceInput, invoiceTotal } from "../../features/invoices/input";
+import {
+  invoiceInput,
+  invoiceTotal,
+  suggestNextNumber,
+} from "../../features/invoices/input";
 import { type Currency, centsToUsd } from "../../features/invoices/money";
 import type { Recurrence } from "../../features/invoices/recurrence";
 import type { InvoiceView } from "../../features/invoices/types";
@@ -25,21 +29,33 @@ const emptyLine = () => ({
   quantity: "1",
   unitPrice: "",
 });
+const defaultDue = () =>
+  new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+
+/** Start from an existing invoice: a copy with a new number, or an edit. */
+export type InvoiceTemplate = {
+  invoice: InvoiceView;
+  mode: "duplicate" | "edit";
+};
+
 export function CreateInvoiceDialog({
   open,
   onOpenChange,
-  onCreated,
+  onSaved,
+  template = null,
+  takenNumbers = [],
 }: {
   open: boolean;
   onOpenChange: (value: boolean) => void;
-  onCreated: (invoice: InvoiceView) => void;
+  onSaved: (invoice: InvoiceView) => void;
+  template?: InvoiceTemplate | null;
+  takenNumbers?: string[];
 }) {
   const wallet = useWallet();
+  const editing = template?.mode === "edit" ? template.invoice : null;
   const [number, setNumber] = useState(""),
     [clientName, setClientName] = useState(""),
-    [dueDate, setDueDate] = useState(
-      new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
-    ),
+    [dueDate, setDueDate] = useState(defaultDue),
     [notes, setNotes] = useState("");
   const [recurrence, setRecurrence] = useState<Recurrence>("none");
   const [currency, setCurrency] = useState<Currency>("ZEC");
@@ -58,6 +74,47 @@ export function CreateInvoiceDialog({
       mounted.current = false;
     };
   }, []);
+  // Fill the form once per template; a plain "New invoice" starts blank.
+  const filledFrom = useRef("");
+  const templateKey = template ? `${template.mode}:${template.invoice.id}` : "";
+  useEffect(() => {
+    if (!open || filledFrom.current === templateKey) return;
+    filledFrom.current = templateKey;
+    setError("");
+    if (!template) {
+      setNumber("");
+      setClientName("");
+      setClientEmail("");
+      setDueDate(defaultDue());
+      setNotes("");
+      setRecurrence("none");
+      setCurrency("ZEC");
+      setLines([emptyLine()]);
+      return;
+    }
+    const source = template.invoice;
+    const edit = template.mode === "edit";
+    setNumber(
+      edit
+        ? source.number
+        : suggestNextNumber(source.number, new Set(takenNumbers)),
+    );
+    setClientName(source.clientName);
+    setClientEmail("");
+    setDueDate(edit ? source.dueDate : defaultDue());
+    setNotes(source.notes);
+    setCurrency(source.currency);
+    // A copy of a recurring invoice shouldn't start a second series.
+    setRecurrence(edit ? source.recurrence : "none");
+    setLines(
+      source.items.map((item, i) => ({
+        id: `copy-${i}`,
+        description: item.description,
+        quantity: String(item.quantity),
+        unitPrice: item.unitPrice,
+      })),
+    );
+  }, [open, templateKey, template, takenNumbers]);
   const inputItems = lines.map(({ description, quantity, unitPrice }) => ({
     description,
     quantity: Number(quantity),
@@ -109,37 +166,42 @@ export function CreateInvoiceDialog({
     const at = session.current;
     busy.current = true;
     setWorking(true);
+    const details = {
+      number,
+      clientName,
+      clientEmail,
+      dueDate,
+      notes,
+      items: inputItems,
+      currency,
+      recurrence,
+    };
     try {
-      // Each invoice gets its own address so clients can't link payments.
-      const payAddress = await wallet.freshPayAddress();
-      const invoice = await api.invoices.create.mutate({
-        number,
-        clientName,
-        clientEmail,
-        dueDate,
-        notes,
-        items: inputItems,
-        currency,
-        recurrence,
-        payAddress,
-      });
+      const invoice = editing
+        ? await api.invoices.update.mutate({
+            id: editing.id,
+            invoice: details,
+            keepClientEmail: !clientEmail.trim(),
+          })
+        : await api.invoices.create.mutate({
+            ...details,
+            // Each invoice gets its own address so clients can't link payments.
+            payAddress: await wallet.freshPayAddress(),
+          });
       if (mounted.current && session.current === at) {
-        onCreated(invoice);
+        onSaved(invoice);
         onOpenChange(false);
-        setNumber("");
-        setClientName("");
-        setClientEmail("");
-        setNotes("");
-        setRecurrence("none");
-        setCurrency("ZEC");
-        setLines([emptyLine()]);
+        // The next open starts over, blank or from its template.
+        filledFrom.current = "saved";
       }
     } catch (e) {
       if (mounted.current && session.current === at)
         setError(
           e instanceof Error
             ? e.message
-            : "Invoice could not be created. Check your list before retrying.",
+            : editing
+              ? "Invoice could not be saved."
+              : "Invoice could not be created. Check your list before retrying.",
         );
     } finally {
       busy.current = false;
@@ -155,16 +217,21 @@ export function CreateInvoiceDialog({
     >
       <DialogContent appearance="linen" size="lg" showCloseButton={!working}>
         <DialogHeader>
-          <DialogTitle>New invoice</DialogTitle>
+          <DialogTitle>
+            {editing ? `Edit ${editing.number}` : "New invoice"}
+          </DialogTitle>
           <DialogDescription>
-            Publish an invoice and share its payment link. Details are visible
-            to the server and anyone with the link.
+            {editing
+              ? "Fix the details before your client pays. The link stays the same, so anyone who has it sees the update."
+              : template
+                ? `A copy of ${template.invoice.number} with a new number and its own payment link. Details are visible to the server and anyone with the link.`
+                : "Publish an invoice and share its payment link. Details are visible to the server and anyone with the link."}
           </DialogDescription>
         </DialogHeader>
         <form
           onSubmit={(event) => void submit(event)}
           className="grid gap-5"
-          aria-label="Create invoice"
+          aria-label={editing ? "Edit invoice" : "Create invoice"}
         >
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="grid gap-2 text-sm" htmlFor="invoice-number">
@@ -223,6 +290,12 @@ export function CreateInvoiceDialog({
                 className="min-h-11 rounded-(--dash-radius-sm) border border-(--dash-line-strong) bg-transparent px-3 text-sm"
                 value={recurrence}
                 onChange={(e) => setRecurrence(e.target.value as Recurrence)}
+                disabled={Boolean(editing)}
+                title={
+                  editing
+                    ? "Use Stop repeating in the list to end a series"
+                    : undefined
+                }
               >
                 <option value="none">Does not repeat</option>
                 <option value="weekly">Every week</option>
@@ -237,7 +310,11 @@ export function CreateInvoiceDialog({
                 type="email"
                 value={clientEmail}
                 onChange={(e) => setClientEmail(e.target.value)}
-                placeholder="For the payment receipt"
+                placeholder={
+                  editing
+                    ? "Leave empty to keep the saved email"
+                    : "For the payment receipt"
+                }
               />
             </label>
           </div>
@@ -359,9 +436,8 @@ export function CreateInvoiceDialog({
             </strong>
           </div>
           <p className="text-xs leading-5 text-muted-foreground">
-            The amount, recipient and invoice details are fixed after
-            publication. You can void a pending invoice and create a
-            replacement.
+            You can edit the invoice until it receives a payment. After that
+            it's fixed: void it and create a new one.
           </p>
           {error && (
             <p role="alert" className="text-sm text-destructive">
@@ -373,7 +449,13 @@ export function CreateInvoiceDialog({
             className="min-h-11"
             disabled={working || !wallet.username}
           >
-            {working ? "Creating invoice…" : "Create invoice"}
+            {editing
+              ? working
+                ? "Saving…"
+                : "Save changes"
+              : working
+                ? "Creating invoice…"
+                : "Create invoice"}
           </Button>
         </form>
       </DialogContent>

@@ -33,6 +33,7 @@ import {
 import { checkPayAddress } from "../profiles/profiles.service";
 import {
   InvoiceClosedError,
+  InvoiceLockedError,
   InvoiceNotFoundError,
   InvoiceNumberTakenError,
   QuoteUnavailableError,
@@ -120,22 +121,10 @@ async function toView(doc: InvoiceDoc): Promise<InvoiceView> {
   };
 }
 
-export async function createInvoice(
-  owner: string,
-  input: CreateInput,
-): Promise<InvoiceView> {
-  const payAddress = input.payAddress
-    ? await checkPayAddress(owner, input.payAddress)
-    : null;
+/** Stored line items and totals for the invoice currency. */
+function pricing(input: Pick<CreateInput, "items" | "currency">) {
   const usd = input.currency === "USD";
-  const now = new Date();
-  const doc: InvoiceDoc = {
-    _id: newMemoId(),
-    owner,
-    number: input.number,
-    token: randomBytes(24).toString("base64url"),
-    clientName: input.clientName,
-    clientEmail: input.clientEmail,
+  return {
     items: input.items.map((i) =>
       usd
         ? {
@@ -154,6 +143,25 @@ export async function createInvoice(
     totalZat: usd ? "0" : invoiceTotal(input.items).toString(),
     currency: input.currency ?? "ZEC",
     totalCents: usd ? invoiceTotal(input.items, "USD").toString() : null,
+  };
+}
+
+export async function createInvoice(
+  owner: string,
+  input: CreateInput,
+): Promise<InvoiceView> {
+  const payAddress = input.payAddress
+    ? await checkPayAddress(owner, input.payAddress)
+    : null;
+  const now = new Date();
+  const doc: InvoiceDoc = {
+    _id: newMemoId(),
+    owner,
+    number: input.number,
+    token: randomBytes(24).toString("base64url"),
+    clientName: input.clientName,
+    clientEmail: input.clientEmail,
+    ...pricing(input),
     quotes: [],
     payAddress,
     notes: input.notes,
@@ -179,6 +187,63 @@ export async function createInvoice(
     throw e;
   }
   return toView(doc);
+}
+
+/**
+ * Corrects a pending invoice before anyone pays it. The link, address and
+ * schedule stay; USD quotes are dropped so payers get one for the new total.
+ */
+export async function updateInvoice(
+  owner: string,
+  id: string,
+  input: Omit<
+    CreateInput,
+    "payAddress" | "recurrence" | "source" | "reference"
+  >,
+  keepClientEmail = false,
+): Promise<InvoiceView> {
+  const invoices = await getInvoices();
+  const current = await invoices.findOne({ _id: id, owner });
+  if (!current) throw new InvoiceNotFoundError();
+  if (current.source === "api")
+    throw new InvoiceLockedError(
+      "Checkouts created with the API can't be edited.",
+    );
+  if (current.status !== "pending") throw new InvoiceClosedError();
+  if (current.paidZat !== "0")
+    throw new InvoiceLockedError(
+      "This invoice already received a payment, so it can't be changed. Void it and create a new one.",
+    );
+  const firstOfSeries = (current.seriesIndex ?? 1) === 1;
+  try {
+    const doc = await invoices.findOneAndUpdate(
+      { _id: id, owner, status: "pending", paidZat: "0" },
+      {
+        $set: {
+          number: input.number,
+          ...(firstOfSeries ? { seriesNumber: input.number } : {}),
+          clientName: input.clientName,
+          ...(keepClientEmail ? {} : { clientEmail: input.clientEmail }),
+          ...pricing(input),
+          quotes: [],
+          notes: input.notes,
+          dueDate: input.dueDate,
+          reminderSentAt: null,
+          updatedAt: new Date(),
+        },
+      },
+      { returnDocument: "after" },
+    );
+    if (!doc)
+      throw new InvoiceLockedError(
+        "This invoice changed while you were editing it. Reload and try again.",
+      );
+    return toView(doc);
+  } catch (e) {
+    if ((e as MongoServerError).code === 11000)
+      throw new InvoiceNumberTakenError();
+    throw e;
+  }
 }
 
 /**

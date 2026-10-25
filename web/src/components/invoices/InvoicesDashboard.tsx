@@ -1,8 +1,16 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Copy, Download, ExternalLink, Plus, QrCode } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+  Copy,
+  CopyPlus,
+  Download,
+  ExternalLink,
+  Pencil,
+  Plus,
+  QrCode,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { invoiceStatus } from "../../features/invoices/input";
 import { recurrenceLabel } from "../../features/invoices/recurrence";
 import type { InvoiceView } from "../../features/invoices/types";
@@ -29,11 +37,15 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { useWallet } from "../WalletProvider";
-import { CreateInvoiceDialog } from "./CreateInvoiceDialog";
+import {
+  CreateInvoiceDialog,
+  type InvoiceTemplate,
+} from "./CreateInvoiceDialog";
 
 export function InvoicesDashboard() {
   const { authenticated, username, sessionReady } = useWallet();
   const [createOpen, setCreateOpen] = useState(false),
+    [template, setTemplate] = useState<InvoiceTemplate | null>(null),
     [origin, setOrigin] = useState("");
   const query = useQuery({
     queryKey: ["owner-invoices", username],
@@ -42,6 +54,14 @@ export function InvoicesDashboard() {
     refetchInterval: 15_000,
     retry: false,
   });
+  const takenNumbers = useMemo(
+    () => (query.data ?? []).map((i) => i.number),
+    [query.data],
+  );
+  function openDialog(next: InvoiceTemplate | null) {
+    setTemplate(next);
+    setCreateOpen(true);
+  }
   useEffect(() => {
     setOrigin(window.location.origin);
     // "New invoice" from the overview lands here with ?new=1.
@@ -64,7 +84,7 @@ export function InvoicesDashboard() {
           <button
             type="button"
             className={`${dashButtonPrimary} min-h-11`}
-            onClick={() => setCreateOpen(true)}
+            onClick={() => openDialog(null)}
             disabled={!username}
           >
             <Plus aria-hidden="true" />
@@ -114,6 +134,8 @@ export function InvoicesDashboard() {
               invoice={invoice}
               origin={origin}
               onChanged={() => void query.refetch()}
+              onDuplicate={() => openDialog({ invoice, mode: "duplicate" })}
+              onEdit={() => openDialog({ invoice, mode: "edit" })}
             />
           ))}
         </section>
@@ -121,7 +143,9 @@ export function InvoicesDashboard() {
       <CreateInvoiceDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        onCreated={() => {
+        template={template}
+        takenNumbers={takenNumbers}
+        onSaved={() => {
           setCreateOpen(false);
           void query.refetch();
         }}
@@ -133,11 +157,19 @@ export function InvoiceRow({
   invoice,
   origin,
   onChanged,
+  onDuplicate,
+  onEdit,
 }: {
   invoice: InvoiceView;
   origin: string;
   onChanged: () => void;
+  onDuplicate: () => void;
+  onEdit: () => void;
 }) {
+  const editable =
+    invoice.status === "pending" &&
+    invoice.paidZat === "0" &&
+    invoice.source !== "api";
   const [qrOpen, setQrOpen] = useState(false),
     [voidOpen, setVoidOpen] = useState(false),
     [working, setWorking] = useState(false),
@@ -284,6 +316,26 @@ export function InvoiceRow({
           <Download aria-hidden="true" className="size-4" />
           {downloading ? "Downloading…" : "Download PDF"}
         </button>
+        {editable && (
+          <button
+            type="button"
+            className={`${dashButtonSecondary} min-h-11`}
+            onClick={onEdit}
+          >
+            <Pencil aria-hidden="true" />
+            Edit
+          </button>
+        )}
+        {invoice.source !== "api" && (
+          <button
+            type="button"
+            className={`${dashButtonSecondary} min-h-11`}
+            onClick={onDuplicate}
+          >
+            <CopyPlus aria-hidden="true" />
+            Duplicate
+          </button>
+        )}
         {invoice.status === "pending" && (
           <button
             type="button"

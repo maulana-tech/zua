@@ -5,6 +5,7 @@ import {
   invoiceId,
   invoiceInput,
   invoiceToken,
+  invoiceUpdateInput,
 } from "../../../features/invoices/input";
 import { rateLimit } from "../../lib/rateLimit";
 import {
@@ -22,6 +23,7 @@ import { InvalidPayAddressError } from "../profiles/profiles.errors";
 import { requireUsername } from "../profiles/profiles.service";
 import {
   InvoiceClosedError,
+  InvoiceLockedError,
   InvoiceNotFoundError,
   InvoiceNumberTakenError,
   QuoteUnavailableError,
@@ -34,13 +36,18 @@ import {
   quoteInvoice,
   reportPayment,
   stopRecurring,
+  updateInvoice,
   voidInvoice,
 } from "./invoices.service";
 
 function mapError(e: unknown): never {
   if (e instanceof InvalidPayAddressError)
     throw new TRPCError({ code: "BAD_REQUEST", message: e.message });
-  if (e instanceof InvoiceNumberTakenError || e instanceof InvoiceClosedError)
+  if (
+    e instanceof InvoiceNumberTakenError ||
+    e instanceof InvoiceClosedError ||
+    e instanceof InvoiceLockedError
+  )
     throw new TRPCError({ code: "CONFLICT", message: e.message });
   if (e instanceof QuoteUnavailableError)
     throw new TRPCError({ code: "SERVICE_UNAVAILABLE", message: e.message });
@@ -56,6 +63,16 @@ export const invoicesRouter = createTRPCRouter({
       createInvoice(await requireUsername(ctx.privyUserId), input).catch(
         mapError,
       ),
+    ),
+  update: protectedProcedure
+    .input(invoiceUpdateInput)
+    .mutation(async ({ ctx, input }) =>
+      updateInvoice(
+        await requireUsername(ctx.privyUserId),
+        input.id,
+        input.invoice,
+        input.keepClientEmail,
+      ).catch(mapError),
     ),
   list: protectedProcedure.query(async ({ ctx }) =>
     listInvoices(await requireUsername(ctx.privyUserId)),

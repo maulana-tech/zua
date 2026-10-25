@@ -25,3 +25,10 @@ export class QuoteUnavailableError extends Error {
     this.name = "QuoteUnavailableError";
   }
 }
+
+export class InvoiceLockedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvoiceLockedError";
+  }
+}

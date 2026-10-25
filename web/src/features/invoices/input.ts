@@ -95,3 +95,29 @@ export function invoiceStatus(
 export const invoiceToken = z.string().regex(/^[A-Za-z0-9_-]{32}$/);
 export const invoiceId = z.string().regex(/^[0-9A-Za-z]{8,24}$/);
 export const txidSchema = z.string().regex(/^[0-9a-f]{64}$/);
+
+/**
+ * Edits a pending invoice nobody has paid yet; the link stays the same. The
+ * owner's list never shows the client email, so an empty one keeps it.
+ */
+export const invoiceUpdateInput = z
+  .object({
+    id: invoiceId,
+    invoice: invoiceInput,
+    keepClientEmail: z.boolean().default(false),
+  })
+  .strict();
+
+/** "INV-2026-001" → "INV-2026-002", skipping numbers already used. */
+export function suggestNextNumber(number: string, taken: Set<string>): string {
+  const match = /^(.*?)(\d+)$/.exec(number);
+  const base = match ? match[1] : `${number}-`;
+  let n = match ? Number(match[2]) : 1;
+  const width = match ? match[2].length : 1;
+  for (let tries = 0; tries < 1000; tries++) {
+    n += 1;
+    const next = `${base}${String(n).padStart(width, "0")}`.slice(0, 40);
+    if (!taken.has(next)) return next;
+  }
+  return "";
+}
