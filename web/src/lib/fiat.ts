@@ -98,3 +98,25 @@ export function formatFiat(
     ...(whole ? { minimumFractionDigits: 0, maximumFractionDigits: 0 } : {}),
   }).format(amount);
 }
+
+/** Decimals a cashier can type for the currency (none for rupiah, yen…). */
+export function fiatDecimals(code: FiatCode): number {
+  if (code === "IDR") return 0;
+  return (
+    new Intl.NumberFormat("en", {
+      style: "currency",
+      currency: code,
+    }).resolvedOptions().maximumFractionDigits ?? 2
+  );
+}
+
+/** A price as typed at a counter: the currency's usual decimals, never rounded. */
+export function formatFiatPrice(amount: number, code: FiatCode): string {
+  const digits = fiatDecimals(code);
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: code,
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(amount);
+}
