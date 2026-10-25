@@ -22,7 +22,7 @@ import {
 import { useFiat } from "../../features/zcash/useZecPrice";
 import { unlockLabel } from "../../lib/passkey";
 import { isShielded } from "../../lib/zcash/address";
-import { MAX_MEMO_BYTES, memoBytes } from "../../lib/zcash/memo";
+import { MAX_MEMO_BYTES, memoBytes, parseMemoTag } from "../../lib/zcash/memo";
 import { explorerTxUrl } from "../../lib/zcash/network";
 import { zatToZec, zecToZat } from "../../lib/zcash/units";
 import { trpc } from "../../trpc/react";
@@ -141,7 +141,10 @@ export function SendDashboard() {
       });
       setTxids(ids);
       setStage("done");
-      if (ids.length) {
+      // An address from a tagged invoice/sale link pays that one bill, so it
+      // isn't someone to pay again.
+      const oneOff = !recipient.username && parseMemoTag(memo) !== null;
+      if (ids.length && !oneOff) {
         updateContacts(recordPayment(contacts, recipient, Date.now()));
         setContactName(
           contacts.find((c) => c.key === contactKey(recipient))?.name ?? "",
@@ -242,7 +245,9 @@ export function SendDashboard() {
                   </code>
                 );
               })}
-              {recipient && !recipient.username ? (
+              {recipient &&
+              !recipient.username &&
+              contacts.some((c) => c.key === contactKey(recipient)) ? (
                 <form
                   className="grid w-full max-w-sm gap-1.5 text-sm font-medium"
                   onSubmit={(e) => {
