@@ -655,10 +655,12 @@ export default function PrivacyPolicyPage() {
               title="Payment disclosure exports"
             >
               <p>
-                When you choose to export a payment disclosure, the current
-                bundle includes the exact payment amount, commitment, owner
-                public key, salt, Merkle proof information, pool and network
-                identifiers, disclosure timestamp, and a username if included.
+                When you choose to export a receipt or income statement, the
+                bundle includes, for each payment it covers, the transaction ID
+                and block height, the exact amount, the memo, the receiving
+                address and the note encryption key of just those outputs. It
+                also includes the signing username, the network, the period of a
+                statement, the total, the issue date and a signature.
               </p>
               <p>
                 These fields allow a recipient to inspect the disclosed payment
