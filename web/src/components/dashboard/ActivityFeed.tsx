@@ -33,6 +33,7 @@ export function ActivityFeed({
   showFilters = true,
   showSeeAll = false,
   title = "Activity",
+  emptyMessage,
   onReceipt,
 }: {
   history: WalletTx[];
@@ -41,6 +42,8 @@ export function ActivityFeed({
   showFilters?: boolean;
   showSeeAll?: boolean;
   title?: string;
+  /** Replaces the "no payments yet" text, e.g. when a search matches nothing. */
+  emptyMessage?: string;
   /** Offers a receipt (received) or proof of payment (sent) for mined payments. */
   onReceipt?: (tx: WalletTx) => void | Promise<void>;
 }) {
@@ -103,9 +106,10 @@ export function ActivityFeed({
         <div className="py-10">
           <Mascot size={56} className="mb-4" />
           <p className="max-w-sm text-sm leading-6 text-(--dash-ash)">
-            {tab === "All"
-              ? "No payments yet. Share your payment link to receive your first."
-              : `Nothing ${tab.toLowerCase()} yet.`}
+            {emptyMessage ??
+              (tab === "All"
+                ? "No payments yet. Share your payment link to receive your first."
+                : `Nothing ${tab.toLowerCase()} yet.`)}
           </p>
         </div>
       ) : (

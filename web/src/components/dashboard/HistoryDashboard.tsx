@@ -1,17 +1,35 @@
 "use client";
 
+import { Download, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { receiptFilename } from "../../features/receipts/receipt";
+import {
+  filterHistory,
+  type HistoryFilter,
+  type HistoryKind,
+  historyCsv,
+  isFiltered,
+  NO_FILTER,
+} from "../../features/zcash/historyFilter";
 import { useFiat } from "../../features/zcash/useZecPrice";
 import { downloadText } from "../../lib/download";
 import { unlockLabel } from "../../lib/passkey";
 import { zatToZec } from "../../lib/zcash/units";
+import { Input } from "../ui/input";
 import { useWallet } from "../WalletProvider";
 import { ActivityFeed } from "./ActivityFeed";
 import { DashboardNotice } from "./DashboardNotice";
 import { DashboardPageHeader } from "./DashboardPageHeader";
 import { StatementPanel } from "./StatementPanel";
-import { dashButtonPrimary, dashCell, dashLedger } from "./styles";
+import {
+  dashButtonPrimary,
+  dashButtonSecondary,
+  dashCell,
+  dashFocus,
+  dashLedger,
+} from "./styles";
+
+const selectClass = `h-10 rounded-(--dash-radius-sm) border border-(--dash-line-strong) bg-(--dash-surface) px-3 text-sm text-(--dash-fg) ${dashFocus}`;
 
 export function HistoryDashboard() {
   const { accountUnlocked, promptUnlock, recoveryMethod, zcash, issueReceipt } =
@@ -19,15 +37,27 @@ export function HistoryDashboard() {
   const fiat = useFiat();
   const [receiptError, setReceiptError] = useState("");
   const [receiptBusy, setReceiptBusy] = useState(false);
+  const [filter, setFilter] = useState<HistoryFilter>(NO_FILTER);
+  const filtered = isFiltered(filter);
+  const rows = useMemo(
+    () => filterHistory(zcash.history, filter),
+    [zcash.history, filter],
+  );
   const totals = useMemo(() => {
     let received = 0n;
     let sent = 0n;
-    for (const tx of zcash.history) {
+    for (const tx of rows) {
       if (tx.kind === "received") received += tx.value;
       if (tx.kind === "sent") sent += -tx.value;
     }
-    return { received, sent, count: zcash.history.length };
-  }, [zcash.history]);
+    return { received, sent, count: rows.length };
+  }, [rows]);
+  const set = (patch: Partial<HistoryFilter>) =>
+    setFilter((f) => ({ ...f, ...patch }));
+  function exportCsv() {
+    const day = new Date().toISOString().slice(0, 10);
+    downloadText(`zua-history-${day}.csv`, historyCsv(rows), "text/csv");
+  }
 
   return (
     <>
@@ -39,8 +69,11 @@ export function HistoryDashboard() {
         <div className="grid gap-4">
           <dl className={`${dashLedger} sm:grid-cols-3`}>
             {[
-              ["Total received", totals.received],
-              ["Total sent", totals.sent],
+              [
+                filtered ? "Received (filtered)" : "Total received",
+                totals.received,
+              ],
+              [filtered ? "Sent (filtered)" : "Total sent", totals.sent],
             ].map(([label, zat]) => (
               <div key={label as string} className={`${dashCell} p-5`}>
                 <dt className="dashboard-tile-title">{label as string}</dt>
@@ -55,8 +88,85 @@ export function HistoryDashboard() {
             <div className={`${dashCell} p-5`}>
               <dt className="dashboard-tile-title">Transactions</dt>
               <dd className="mt-3 text-2xl tabular-nums">{totals.count}</dd>
+              {filtered ? (
+                <dd className="mt-1 text-xs text-(--dash-ash)">
+                  of {zcash.history.length}
+                </dd>
+              ) : null}
             </div>
           </dl>
+          <search className={dashLedger} aria-label="Filter payments">
+            <div
+              className={`${dashCell} grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto] lg:items-end`}
+            >
+              <label className="grid gap-1.5 text-xs text-(--dash-ash) sm:col-span-2 lg:col-span-1">
+                Search
+                <Input
+                  appearance="linen"
+                  type="search"
+                  value={filter.query}
+                  onChange={(e) => set({ query: e.target.value })}
+                  placeholder="Note, amount or transaction ID"
+                />
+              </label>
+              <label className="grid gap-1.5 text-xs text-(--dash-ash)">
+                Type
+                <select
+                  className={selectClass}
+                  value={filter.kind}
+                  onChange={(e) => set({ kind: e.target.value as HistoryKind })}
+                >
+                  <option value="all">All</option>
+                  <option value="received">Received</option>
+                  <option value="sent">Sent</option>
+                </select>
+              </label>
+              <div className="grid grid-cols-2 gap-3 lg:contents">
+                <label className="grid gap-1.5 text-xs text-(--dash-ash)">
+                  From
+                  <Input
+                    appearance="linen"
+                    type="date"
+                    value={filter.from}
+                    max={filter.to || undefined}
+                    onChange={(e) => set({ from: e.target.value })}
+                  />
+                </label>
+                <label className="grid gap-1.5 text-xs text-(--dash-ash)">
+                  To
+                  <Input
+                    appearance="linen"
+                    type="date"
+                    value={filter.to}
+                    min={filter.from || undefined}
+                    onChange={(e) => set({ to: e.target.value })}
+                  />
+                </label>
+              </div>
+              <div className="flex gap-2 sm:col-span-2 lg:col-span-1">
+                {filtered ? (
+                  <button
+                    type="button"
+                    className={dashButtonSecondary}
+                    onClick={() => setFilter(NO_FILTER)}
+                  >
+                    <X aria-hidden="true" />
+                    Clear
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className={dashButtonSecondary}
+                  onClick={exportCsv}
+                  disabled={!rows.length}
+                  title="Spreadsheet of the payments shown below"
+                >
+                  <Download aria-hidden="true" />
+                  CSV
+                </button>
+              </div>
+            </div>
+          </search>
           {receiptBusy ? (
             <p className="text-sm text-(--dash-ash)" aria-live="polite">
               Building the proof from the chain…
@@ -69,7 +179,13 @@ export function HistoryDashboard() {
           <div className={dashLedger}>
             <div className={dashCell}>
               <ActivityFeed
-                history={zcash.history}
+                history={rows}
+                showFilters={false}
+                emptyMessage={
+                  filtered && zcash.history.length
+                    ? "No payments match these filters."
+                    : undefined
+                }
                 loading={
                   zcash.status === "loading" || zcash.status === "syncing"
                 }

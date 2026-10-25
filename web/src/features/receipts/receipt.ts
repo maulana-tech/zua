@@ -1,5 +1,6 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { bytesToHex, hexToBytes } from "../../lib/crypto";
+import { csvSafe } from "../../lib/csv";
 
 // Receipt v3: a signed list of shielded payments, each with the note
 // encryption key (K_enc) of the outputs it covers. A verifier decrypts just
@@ -165,7 +166,7 @@ export function receiptCsv(receipt: ReceiptBody): string {
     const v = BigInt(zat);
     return `${v / 100_000_000n}.${(v % 100_000_000n).toString().padStart(8, "0")}`;
   };
-  const cell = (s: string) => `"${s.replaceAll('"', '""')}"`;
+  const cell = (s: string) => `"${csvSafe(s).replaceAll('"', '""')}"`;
   const rows = receipt.items.map((i) =>
     [i.txid, String(i.height), zec(i.amountZat), cell(i.memo)].join(","),
   );

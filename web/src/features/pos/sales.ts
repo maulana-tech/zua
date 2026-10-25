@@ -1,3 +1,4 @@
+import { toCsv } from "../../lib/csv";
 import type { FiatCode } from "../../lib/fiat";
 import { formatMemoTag, parseMemoTag } from "../../lib/zcash/memo";
 import { zatToZec } from "../../lib/zcash/units";
@@ -106,9 +107,6 @@ export function dayTotal(
   return { zat, count };
 }
 
-const csvCell = (value: string) =>
-  /[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
-
 /** Spreadsheet export of the sales log; amounts in ZEC. */
 export function salesCsv(
   sales: Sale[],
@@ -139,5 +137,5 @@ export function salesCsv(
       sale.note,
     ]);
   }
-  return `${rows.map((r) => r.map(csvCell).join(",")).join("\n")}\n`;
+  return toCsv(rows);
 }
