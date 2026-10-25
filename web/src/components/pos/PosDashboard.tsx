@@ -631,7 +631,7 @@ function AmountEntry({
           }}
         />
         <span className="text-xs font-normal text-(--dash-ash)">
-          The customer's wallet shows it with the payment.
+          The customer&apos;s wallet shows it with the payment.
         </span>
       </label>
 

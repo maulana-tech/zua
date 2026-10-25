@@ -437,7 +437,7 @@ export function CreateInvoiceDialog({
           </div>
           <p className="text-xs leading-5 text-muted-foreground">
             You can edit the invoice until it receives a payment. After that
-            it's fixed: void it and create a new one.
+            it&apos;s fixed: void it and create a new one.
           </p>
           {error && (
             <p role="alert" className="text-sm text-destructive">
