@@ -30,6 +30,14 @@ export function walletDbKey(master: Uint8Array): Uint8Array {
   return hkdf(sha256, master, undefined, utf8(`${KEY_NS}.walletdb.v1`), 32);
 }
 
+/**
+ * AES-256-GCM key for small records kept on this device only (contacts,
+ * point-of-sale sales, payments already announced). See lib/vault.ts.
+ */
+export function localVaultKey(master: Uint8Array): Uint8Array {
+  return hkdf(sha256, master, undefined, utf8(`${KEY_NS}.vault.v1`), 32);
+}
+
 /** Seed for the Ed25519 key that signs the public profile claim. */
 export function profileSigningSeed(master: Uint8Array): Uint8Array {
   return hkdf(sha256, master, undefined, utf8(`${KEY_NS}.profile-sign.v1`), 32);

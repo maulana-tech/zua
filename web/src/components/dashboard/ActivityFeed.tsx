@@ -3,8 +3,8 @@
 import { ArrowDownLeft, ArrowUpRight, FileCheck2, Repeat } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { describeTx as describe } from "../../features/zcash/describeTx";
 import { HISTORY_PATH } from "../../lib/auth-routes";
-import { parseMemoTag, sanitizeMemo } from "../../lib/zcash/memo";
 import { explorerTxUrl } from "../../lib/zcash/network";
 import { zatToZec } from "../../lib/zcash/units";
 import type { WalletTx } from "../../lib/zcash/wallet";
@@ -13,22 +13,6 @@ import { dashFocus } from "./styles";
 
 const TABS = ["All", "Received", "Sent"] as const;
 type Tab = (typeof TABS)[number];
-
-function describe(tx: WalletTx): string {
-  for (const memo of tx.memos) {
-    const tag = parseMemoTag(memo);
-    if (tag?.kind === "inv") return "Invoice payment";
-    if (tag?.kind === "link") return "Payment link";
-    if (tag?.kind === "req") return "Request payment";
-  }
-  const note = tx.memos.map(sanitizeMemo).find((m) => m && !parseMemoTag(m));
-  if (note) return note;
-  return tx.kind === "received"
-    ? "Received"
-    : tx.kind === "sent"
-      ? "Sent"
-      : "Internal transfer";
-}
 
 function when(tx: WalletTx): string {
   if (tx.pending || tx.height === null) return "Confirming…";

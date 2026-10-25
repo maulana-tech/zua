@@ -23,6 +23,7 @@ import {
   signReceipt,
   sumZat,
 } from "../features/receipts/receipt";
+import { announcePayments, newIncoming } from "../features/zcash/paymentAlerts";
 import { type SignedAddress, signAddressClaim } from "../lib/addressClaim";
 import { DASHBOARD_PATH, SIGN_IN_PATH } from "../lib/auth-routes";
 import {
@@ -50,9 +51,11 @@ import {
   open as openSealed,
   type Sealed,
 } from "../lib/sealedBox";
+import { loadRecord, saveRecord } from "../lib/vault";
 import { lightwalletdUrl, network } from "../lib/zcash/network";
 import {
   claimLinkKey,
+  localVaultKey,
   messagingSecret,
   mnemonicFromMaster,
   profileSigningSeed,
@@ -133,6 +136,14 @@ type WalletState = {
   closeRecoveryModal: () => void;
   zcash: ZcashState;
   syncNow: () => Promise<void>;
+  /**
+   * Syncs every few seconds until the returned function is called, for
+   * screens waiting on a payment (point of sale).
+   */
+  watchPayments: () => () => void;
+  /** Device-only encrypted record (lib/vault); null when missing. */
+  loadLocal: <T>(name: string) => Promise<T | null>;
+  saveLocal: (name: string, value: unknown) => Promise<void>;
   send: (input: SendInput) => Promise<string[]>;
   /** Key of this account's claim link `index`; throws while locked. */
   claimKey: (index: number) => Uint8Array;
@@ -175,6 +186,12 @@ const EMPTY_ZCASH: ZcashState = {
 };
 
 const SYNC_INTERVAL_MS = 30_000;
+// While a screen waits on a payment, and in a background tab (where the
+// browser throttles timers anyway).
+const WATCH_SYNC_MS = 8_000;
+const HIDDEN_SYNC_MS = 120_000;
+const SYNC_TICK_MS = 4_000;
+const SEEN_LIMIT = 1000;
 const dbId = (name: string) => `${network}:${name}`;
 
 const WalletContext = createContext<WalletState | null>(null);
@@ -230,6 +247,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const walletRef = useRef<Wallet | null>(null);
   const syncingRef = useRef(false);
   const sessionRef = useRef(0);
+  const lastSyncRef = useRef(0);
+  const watchersRef = useRef(0);
+  // Txids already announced (persisted in the vault); null until loaded.
+  const seenRef = useRef<Set<string> | null>(null);
 
   useEffect(() => setPasskeySupported(passkeysAvailable()), []);
 
@@ -301,6 +322,30 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     await api.developer.addPoolAddresses.mutate({ addresses });
   }, []);
 
+  /**
+   * Toasts payments that are new since the last sync. On the first sync of a
+   * visit it summarises what arrived while away; on a new device it starts
+   * from what is already there instead of announcing all of history.
+   */
+  const announceNew = useCallback(async (name: string, history: WalletTx[]) => {
+    const master = masterRef.current;
+    if (!master) return;
+    const key = localVaultKey(master);
+    const id = dbId(`${name}:seen`);
+    let seen = seenRef.current;
+    let whileAway = false;
+    if (!seen) {
+      const stored = await loadRecord<string[]>(id, key);
+      seen = new Set(stored ?? history.map((tx) => tx.txid));
+      whileAway = stored !== null;
+    }
+    const fresh = newIncoming(history, seen);
+    for (const tx of history) seen.add(tx.txid);
+    seenRef.current = seen;
+    announcePayments(fresh, { whileAway });
+    await saveRecord(id, [...seen].slice(-SEEN_LIMIT), key);
+  }, []);
+
   const runSync = useCallback(
     async (name: string) => {
       const wallet = walletRef.current;
@@ -308,12 +353,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       if (!wallet || !master || syncingRef.current) return;
       const session = sessionRef.current;
       syncingRef.current = true;
+      lastSyncRef.current = Date.now();
       setZcash((z) => ({ ...z, status: "syncing", error: null }));
       try {
         await wallet.sync();
         const [{ sync, balances }, history] = await Promise.all([
           wallet.status(),
-          wallet.history(),
+          wallet.history(1000),
         ]);
         if (session !== sessionRef.current) return;
         setZcash((z) => ({
@@ -329,6 +375,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           await wallet.export(),
           walletDbKey(master),
         );
+        void announceNew(name, history).catch(() => {});
         void settleInvoices(history).catch(() => {});
         void topUpAddressPool(name).catch(() => {});
       } catch (cause) {
@@ -342,7 +389,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         syncingRef.current = false;
       }
     },
-    [settleInvoices, topUpAddressPool],
+    [announceNew, settleInvoices, topUpAddressPool],
   );
 
   /** Opens (or creates) the wallet for an unlocked master and profile. */
@@ -371,12 +418,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     [runSync],
   );
 
-  // Periodic sync while unlocked and the tab is visible.
+  // Periodic sync while unlocked: every 30 s in view, every few seconds while
+  // a screen waits on a payment, and every 2 min in a background tab.
   useEffect(() => {
     if (!accountUnlocked || !username) return;
     const id = window.setInterval(() => {
-      if (document.visibilityState === "visible") void runSync(username);
-    }, SYNC_INTERVAL_MS);
+      const every =
+        watchersRef.current > 0
+          ? WATCH_SYNC_MS
+          : document.visibilityState === "visible"
+            ? SYNC_INTERVAL_MS
+            : HIDDEN_SYNC_MS;
+      if (Date.now() - lastSyncRef.current >= every) void runSync(username);
+    }, SYNC_TICK_MS);
     return () => window.clearInterval(id);
   }, [accountUnlocked, username, runSync]);
 
@@ -615,6 +669,38 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     if (username) await runSync(username);
   }, [username, runSync]);
 
+  const watchPayments = useCallback(() => {
+    watchersRef.current += 1;
+    let stopped = false;
+    return () => {
+      if (stopped) return;
+      stopped = true;
+      watchersRef.current -= 1;
+    };
+  }, []);
+
+  const loadLocal = useCallback(
+    async <T,>(name: string): Promise<T | null> => {
+      const master = masterRef.current;
+      if (!master || !username) return null;
+      return loadRecord<T>(dbId(`${username}:${name}`), localVaultKey(master));
+    },
+    [username],
+  );
+
+  const saveLocal = useCallback(
+    async (name: string, value: unknown) => {
+      const master = masterRef.current;
+      if (!master || !username) throw new Error("Unlock your account first.");
+      await saveRecord(
+        dbId(`${username}:${name}`),
+        value,
+        localVaultKey(master),
+      );
+    },
+    [username],
+  );
+
   const send = useCallback(
     async (input: SendInput) => {
       const wallet = walletRef.current;
@@ -814,6 +900,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     passkeyRef.current = null;
     walletRef.current?.close();
     walletRef.current = null;
+    seenRef.current = null;
     setZcash(EMPTY_ZCASH);
     setRecoveryModal(null);
     setRecoveryMethod(null);
@@ -874,6 +961,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       closeRecoveryModal,
       zcash,
       syncNow,
+      watchPayments,
+      loadLocal,
+      saveLocal,
       send,
       claimKey,
       freshPayAddress,
@@ -920,6 +1010,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       closeRecoveryModal,
       zcash,
       syncNow,
+      watchPayments,
+      loadLocal,
+      saveLocal,
       send,
       claimKey,
       freshPayAddress,

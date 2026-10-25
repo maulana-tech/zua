@@ -11,6 +11,7 @@ import {
 } from "../../features/account/accountType";
 import { EmailNotificationsRow } from "../../features/notifications/EmailNotificationsRow";
 import { useChangeRecoveryPin } from "../../features/recovery/hooks/useChangeRecoveryPin";
+import { PaymentAlertsRow } from "../../features/zcash/PaymentAlertsRow";
 import { trpc } from "../../trpc/react";
 import { ACCOUNT_TYPE_ICONS } from "../AccountTypeDialog";
 import { Badge } from "../ui/badge";
@@ -54,6 +55,7 @@ export function SettingsDashboard() {
         <AccountTypeTile />
         <ZcashWalletTile />
         {username ? <WebsiteWidgetTile username={username} /> : null}
+        <PaymentAlertsRow />
         <EmailNotificationsRow />
         <RecoveryTile
           method={passkeyProtected ? "passkey" : "pin"}

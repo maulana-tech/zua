@@ -2,10 +2,11 @@ import { MEMO_PREFIX } from "../brand";
 
 // App memos tag a payment with what it pays: `zua:<kind>:<id>`. Payers may
 // also write free text; anything that isn't a tag is shown as a note.
-export type MemoKind = "inv" | "link" | "req" | "tip";
+// "pos" tags a point-of-sale charge; it is never sent to the server.
+export type MemoKind = "inv" | "link" | "req" | "tip" | "pos";
 export type MemoTag = { kind: MemoKind; id: string };
 
-const KINDS: readonly MemoKind[] = ["inv", "link", "req", "tip"];
+const KINDS: readonly MemoKind[] = ["inv", "link", "req", "tip", "pos"];
 const ID = /^[0-9A-Za-z]{8,24}$/;
 export const MAX_MEMO_BYTES = 512;
 
