@@ -18,10 +18,17 @@ Built for **ZECATHON**, Shielded Payments track.
 - **Invoices that mark themselves paid.** Each invoice carries an encrypted
   memo tag (`zua:inv:<id>`). When the owner's wallet syncs and finds a
   payment with that tag, the invoice turns paid, partial payments included.
-  PDF export and a client receipt email.
+  Edit an invoice until it receives a payment (same link), or duplicate it
+  with the next number. PDF export and a client receipt email.
 - **Recurring and USD invoices.** Weekly or monthly invoices that issue
   themselves, with overdue reminders. Prices in USD, paid in ZEC at a rate
   locked for 30 minutes.
+- **Point of sale.** A counter screen for shops: type the amount in ZEC or
+  your currency, the customer scans a ZIP-321 QR, and the sale turns paid
+  when the wallet finds its `zua:pos:<id>` memo (partial payments
+  included). Keeps the screen awake, has a customer full-screen view, and a
+  sales log with today's total and CSV export. The server never hears about
+  a sale: the log lives in an encrypted record on the device.
 - **Payment requests.** Ask another @username for a payment, end-to-end
   encrypted (the server stores ciphertext only).
 - **On your own site.** A one-line "Pay with Zcash" widget, and a Checkout
@@ -30,7 +37,9 @@ Built for **ZECATHON**, Shielded Payments track.
 **Pay**
 
 - **Send** to a @username, an address or a `zcash:` link, with a private
-  memo. Proving (Halo 2) happens in the browser.
+  memo. Proving (Halo 2) happens in the browser. Recent recipients (and
+  names you give addresses) are kept only on the device; a @username is
+  re-verified on every send.
 - **Payroll.** Pay up to 50 people in one shielded transaction, from a form
   or a CSV, each with their own note.
 - **Claim links.** Send ZEC to someone without a wallet as a link, after
@@ -44,6 +53,20 @@ Built for **ZECATHON**, Shielded Payments track.
   carries the note encryption keys of just those outputs; `/verify` decrypts
   them from the chain and checks the note commitments. Amounts and memos are
   proven; no viewing key, balance or other payment is revealed.
+
+**Run your account**
+
+- **Personal, freelancer or business.** Chosen at sign-up and changeable in
+  Settings; it orders the navigation and the overview (a business sees the
+  point of sale first). Nothing is locked: other tools stay one tap away.
+- **Payment alerts.** A toast, an optional chime and an optional system
+  notification the moment the wallet finds an incoming payment. The wallet
+  finds it on the device, so the server never learns a payment arrived.
+- **Your currency.** Amounts show an estimate in one of 24 currencies
+  (defaulting from the browser's language, e.g. rupiah for `id-ID`).
+  Payments are always in ZEC.
+- **History** search by note, amount or transaction ID, filters by type and
+  date, and a CSV export of what's shown.
 
 **Privacy by construction**
 
@@ -72,11 +95,13 @@ Browser                                          Server (Next.js + MongoDB)
 lightwalletd (ChainSafe proxy) → Zebra → Zcash (mainnet NU6.3 / testnet NU7)
 ```
 
-**What the server knows:** your email, username and public addresses; the
-invoices, links and checkouts you create (amounts, client names); who
-requested payment from whom (contents encrypted); and paid status *as your
-own wallet reports it*. **It never sees** your seed or viewing keys, balance,
-history, who paid you or what you sent. There is deliberately no server-side
+**What the server knows:** your email, username, account type (and business
+name, if you gave one) and public addresses; the invoices, links and
+checkouts you create (amounts, client names); who requested payment from
+whom (contents encrypted); and paid status and amount *as your own wallet
+reports it*, never the paying transaction. **It never sees** your seed or
+viewing keys, balance, history, who paid you or what you sent, your
+point-of-sale sales or your contacts. There is deliberately no server-side
 scanning: a checkout turns paid when your wallet, open in a browser, finds
 the payment.
 
@@ -102,7 +127,7 @@ the payment.
 | `web/` | Next.js 15 app (React 19, tRPC 11, MongoDB, Privy for login only) |
 | `web/src/lib/zcash/` | wallet wrapper, ZIP-321, memo tags, units, seed derivation, encrypted cache |
 | `web/src/lib/` | `profileClaim.ts` and `addressClaim.ts` (signed username/address claims), `sealedBox.ts` |
-| `web/src/features/` | receipts (v3 + verifier), invoices (recurrence, USD money), claim links, payroll CSV, embed |
+| `web/src/features/` | receipts (v3 + verifier), invoices (recurrence, USD money), point of sale, contacts, payment alerts, claim links, payroll CSV, embed |
 | `web/src/server/modules/` | `accounts`, `profiles`, `paymentLinks`, `invoices`, `requests`, `claimLinks`, `developer`, `notifications` |
 | `web/public/embed.js` | the "Pay with Zcash" widget (no build step) |
 | `webzjs/` | the wallet's Rust source: our fork of [ChainSafe WebZjs](https://github.com/ChainSafe/WebZjs) (MIT/Apache-2.0, history kept) |
@@ -177,7 +202,15 @@ modules so its thread workers resolve.
   crates are pre-releases: treat Zua as experimental.
 - "Paid" (invoices, checkouts, webhooks) is reported by the owner's wallet;
   the server can't verify shielded payments by design, and confirmations
-  arrive while the owner's dashboard is open.
+  arrive while the owner's dashboard is open. Payment alerts likewise need
+  Zua open in a tab.
+- The wallet sees a payment once it is mined (a block is ~75 seconds), not
+  while it waits in the mempool, so a point-of-sale sale usually turns paid
+  a minute or two after the customer sends it.
+- Sales and contacts live in an encrypted record in this browser only:
+  another device doesn't see them, and clearing site data removes them
+  (export the sales CSV first). Amounts in your currency are estimates from
+  CoinGecko.
 - Cashing out to a transparent address (an exchange) makes that payment
   public; the app warns first. Payers sending from transparent addresses
   reveal their side.

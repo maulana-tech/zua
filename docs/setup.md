@@ -123,6 +123,14 @@ profiles. Both need TAZ for steps that send.
 | 16 | Recurring | A: new invoice, Repeat monthly. Trigger `GET /api/cron/invoices` (Bearer `CRON_SECRET`) after editing `nextIssueAt` in Mongo to the past, or wait | A new invoice `<number>-2` appears; client emailed if Resend is set |
 | 17 | USD invoice | A: new invoice priced in USD → open the public page | ZEC amount locked for 30 minutes at the shown rate; paying it marks the invoice paid |
 | 18 | Claim link | B: Claim links → 0.01 → Create → open the link in another profile → Claim to @A | After confirmations the link shows "ready"; claiming sweeps it to A; B's "Check status" shows Claimed. Try "Take back" on another link. |
+| 19 | Account type | New account C: after the username, pick **Business** with a name | Navigation starts with Point of sale; the overview greets the business. Settings → Account type switches it back. |
+| 20 | Point of sale | A (business): Point of sale → type an amount in your currency → Charge. B scans the QR or pastes the `zcash:` link into Send. | "Waiting for payment" with the screen kept awake; about a block after B sends, a big **Paid** (and a chime if sound is on). The sale shows in Recent sales and Today's total; Export CSV lists it. |
+| 21 | Partial sale | Pay a sale with less than asked | The QR switches to the rest; paying it turns the sale paid |
+| 22 | Payment alert | A: Settings → Payment alerts → sound and background notification on; switch to another tab; B pays A | A system notification with the amount, and a toast back in Zua |
+| 23 | Recent recipients | B: send to `@A` and to a raw address, name the address | Both show as chips under **To**; picking one fills it; × forgets it |
+| 24 | Invoice edit | A: Edit a pending, unpaid invoice → change a line → Save | Same public link shows the new total. After a payment, Edit is gone (void and recreate instead). Duplicate opens a copy with the next number. |
+| 25 | History tools | A: History → search a memo word, pick a date range, Export CSV | Totals and list follow the filters; the CSV has the rows shown |
+| 26 | Currency | Settings → Display currency → IDR | Balances, Send and the pay page show "≈ Rp …" next to ZEC |
 
 Explorer: `https://testnet.zcashexplorer.app/transactions/<txid>` shows the
 transaction is on chain. Shielded amounts and addresses are not visible there.
