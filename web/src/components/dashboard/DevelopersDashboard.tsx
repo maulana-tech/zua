@@ -43,7 +43,7 @@ const pre =
 
 /** API keys, webhooks and the address pool for the merchant Checkout API. */
 export function DevelopersDashboard() {
-  const { syncNow, zcash } = useWallet();
+  const { syncNow, refillPool, zcash } = useWallet();
   const utils = trpc.useUtils();
   const overview = trpc.developer.overview.useQuery();
   const refresh = () => void utils.developer.overview.invalidate();
@@ -71,6 +71,8 @@ export function DevelopersDashboard() {
   const [url, setUrl] = useState("");
   const [showSecret, setShowSecret] = useState(false);
   const [origin, setOrigin] = useState("");
+  const [refilling, setRefilling] = useState(false);
+  const [refillError, setRefillError] = useState<string | null>(null);
   useEffect(() => setOrigin(window.location.origin), []);
   useEffect(() => {
     if (overview.data?.webhook) setUrl(overview.data.webhook.url);
@@ -295,11 +297,32 @@ export function DevelopersDashboard() {
             <button
               type="button"
               className={`${dashButtonSecondary} mt-3`}
-              disabled={zcash.status !== "ready"}
-              onClick={() => void syncNow().then(refresh)}
+              disabled={zcash.status !== "ready" || refilling}
+              onClick={async () => {
+                setRefilling(true);
+                setRefillError(null);
+                try {
+                  await syncNow();
+                  await refillPool();
+                } catch (e) {
+                  setRefillError(
+                    e instanceof Error
+                      ? e.message
+                      : "Couldn't refill the pool.",
+                  );
+                } finally {
+                  setRefilling(false);
+                  refresh();
+                }
+              }}
             >
-              Refill now
+              {refilling ? "Refilling…" : "Refill now"}
             </button>
+            {refillError ? (
+              <p className="mt-2 text-sm text-destructive" role="alert">
+                {refillError}
+              </p>
+            ) : null}
           </section>
         </div>
 

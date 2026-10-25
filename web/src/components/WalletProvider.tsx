@@ -143,6 +143,8 @@ type WalletState = {
   closeRecoveryModal: () => void;
   zcash: ZcashState;
   syncNow: () => Promise<void>;
+  /** Signs spare checkout addresses until the pool is full. */
+  refillPool: () => Promise<void>;
   /**
    * Syncs every few seconds until the returned function is called, for
    * screens waiting on a payment (point of sale).
@@ -305,7 +307,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
    * Merchant API checkouts get their own address from a pool this wallet
    * signs ahead (the server can't derive addresses). Refill it after syncs.
    */
-  const topUpAddressPool = useCallback(async (name: string) => {
+  const fillAddressPool = useCallback(async (name: string) => {
     const wallet = walletRef.current;
     const master = masterRef.current;
     if (!wallet || !master) return;
@@ -330,6 +332,18 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     await saveWalletDb(dbId(name), await wallet.export(), walletDbKey(master));
     await api.developer.addPoolAddresses.mutate({ addresses });
   }, []);
+
+  // One top-up at a time: two would see the same gap and both fill it.
+  const poolFillRef = useRef<Promise<void> | null>(null);
+  const topUpAddressPool = useCallback(
+    (name: string) => {
+      poolFillRef.current ??= fillAddressPool(name).finally(() => {
+        poolFillRef.current = null;
+      });
+      return poolFillRef.current;
+    },
+    [fillAddressPool],
+  );
 
   /**
    * Toasts payments that are new since the last sync. On the first sync of a
@@ -724,6 +738,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     if (username) await runSync(username);
   }, [username, runSync]);
 
+  const refillPool = useCallback(async () => {
+    if (username) await topUpAddressPool(username);
+  }, [username, topUpAddressPool]);
+
   const watchPayments = useCallback(() => {
     watchersRef.current += 1;
     let stopped = false;
@@ -1017,6 +1035,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       closeRecoveryModal,
       zcash,
       syncNow,
+      refillPool,
       watchPayments,
       loadLocal,
       saveLocal,
@@ -1066,6 +1085,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       closeRecoveryModal,
       zcash,
       syncNow,
+      refillPool,
       watchPayments,
       loadLocal,
       saveLocal,
