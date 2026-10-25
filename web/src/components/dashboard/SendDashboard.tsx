@@ -1,8 +1,20 @@
 "use client";
 
-import { AlertTriangle, ArrowUpRight, Loader } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, Loader, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  CONTACTS_RECORD,
+  type Contact,
+  contactKey,
+  contactLabel,
+  contactTarget,
+  forgetContact,
+  MAX_CONTACT_NAME,
+  matchContacts,
+  nameContact,
+  recordPayment,
+} from "../../features/contacts/contacts";
 import {
   type Recipient,
   resolveRecipient,
@@ -23,12 +35,14 @@ import {
   dashButtonPrimary,
   dashButtonSecondary,
   dashCell,
+  dashFocus,
   dashLedger,
 } from "./styles";
 
 // ZIP-317 fee for a simple shielded send (two logical actions). The wallet
 // computes the exact fee when it builds the transaction.
 const ESTIMATED_FEE_ZAT = 10_000n;
+const SHOWN_CONTACTS = 6;
 
 type Stage =
   | "idle"
@@ -39,8 +53,15 @@ type Stage =
   | "done";
 
 export function SendDashboard() {
-  const { accountUnlocked, promptUnlock, recoveryMethod, zcash, send } =
-    useWallet();
+  const {
+    accountUnlocked,
+    promptUnlock,
+    recoveryMethod,
+    zcash,
+    send,
+    loadLocal,
+    saveLocal,
+  } = useWallet();
   const fiat = useFiat();
   const params = useSearchParams();
   const requestId = params.get("request");
@@ -53,6 +74,26 @@ export function SendDashboard() {
   const [stage, setStage] = useState<Stage>("idle");
   const [error, setError] = useState("");
   const [txids, setTxids] = useState<string[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contactName, setContactName] = useState("");
+  const [contactSaved, setContactSaved] = useState(false);
+
+  useEffect(() => {
+    if (!accountUnlocked) return;
+    let alive = true;
+    loadLocal<Contact[]>(CONTACTS_RECORD)
+      .catch(() => null)
+      .then((saved) => alive && setContacts(saved ?? []));
+    return () => {
+      alive = false;
+    };
+  }, [accountUnlocked, loadLocal]);
+
+  function updateContacts(next: Contact[]) {
+    setContacts(next);
+    // A device-only convenience: a failed save just means no suggestion later.
+    void saveLocal(CONTACTS_RECORD, next).catch(() => {});
+  }
 
   const spendable = zcash.balances?.spendable ?? 0n;
 
@@ -100,6 +141,13 @@ export function SendDashboard() {
       });
       setTxids(ids);
       setStage("done");
+      if (ids.length) {
+        updateContacts(recordPayment(contacts, recipient, Date.now()));
+        setContactName(
+          contacts.find((c) => c.key === contactKey(recipient))?.name ?? "",
+        );
+        setContactSaved(false);
+      }
       if (requestId && ids.length)
         void markPaid.mutateAsync({ id: requestId }).catch(() => {});
     } catch (cause) {
@@ -120,6 +168,14 @@ export function SendDashboard() {
     setTxids([]);
     setStage("idle");
     setError("");
+    setContactName("");
+    setContactSaved(false);
+  }
+
+  function pick(contact: Contact) {
+    setTo(contactTarget(contact));
+    setStage("idle");
+    document.getElementById("send-amount")?.focus();
   }
 
   if (!accountUnlocked)
@@ -186,6 +242,41 @@ export function SendDashboard() {
                   </code>
                 );
               })}
+              {recipient && !recipient.username ? (
+                <form
+                  className="grid w-full max-w-sm gap-1.5 text-sm font-medium"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    updateContacts(
+                      nameContact(contacts, contactKey(recipient), contactName),
+                    );
+                    setContactSaved(true);
+                  }}
+                >
+                  <label htmlFor="contact-name">
+                    Name this address (optional)
+                  </label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="contact-name"
+                      appearance="linen"
+                      value={contactName}
+                      maxLength={MAX_CONTACT_NAME}
+                      onChange={(e) => {
+                        setContactName(e.target.value);
+                        setContactSaved(false);
+                      }}
+                      placeholder="My exchange"
+                    />
+                    <button type="submit" className={dashButtonSecondary}>
+                      {contactSaved ? "Saved" : "Save"}
+                    </button>
+                  </div>
+                  <span className="text-xs font-normal text-(--dash-ash)">
+                    Kept only on this device, so you can pick it next time.
+                  </span>
+                </form>
+              ) : null}
               <button
                 type="button"
                 className={dashButtonSecondary}
@@ -210,9 +301,18 @@ export function SendDashboard() {
                   disabled={busy}
                 />
               </label>
+              <RecentContacts
+                contacts={matchContacts(contacts, to)
+                  .filter((c) => contactTarget(c) !== to.trim())
+                  .slice(0, SHOWN_CONTACTS)}
+                disabled={busy}
+                onPick={pick}
+                onForget={(c) => updateContacts(forgetContact(contacts, c.key))}
+              />
               <label className="grid gap-1.5 text-sm font-medium">
                 Amount (ZEC)
                 <Input
+                  id="send-amount"
                   appearance="linen"
                   inputMode="decimal"
                   value={amount}
@@ -344,5 +444,51 @@ export function SendDashboard() {
         </aside>
       </div>
     </>
+  );
+}
+
+function RecentContacts({
+  contacts,
+  disabled,
+  onPick,
+  onForget,
+}: {
+  contacts: Contact[];
+  disabled: boolean;
+  onPick: (contact: Contact) => void;
+  onForget: (contact: Contact) => void;
+}) {
+  if (!contacts.length) return null;
+  return (
+    <div className="-mt-1 grid gap-2">
+      <p className="text-xs text-(--dash-ash)">Recent</p>
+      <ul className="flex flex-wrap gap-2">
+        {contacts.map((c) => (
+          <li
+            key={c.key}
+            className="flex h-8 items-center rounded-full border border-(--dash-line-strong) text-xs"
+          >
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => onPick(c)}
+              title={c.username ? undefined : c.address}
+              className={`h-full max-w-48 truncate rounded-l-full pr-1.5 pl-3 hover:text-(--dash-fg) ${dashFocus}`}
+            >
+              {contactLabel(c)}
+            </button>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => onForget(c)}
+              aria-label={`Forget ${contactLabel(c)}`}
+              className={`flex h-full items-center rounded-r-full pr-2.5 pl-1 text-(--dash-ash) hover:text-(--dash-fg) ${dashFocus}`}
+            >
+              <X className="size-3" aria-hidden="true" />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
