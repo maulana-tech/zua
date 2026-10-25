@@ -4,6 +4,7 @@ import { env } from "../../../env";
 import { type SignedAddress, verifiedAddress } from "../../../lib/addressClaim";
 import { verifyClaim } from "../../../lib/profileClaim";
 import { addressKind } from "../../../lib/zcash/address";
+import { orchardOnlyAddress } from "../../../lib/zcash/unifiedAddress";
 import {
   getPayAddresses,
   getProfiles,
@@ -65,6 +66,7 @@ export async function createProfile(
     userId,
     network: claim.network,
     ua: claim.ua,
+    orchardUa: orchardOnlyAddress(claim.ua),
     birthday: claim.birthday,
     signPubkeyHex: claim.signPubkeyHex,
     msgPubkeyHex: claim.msgPubkeyHex,
@@ -130,6 +132,7 @@ export async function checkPayAddress(
   try {
     await registry.insertOne({
       _id: ua,
+      orchardUa: orchardOnlyAddress(ua),
       owner,
       claimJson: signed.claimJson,
       sigHex: signed.sigHex,
@@ -151,9 +154,15 @@ export async function addressOwner(ua: string): Promise<{
   username: string;
   signed: SignedAddress | null;
 } | null> {
-  const profile = await (await getProfiles()).findOne({ ua });
+  // Receipts name a payment by its Orchard receiver, as an Orchard-only
+  // address; a profile or pay address with a Sapling receiver too is longer.
+  const profile = await (await getProfiles()).findOne({
+    $or: [{ ua }, { orchardUa: ua }],
+  });
   if (profile) return { username: profile._id, signed: null };
-  const doc = await (await getPayAddresses()).findOne({ _id: ua });
+  const doc = await (await getPayAddresses()).findOne({
+    $or: [{ _id: ua }, { orchardUa: ua }],
+  });
   return doc
     ? {
         username: doc.owner,

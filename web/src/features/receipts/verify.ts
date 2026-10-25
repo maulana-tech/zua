@@ -1,5 +1,6 @@
 import { type SignedAddress, verifiedAddress } from "../../lib/addressClaim";
 import { type ProfileClaim, verifyClaim } from "../../lib/profileClaim";
+import { orchardOnlyAddress } from "../../lib/zcash/unifiedAddress";
 import { zatToZec } from "../../lib/zcash/units";
 import { type Receipt, receiptSignatureValid } from "./receipt";
 
@@ -56,13 +57,20 @@ async function verifiedProfile(
   return claim && claim.username === username ? claim : null;
 }
 
-/** Username that registered `ua` with a valid signature, or null. */
+/**
+ * Username that registered `ua` with a valid signature, or null. A payment to
+ * a profile address shows up as its Orchard-only form, so that counts too.
+ */
 async function ownerOf(deps: VerifyDeps, ua: string): Promise<string | null> {
   const owner = await deps.addressOwner(ua);
   if (!owner) return null;
   const claim = await verifiedProfile(deps, owner.username);
   if (!claim) return null;
-  return verifiedAddress(claim, owner.signed) === ua ? owner.username : null;
+  const address = verifiedAddress(claim, owner.signed);
+  return address !== null &&
+    (address === ua || orchardOnlyAddress(address) === ua)
+    ? owner.username
+    : null;
 }
 
 export async function verifyReceipt(

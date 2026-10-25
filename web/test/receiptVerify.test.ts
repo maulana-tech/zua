@@ -17,6 +17,7 @@ import {
   signingPubkeyHex,
 } from "../src/lib/profileClaim";
 import { profileSigningSeed } from "../src/lib/zcash/seed";
+import { FULL, ORCHARD_ONLY, OTHER } from "./helpers/unifiedAddresses";
 
 // A tiny fake chain: one transaction whose outputs open with known keys.
 const TXID = "aa".repeat(32);
@@ -176,6 +177,39 @@ describe("verifying receipts", () => {
       deps,
     );
     expect(result).toMatchObject({ status: "invalid" });
+  });
+
+  it("counts a payment to the profile address, named in its Orchard-only form", async () => {
+    // Wallets report an output by its Orchard receiver, not the full address.
+    const claim = { ...profileOf("dinar"), ua: FULL };
+    const viaProfile = (owned: string): VerifyDeps => ({
+      ...deps,
+      async profile(username) {
+        return username === "dinar"
+          ? {
+              claimJson: canonicalClaim(claim),
+              claimSigHex: signClaim(claim, people.dinar),
+            }
+          : deps.profile(username);
+      },
+      // A server could claim any address is Dinar's; the verifier checks it
+      // against her signed profile.
+      async addressOwner(ua) {
+        return ua === owned ? { username: "dinar", signed: null } : null;
+      },
+      async verifyDisclosure() {
+        return { value: 500_000_000n, memo: "" };
+      },
+    });
+    const paidTo = (recipientUa: string) =>
+      receipt("dinar", { items: [{ ...item, memo: "", recipientUa }] });
+
+    expect(
+      await verifyReceipt(paidTo(ORCHARD_ONLY), viaProfile(ORCHARD_ONLY)),
+    ).toMatchObject({ status: "verified" });
+    expect(await verifyReceipt(paidTo(OTHER), viaProfile(OTHER))).toMatchObject(
+      { status: "invalid" },
+    );
   });
 
   it("reports the network being unreachable separately", async () => {

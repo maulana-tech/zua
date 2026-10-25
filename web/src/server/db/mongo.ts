@@ -32,6 +32,8 @@ export type ProfileDoc = {
   userId: string; // Privy user id
   network: "main" | "test";
   ua: string;
+  /** The same Orchard receiver as an Orchard-only address (receipts use it). */
+  orchardUa?: string | null;
   birthday: number;
   signPubkeyHex: string; // Ed25519
   msgPubkeyHex: string; // X25519
@@ -111,6 +113,8 @@ export type SignedAddressDoc = { claimJson: string; sigHex: string };
  */
 export type PayAddressDoc = {
   _id: string; // the unified address
+  /** The same Orchard receiver as an Orchard-only address (receipts use it). */
+  orchardUa?: string | null;
   owner: string; // username
   claimJson: string;
   sigHex: string;
