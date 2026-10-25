@@ -377,15 +377,25 @@ body:has(.theme-product) {
   }
 }
 
+/* From the tokens, not fixed linen: the dashboard remaps them to ink on paper,
+   where a fixed linen description was white on white. */
 body:has(.theme-product) [data-sonner-toast] {
-  border-color: rgb(245 243 234 / 0.18) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--color-brand-linen) 18%,
+    transparent
+  ) !important;
   background: var(--color-brand-obsidian-secondary) !important;
   color: var(--color-brand-linen) !important;
   box-shadow: var(--shadow-lg) !important;
 }
 
 body:has(.theme-product) [data-sonner-toast] [data-description] {
-  color: rgb(245 243 234 / 0.7) !important;
+  color: color-mix(
+    in srgb,
+    var(--color-brand-linen) 70%,
+    transparent
+  ) !important;
 }
 
 body:has(.theme-product) [data-sonner-toast] [data-button] {
