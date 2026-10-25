@@ -1,11 +1,18 @@
 "use client";
 
-import { Loader, LockKeyhole, LogOut } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { ChevronRight, Loader, LockKeyhole, LogOut } from "lucide-react";
+import Link from "next/link";
+import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
+import {
+  ACCOUNT_TYPES,
+  type AccountType,
+  hiddenFor,
+} from "../../features/account/accountType";
 import { EmailNotificationsRow } from "../../features/notifications/EmailNotificationsRow";
 import { useChangeRecoveryPin } from "../../features/recovery/hooks/useChangeRecoveryPin";
 import { trpc } from "../../trpc/react";
+import { ACCOUNT_TYPE_ICONS } from "../AccountTypeDialog";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import {
@@ -17,10 +24,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
+import { Input } from "../ui/input";
 import { useWallet } from "../WalletProvider";
 import { ChangeRecoveryPinDialog } from "./ChangeRecoveryPinDialog";
 import { DashboardPageHeader } from "./DashboardPageHeader";
-import { dashButtonPrimary, dashCell, dashLedger } from "./styles";
+import { NAV_ITEMS } from "./navItems";
+import { dashButtonPrimary, dashCell, dashFocus, dashLedger } from "./styles";
 import { WebsiteWidgetTile } from "./WebsiteWidgetTile";
 import { ZcashWalletTile } from "./ZcashWalletTile";
 
@@ -42,6 +51,7 @@ export function SettingsDashboard() {
 
       <div className={`${dashLedger} max-w-3xl`}>
         <IdentityTile username={username} onClaim={openUsernameModal} />
+        <AccountTypeTile />
         <ZcashWalletTile />
         {username ? <WebsiteWidgetTile username={username} /> : null}
         <EmailNotificationsRow />
@@ -121,6 +131,146 @@ function IdentityTile({
           Claim username
         </button>
       )}
+    </SettingsRow>
+  );
+}
+
+function AccountTypeTile() {
+  const { accountType, businessName, chooseAccountType } = useWallet();
+  const [selected, setSelected] = useState<AccountType | null>(accountType);
+  const [name, setName] = useState(businessName ?? "");
+  const [saving, setSaving] = useState(false);
+  useEffect(() => setSelected(accountType), [accountType]);
+  useEffect(() => setName(businessName ?? ""), [businessName]);
+
+  const dirty =
+    selected !== accountType ||
+    (selected === "business" && name.trim() !== (businessName ?? ""));
+  const otherTools = hiddenFor(accountType, NAV_ITEMS);
+
+  async function save() {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      await chooseAccountType(
+        selected,
+        selected === "business" ? name.trim() || null : null,
+      );
+      toast.success("Account type saved");
+    } catch (cause) {
+      toast.error(
+        cause instanceof Error ? cause.message : "Couldn't save the change.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <SettingsRow
+      title="Account type"
+      description="Decides which tools come first in your navigation. Nothing is turned off: every tool stays one click away."
+    >
+      <div className="grid gap-2" role="radiogroup" aria-label="Account type">
+        {ACCOUNT_TYPES.map(({ type, label, tools }) => {
+          const Icon = ACCOUNT_TYPE_ICONS[type];
+          const checked = selected === type;
+          return (
+            // biome-ignore lint/a11y/useSemanticElements: row-sized radio
+            <button
+              key={type}
+              type="button"
+              role="radio"
+              aria-checked={checked}
+              disabled={saving}
+              onClick={() => setSelected(type)}
+              className={`flex items-center gap-3 rounded-(--dash-radius-sm) border px-4 py-3 text-left transition-colors ${dashFocus} ${
+                checked
+                  ? "border-(--dash-fg)"
+                  : "border-(--dash-line) hover:border-(--dash-line-strong)"
+              }`}
+            >
+              <Icon className="size-4 shrink-0" aria-hidden="true" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium text-(--dash-fg)">
+                  {label}
+                </span>
+                <span className="block text-xs text-(--dash-ash)">{tools}</span>
+              </span>
+              <span
+                className={`size-2.5 shrink-0 rounded-full ${
+                  checked ? "bg-(--dash-accent)" : "bg-(--dash-line)"
+                }`}
+                aria-hidden="true"
+              />
+            </button>
+          );
+        })}
+      </div>
+
+      {selected === "business" ? (
+        <div className="mt-4 grid max-w-sm gap-2">
+          <label className="text-sm font-medium" htmlFor="settings-business">
+            Business name{" "}
+            <span className="font-normal text-(--dash-ash)">(optional)</span>
+          </label>
+          <Input
+            appearance="linen"
+            id="settings-business"
+            maxLength={60}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Kopi Senja"
+          />
+        </div>
+      ) : null}
+
+      {dirty ? (
+        <button
+          type="button"
+          className={`${dashButtonPrimary} mt-4`}
+          onClick={() => void save()}
+          disabled={saving || !selected}
+          aria-busy={saving}
+        >
+          {saving ? (
+            <Loader className="animate-spin" aria-hidden="true" />
+          ) : null}
+          {saving ? "Saving…" : "Save"}
+        </button>
+      ) : null}
+
+      {otherTools.length ? (
+        <div className="mt-6">
+          <h3 className="text-xs font-semibold tracking-[0.12em] text-(--dash-ash) uppercase">
+            Other tools
+          </h3>
+          <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+            {otherTools.map(({ href, label, description, icon: Icon }) => (
+              <li key={href}>
+                <Link
+                  href={href}
+                  className={`flex items-center gap-3 rounded-(--dash-radius-sm) px-3 py-2.5 transition-colors hover:bg-(--dash-tint) ${dashFocus}`}
+                >
+                  <Icon className="size-4 shrink-0" aria-hidden="true" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm text-(--dash-fg)">
+                      {label}
+                    </span>
+                    <span className="block text-xs text-(--dash-ash)">
+                      {description}
+                    </span>
+                  </span>
+                  <ChevronRight
+                    className="size-4 shrink-0 text-(--dash-ash)"
+                    aria-hidden="true"
+                  />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </SettingsRow>
   );
 }

@@ -1,36 +1,12 @@
 "use client";
 
-import {
-  ArrowUpRight,
-  Code2,
-  FileText,
-  Gift,
-  History,
-  Inbox,
-  LayoutGrid,
-  Link2,
-  LogOut,
-  Moon,
-  Settings,
-  Sun,
-  Users,
-} from "lucide-react";
+import { LogOut, Moon, Sun } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import {
-  CLAIMS_PATH,
-  DASHBOARD_PATH,
-  DEVELOPERS_PATH,
-  HISTORY_PATH,
-  INVOICES_PATH,
-  LINKS_PATH,
-  PAYROLL_PATH,
-  REQUESTS_PATH,
-  SEND_PATH,
-  SETTINGS_PATH,
-} from "../../lib/auth-routes";
+import { navFor } from "../../features/account/accountType";
+import { SETTINGS_PATH } from "../../lib/auth-routes";
 import { cn } from "../../lib/utils";
 import { isTestnet } from "../../lib/zcash/network";
 import {
@@ -44,23 +20,8 @@ import {
 } from "../ui/dropdown-menu";
 import { useWallet } from "../WalletProvider";
 import { useDashboardMode } from "./DashboardBackground";
+import { NAV_ITEMS, type NavItem } from "./navItems";
 import { dashFocus, dashIconButton } from "./styles";
-
-const NAV_ITEMS = [
-  { href: DASHBOARD_PATH, label: "Overview", icon: LayoutGrid },
-  { href: LINKS_PATH, label: "Links", icon: Link2 },
-  { href: INVOICES_PATH, label: "Invoices", icon: FileText },
-  { href: SEND_PATH, label: "Send", icon: ArrowUpRight },
-  { href: PAYROLL_PATH, label: "Payroll", icon: Users },
-  { href: CLAIMS_PATH, label: "Claim links", icon: Gift },
-  { href: HISTORY_PATH, label: "History", icon: History },
-  { href: REQUESTS_PATH, label: "Requests", icon: Inbox },
-  { href: DEVELOPERS_PATH, label: "Developers", icon: Code2 },
-  { href: SETTINGS_PATH, label: "Settings", icon: Settings },
-] as const;
-
-const MAIN_ITEMS = NAV_ITEMS.filter((item) => item.href !== SETTINGS_PATH);
-const FOOTER_ITEMS = NAV_ITEMS.filter((item) => item.href === SETTINGS_PATH);
 
 function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -130,6 +91,11 @@ function DashboardNavLayout({
   pathname: string;
   contentClassName?: string;
 }) {
+  const { accountType } = useWallet();
+  const items = navFor(accountType, NAV_ITEMS);
+  const mainItems = items.filter((item) => item.href !== SETTINGS_PATH);
+  const footerItems = items.filter((item) => item.href === SETTINGS_PATH);
+  // Hidden pages stay reachable (Settings links them), so title them too.
   const current =
     NAV_ITEMS.find((item) => isActive(pathname, item.href))?.label ??
     "Overview";
@@ -150,12 +116,12 @@ function DashboardNavLayout({
             className="flex w-full flex-1 flex-col items-center"
           >
             <ul className="my-auto grid gap-2">
-              {MAIN_ITEMS.map((item) => (
+              {mainItems.map((item) => (
                 <RailLink key={item.href} item={item} pathname={pathname} />
               ))}
             </ul>
             <ul className="grid gap-2">
-              {FOOTER_ITEMS.map((item) => (
+              {footerItems.map((item) => (
                 <RailLink key={item.href} item={item} pathname={pathname} />
               ))}
             </ul>
@@ -198,7 +164,7 @@ function DashboardNavLayout({
       </div>
 
       <div className="fixed right-[max(0.75rem,env(safe-area-inset-right))] bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-[max(0.75rem,env(safe-area-inset-left))] z-40 rounded-(--dash-radius) border border-(--dash-line-solid) bg-(--dash-surface) lg:hidden">
-        <MobileTabs pathname={pathname} />
+        <MobileTabs pathname={pathname} items={items} />
       </div>
     </div>
   );
@@ -209,7 +175,7 @@ function RailLink({
   pathname,
   badge,
 }: {
-  item: (typeof NAV_ITEMS)[number];
+  item: NavItem;
   pathname: string;
   badge?: number;
 }) {
@@ -262,14 +228,25 @@ function RailLink({
   );
 }
 
-function MobileTabs({ pathname }: { pathname: string }) {
+function MobileTabs({
+  pathname,
+  items,
+}: {
+  pathname: string;
+  items: readonly NavItem[];
+}) {
   return (
     <nav
       aria-label="Dashboard tabs"
       className="overflow-x-auto overscroll-x-contain"
     >
-      <ul className="grid min-w-[26rem] grid-cols-7">
-        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+      <ul
+        className="grid"
+        style={{
+          gridTemplateColumns: `repeat(${items.length}, minmax(3.75rem, 1fr))`,
+        }}
+      >
+        {items.map(({ href, label, short, icon: Icon }) => {
           const active = isActive(pathname, href);
           const badge: number | undefined = undefined;
           const showBadge = typeof badge === "number" && badge > 0;
@@ -307,7 +284,7 @@ function MobileTabs({ pathname }: { pathname: string }) {
                     </span>
                   ) : null}
                 </div>
-                {label}
+                {short ?? label}
                 {showBadge ? (
                   <span className="sr-only"> ({badge} pending)</span>
                 ) : null}

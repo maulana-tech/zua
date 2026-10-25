@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { isProtectedRoute } from "../lib/auth-routes";
 import { APP_NAME } from "../lib/brand";
 import { network } from "../lib/zcash/network";
+import { AccountTypeDialog } from "./AccountTypeDialog";
 import { BackLink } from "./BackLink";
 import { DashboardBackground } from "./dashboard/DashboardBackground";
 import { DashboardShell } from "./dashboard/DashboardShell";
@@ -33,6 +34,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     chooseRecovery,
     unlockWithPasskey,
     closeRecoveryModal,
+    accountUnlocked,
+    username,
+    accountType,
+    accountTypeResolved,
+    chooseAccountType,
   } = useWallet();
   const pathname = usePathname();
   const isPay = pathname.startsWith("/pay");
@@ -76,6 +82,20 @@ export function AppShell({ children }: { children: ReactNode }) {
     />
   );
 
+  // Onboarding, after the username: which tools to put first.
+  const accountTypeDialog = (
+    <AccountTypeDialog
+      open={
+        accountUnlocked &&
+        Boolean(username) &&
+        accountTypeResolved &&
+        accountType === null &&
+        !usernameModalOpen
+      }
+      onChoose={chooseAccountType}
+    />
+  );
+
   if (pathname === "/" || protectedRoute) {
     if (pathname !== "/") {
       return (
@@ -85,6 +105,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           {usernameModal}
           {pinModal}
           {recoveryDialog}
+          {accountTypeDialog}
         </div>
       );
     }

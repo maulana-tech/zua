@@ -1,10 +1,29 @@
 "use client";
 
-import { Check, ChevronRight, Copy, ExternalLink, QrCode } from "lucide-react";
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  Check,
+  ChevronRight,
+  Copy,
+  ExternalLink,
+  FilePlus2,
+  Inbox,
+  Link2,
+  QrCode,
+  Store,
+} from "lucide-react";
 import Link from "next/link";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import type { AccountType } from "../../features/account/accountType";
 import { InstallApp } from "../../features/pwa/InstallApp";
-import { LINKS_PATH } from "../../lib/auth-routes";
+import {
+  INVOICES_PATH,
+  LINKS_PATH,
+  POS_PATH,
+  REQUESTS_PATH,
+  SEND_PATH,
+} from "../../lib/auth-routes";
 import { APP_NAME } from "../../lib/brand";
 import { unlockLabel } from "../../lib/passkey";
 import { useWallet } from "../WalletProvider";
@@ -31,6 +50,8 @@ export function Dashboard() {
     recoveryMethod,
     zcash,
     syncNow,
+    accountType,
+    businessName,
   } = useWallet();
   const [origin, setOrigin] = useState("");
   const [receiveOpen, setReceiveOpen] = useState(false);
@@ -39,15 +60,29 @@ export function Dashboard() {
 
   const payLink = username && origin ? `${origin}/pay/${username}` : "";
   const needsUsername = accountUnlocked && usernameResolved && !username;
+  const canReceive = Boolean(username && zcash.address);
+  const greeting =
+    accountType === "business" && businessName
+      ? `Hi, ${businessName}`
+      : username
+        ? `Hi, @${username}`
+        : `Welcome to ${APP_NAME}`;
 
   return (
     <>
       <DashboardPageHeader
-        title={username ? `Hi, @${username}` : `Welcome to ${APP_NAME}`}
-        description="Your shielded ZEC balance, payment link and recent activity."
+        title={greeting}
+        description={OVERVIEW_DESCRIPTION[accountType ?? "personal"]}
       />
 
       <InstallApp />
+
+      {username && accountType ? (
+        <QuickActions
+          type={accountType}
+          onReceive={canReceive ? () => setReceiveOpen(true) : undefined}
+        />
+      ) : null}
 
       {needsUsername ? (
         <div className="mb-4 flex flex-col gap-4 rounded-(--dash-radius) border border-(--dash-line-solid) bg-(--dash-surface) p-5 sm:flex-row sm:items-center sm:justify-between">
@@ -123,6 +158,73 @@ export function Dashboard() {
         />
       ) : null}
     </>
+  );
+}
+
+const OVERVIEW_DESCRIPTION: Record<AccountType, string> = {
+  personal: "Your shielded ZEC balance, payment link and recent activity.",
+  freelancer:
+    "Your shielded ZEC balance, what clients paid and what is still open.",
+  business:
+    "Your shielded ZEC balance, today's sales and recent activity, decrypted on this device.",
+};
+
+type QuickAction = {
+  label: string;
+  icon: typeof Store;
+  href?: string;
+  receive?: true;
+};
+
+// The first things each kind of account does, one tap from the overview.
+const QUICK_ACTIONS: Record<AccountType, QuickAction[]> = {
+  personal: [
+    { label: "Receive", icon: ArrowDownLeft, receive: true },
+    { label: "Send", icon: ArrowUpRight, href: SEND_PATH },
+    { label: "Request", icon: Inbox, href: REQUESTS_PATH },
+  ],
+  freelancer: [
+    { label: "New invoice", icon: FilePlus2, href: `${INVOICES_PATH}?new=1` },
+    { label: "Payment link", icon: Link2, href: LINKS_PATH },
+    { label: "Receive", icon: ArrowDownLeft, receive: true },
+  ],
+  business: [
+    { label: "New sale", icon: Store, href: POS_PATH },
+    { label: "New invoice", icon: FilePlus2, href: `${INVOICES_PATH}?new=1` },
+    { label: "Receive", icon: ArrowDownLeft, receive: true },
+  ],
+};
+
+function QuickActions({
+  type,
+  onReceive,
+}: {
+  type: AccountType;
+  onReceive?: () => void;
+}) {
+  return (
+    <nav aria-label="Quick actions" className="mb-4 flex flex-wrap gap-2">
+      {QUICK_ACTIONS[type].map(({ label, icon: Icon, href, receive }, i) => {
+        const className = i === 0 ? dashButtonPrimary : dashButtonSecondary;
+        return href ? (
+          <Link key={label} href={href} className={className}>
+            <Icon aria-hidden="true" />
+            {label}
+          </Link>
+        ) : receive ? (
+          <button
+            key={label}
+            type="button"
+            className={className}
+            onClick={onReceive}
+            disabled={!onReceive}
+          >
+            <Icon aria-hidden="true" />
+            {label}
+          </button>
+        ) : null;
+      })}
+    </nav>
   );
 }
 

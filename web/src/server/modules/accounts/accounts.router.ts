@@ -6,11 +6,13 @@ import {
   RecoveryAlreadySetError,
 } from "./accounts.errors";
 import {
+  accountTypeOutput,
   escrowInput,
   escrowOutput,
   meOutput,
   passkeyInput,
   rotateEscrowInput,
+  setAccountTypeInput,
 } from "./accounts.schema";
 import {
   getEscrow,
@@ -18,6 +20,7 @@ import {
   rotateEscrow,
   saveEscrow,
   savePasskey,
+  setAccountType,
 } from "./accounts.service";
 
 function mapError(error: unknown): never {
@@ -65,4 +68,8 @@ export const accountsRouter = createTRPCRouter({
       await savePasskey(ctx.privyUserId, input).catch(mapError);
       return { ok: true };
     }),
+  setAccountType: protectedProcedure
+    .input(setAccountTypeInput)
+    .output(accountTypeOutput)
+    .mutation(({ ctx, input }) => setAccountType(ctx.privyUserId, input)),
 });

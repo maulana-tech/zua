@@ -44,6 +44,11 @@ export function InvoicesDashboard() {
   });
   useEffect(() => {
     setOrigin(window.location.origin);
+    // "New invoice" from the overview lands here with ?new=1.
+    if (new URLSearchParams(window.location.search).get("new") === "1") {
+      setCreateOpen(true);
+      window.history.replaceState(null, "", window.location.pathname);
+    }
   }, []);
   useEffect(() => {
     if (sessionReady && !authenticated) window.location.replace(SIGN_IN_PATH);

@@ -6,11 +6,13 @@ import {
   RecoveryAlreadySetError,
 } from "./accounts.errors";
 import type {
+  AccountTypeOutput,
   EscrowInput,
   EscrowOutput,
   MeOutput,
   PasskeyInput,
   RotateEscrowInput,
+  SetAccountTypeInput,
 } from "./accounts.schema";
 
 async function ensureUser(userId: string, email?: string) {
@@ -35,7 +37,30 @@ export async function me(userId: string, email?: string): Promise<MeOutput> {
     recovery: user?.passkey ? "passkey" : user?.escrow ? "pin" : null,
     passkey: user?.passkey ?? null,
     username: profile?._id ?? null,
+    accountType: user?.accountType ?? null,
+    businessName: user?.businessName ?? null,
   };
+}
+
+/** Personal, freelancer or business: changeable at any time. */
+export async function setAccountType(
+  userId: string,
+  input: SetAccountTypeInput,
+): Promise<AccountTypeOutput> {
+  await ensureUser(userId);
+  const businessName =
+    input.accountType === "personal" ? null : input.businessName || null;
+  await (await getUsers()).updateOne(
+    { _id: userId },
+    {
+      $set: {
+        accountType: input.accountType,
+        businessName,
+        updatedAt: new Date(),
+      },
+    },
+  );
+  return { accountType: input.accountType, businessName };
 }
 
 // Recovery is write-once: a second method would mean a second master, and the

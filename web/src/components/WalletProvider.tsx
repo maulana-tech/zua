@@ -12,6 +12,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { AccountType } from "../features/account/accountType";
 import {
   findInvoicePayments,
   findRequestPayments,
@@ -104,6 +105,14 @@ type WalletState = {
   closeUsernameModal: () => void;
   /** Creates the Zcash account, signs the profile claim, claims @username. */
   claimUsername: (username: string) => Promise<void>;
+  /** Personal, freelancer or business; null until chosen at onboarding. */
+  accountType: AccountType | null;
+  businessName: string | null;
+  accountTypeResolved: boolean;
+  chooseAccountType: (
+    type: AccountType,
+    businessName?: string | null,
+  ) => Promise<void>;
   accountUnlocked: boolean;
   pinModalOpen: boolean;
   pinMode: PinMode;
@@ -193,6 +202,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [username, setUsername] = useState<string | null>(null);
   const [usernameResolved, setUsernameResolved] = useState(false);
   const [usernameModalOpen, setUsernameModalOpen] = useState(false);
+  const [accountType, setAccountType] = useState<AccountType | null>(null);
+  const [businessName, setBusinessName] = useState<string | null>(null);
+  const [accountTypeResolved, setAccountTypeResolved] = useState(false);
   const [accountUnlocked, setAccountUnlocked] = useState(false);
   const [pinModalOpen, setPinModalOpen] = useState(false);
   const [pinMode, setPinMode] = useState<PinMode>("unlock");
@@ -390,6 +402,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     if (!authenticated || !userId) {
       setUsername(null);
       setUsernameResolved(false);
+      setAccountType(null);
+      setBusinessName(null);
+      setAccountTypeResolved(false);
       setAccountUnlocked(false);
       setZcash(EMPTY_ZCASH);
       setSessionReady(true);
@@ -409,6 +424,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         if (cancelled || session !== sessionRef.current) return;
         setUsername(me.username);
         setUsernameResolved(true);
+        setAccountType(me.accountType);
+        setBusinessName(me.businessName);
+        setAccountTypeResolved(true);
         setRecoveryMethod(me.recovery);
         passkeyRef.current = me.passkey;
         if (masterRef.current) return; // already unlocked this page
@@ -579,6 +597,18 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       void runSync(name);
     },
     [runSync],
+  );
+
+  const chooseAccountType = useCallback(
+    async (type: AccountType, name: string | null = null) => {
+      const saved = await api.accounts.setAccountType.mutate({
+        accountType: type,
+        businessName: name?.trim() || null,
+      });
+      setAccountType(saved.accountType);
+      setBusinessName(saved.businessName);
+    },
+    [],
   );
 
   const syncNow = useCallback(async () => {
@@ -788,6 +818,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setRecoveryModal(null);
     setRecoveryMethod(null);
     setUsername(null);
+    setAccountType(null);
+    setBusinessName(null);
+    setAccountTypeResolved(false);
     setUsernameModalOpen(false);
     setPinModalOpen(false);
     setAccountUnlocked(false);
@@ -817,6 +850,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       openUsernameModal,
       closeUsernameModal,
       claimUsername,
+      accountType,
+      businessName,
+      accountTypeResolved,
+      chooseAccountType,
       accountUnlocked,
       pinModalOpen,
       pinMode,
@@ -859,6 +896,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       openUsernameModal,
       closeUsernameModal,
       claimUsername,
+      accountType,
+      businessName,
+      accountTypeResolved,
+      chooseAccountType,
       accountUnlocked,
       pinModalOpen,
       pinMode,

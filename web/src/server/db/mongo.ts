@@ -19,6 +19,9 @@ export type UserDoc = {
     transports: string[];
     signPubkeyHex: string;
   };
+  // Chosen at onboarding; decides which tools the dashboard shows first.
+  accountType?: "personal" | "freelancer" | "business";
+  businessName?: string | null;
   createdAt: Date;
   updatedAt: Date;
 };

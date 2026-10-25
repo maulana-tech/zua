@@ -40,14 +40,35 @@ export const passkeyInput = z
   })
   .strict();
 
-export const meOutput = z.object({
-  recovery: z.enum(["passkey", "pin"]).nullable(),
-  passkey: passkeyInput.nullable(),
-  username: z.string().nullable(),
+/** How the account is used: it picks the tools the dashboard puts first. */
+export const accountTypeSchema = z.enum(["personal", "freelancer", "business"]);
+
+export const setAccountTypeInput = z
+  .object({
+    accountType: accountTypeSchema,
+    // Shown on the owner's own screens (e.g. the point of sale), not published.
+    businessName: z.string().trim().max(60).nullable().default(null),
+  })
+  .strict();
+
+export const accountTypeOutput = z.object({
+  accountType: accountTypeSchema.nullable(),
+  businessName: z.string().nullable(),
 });
+
+export const meOutput = z
+  .object({
+    recovery: z.enum(["passkey", "pin"]).nullable(),
+    passkey: passkeyInput.nullable(),
+    username: z.string().nullable(),
+  })
+  .merge(accountTypeOutput);
 
 export type EscrowInput = z.infer<typeof escrowInput>;
 export type EscrowOutput = z.infer<typeof escrowOutput>;
 export type RotateEscrowInput = z.infer<typeof rotateEscrowInput>;
 export type PasskeyInput = z.infer<typeof passkeyInput>;
 export type MeOutput = z.infer<typeof meOutput>;
+export type AccountType = z.infer<typeof accountTypeSchema>;
+export type SetAccountTypeInput = z.infer<typeof setAccountTypeInput>;
+export type AccountTypeOutput = z.infer<typeof accountTypeOutput>;
