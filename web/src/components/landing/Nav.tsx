@@ -1,8 +1,16 @@
 "use client";
 
-import { ChevronDown, LayoutDashboard, Loader, LogOut } from "lucide-react";
+import {
+  ChevronDown,
+  LayoutDashboard,
+  Loader,
+  LogOut,
+  Menu,
+  X,
+} from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,11 +22,64 @@ import { useWallet } from "../WalletProvider";
 import { pillSolidViolet } from "./primitives";
 
 export const LANDING_SECTIONS = [
-  { id: "why", label: "Why Zua" },
+  { id: "privacy", label: "Privacy" },
+  { id: "product", label: "Product" },
   { id: "how", label: "How it works" },
-  { id: "who", label: "Who it's for" },
+  { id: "developers", label: "Developers" },
   { id: "faq", label: "FAQ" },
 ] as const;
+
+/** Section links for small screens, where the centred pill nav is hidden. */
+function MobileMenu() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  return (
+    <div className="lg:hidden">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls="landing-mobile-menu"
+        aria-label={open ? "Close menu" : "Open menu"}
+        onClick={() => setOpen((v) => !v)}
+        className="grid size-11 place-items-center rounded-full border border-starlight/20 text-starlight transition-colors hover:border-starlight/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-starlight"
+      >
+        {open ? (
+          <X className="size-4" aria-hidden="true" />
+        ) : (
+          <Menu className="size-4" aria-hidden="true" />
+        )}
+      </button>
+      <nav
+        id="landing-mobile-menu"
+        aria-label="Sections"
+        hidden={!open}
+        className="absolute inset-x-0 top-full border-y border-starlight/10 bg-void px-4 pb-4 sm:px-8"
+      >
+        <ul className="grid list-none">
+          {LANDING_SECTIONS.map((section) => (
+            <li key={section.id}>
+              <a
+                href={`#${section.id}`}
+                onClick={() => setOpen(false)}
+                className="flex min-h-12 items-center border-b border-starlight/10 text-lg text-starlight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-starlight"
+              >
+                {section.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </div>
+  );
+}
 
 export function EditionsTopNav() {
   const router = useRouter();
@@ -63,6 +124,7 @@ export function EditionsTopNav() {
       </nav>
 
       <div className="flex min-w-0 flex-none items-center gap-2 sm:gap-4">
+        <MobileMenu />
         {authenticated && usernameResolved && !username && (
           <button
             type="button"

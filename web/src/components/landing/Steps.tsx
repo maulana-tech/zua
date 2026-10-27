@@ -2,14 +2,14 @@
 
 import type { LucideIcon } from "lucide-react";
 import {
-  ArrowDownToLine,
+  ArrowUpRight,
   AtSign,
+  BadgeCheck,
   Check,
   Fingerprint,
-  Lock,
   QrCode,
+  ScanSearch,
   Wallet,
-  Zap,
 } from "lucide-react";
 import {
   type KeyboardEvent,
@@ -20,6 +20,9 @@ import {
   useState,
 } from "react";
 import { cn } from "@/lib/utils";
+import { Mascot } from "../Mascot";
+import { nextTabIndex, useInView, useReducedMotion } from "./hooks";
+import { FauxQr, MockButton, MockRow, MockWindow } from "./mocks";
 import { Frame, MonoLabel } from "./primitives";
 
 const STEPS: {
@@ -30,21 +33,27 @@ const STEPS: {
 }[] = [
   {
     icon: AtSign,
-    title: "Claim your link",
-    body: "Sign in with email, Google, or a passkey and pick a username. Your link is ready in under a minute.",
+    title: "Claim your @username",
+    body: "Sign in with email or Google and protect your account with a passkey or a PIN. Your Zcash wallet is created in your browser, with no seed phrase to write down.",
     mock: ClaimMock,
   },
   {
     icon: QrCode,
-    title: "Share it with clients",
-    body: "Send the link or show the QR code. Clients pay ZEC from any Zcash wallet, with no Zua account needed.",
+    title: "Share a link, invoice or QR",
+    body: "Clients pay from any shielded Zcash wallet by scanning the QR or tapping “Open in wallet”. They don't need a Zua account.",
     mock: PayMock,
   },
   {
-    icon: ArrowDownToLine,
-    title: "Withdraw privately",
-    body: "Send to another @username or cash out to any Zcash address. Shielded payments reveal nothing about the payment that funded them.",
-    mock: WithdrawMock,
+    icon: ScanSearch,
+    title: "Your wallet spots the payment",
+    body: "While Zua is open, your wallet syncs every few seconds, decrypts what's yours and marks the matching invoice or sale paid. Usually within a minute or two of the payment.",
+    mock: DetectMock,
+  },
+  {
+    icon: ArrowUpRight,
+    title: "Spend it, or prove it",
+    body: "Pay a @username, run payroll or cash out to any Zcash address. Need proof for an accountant? Download a receipt that anyone can check.",
+    mock: SpendMock,
   },
 ];
 
@@ -53,30 +62,24 @@ const AUTO_ADVANCE_MS = 6000;
 export function Steps() {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
-  const [reduceMotion, setReduceMotion] = useState(false);
+  const reduceMotion = useReducedMotion();
+  const sectionRef = useRef<HTMLElement>(null);
+  const inView = useInView(sectionRef);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   // One Steps per page, so a fixed id; useId drifted between SSR and client.
   const baseId = "how-steps";
-
-  useEffect(() => {
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduceMotion(query.matches);
-    const onChange = () => setReduceMotion(query.matches);
-    query.addEventListener("change", onChange);
-    return () => query.removeEventListener("change", onChange);
-  }, []);
 
   // Gently cycle through the steps until the visitor takes over. `active`
   // restarts the countdown whenever the step changes, including by hand.
   // biome-ignore lint/correctness/useExhaustiveDependencies: see above
   useEffect(() => {
-    if (paused || reduceMotion) return;
+    if (paused || reduceMotion || !inView) return;
     const timer = window.setTimeout(
       () => setActive((current) => (current + 1) % STEPS.length),
       AUTO_ADVANCE_MS,
     );
     return () => window.clearTimeout(timer);
-  }, [active, paused, reduceMotion]);
+  }, [active, paused, reduceMotion, inView]);
 
   const select = useCallback((index: number, focus = false) => {
     setActive(index);
@@ -88,21 +91,7 @@ export function Steps() {
     event: KeyboardEvent<HTMLButtonElement>,
     index: number,
   ) => {
-    const last = STEPS.length - 1;
-    const next =
-      event.key === "ArrowDown" || event.key === "ArrowRight"
-        ? index === last
-          ? 0
-          : index + 1
-        : event.key === "ArrowUp" || event.key === "ArrowLeft"
-          ? index === 0
-            ? last
-            : index - 1
-          : event.key === "Home"
-            ? 0
-            : event.key === "End"
-              ? last
-              : null;
+    const next = nextTabIndex(event.key, index, STEPS.length);
     if (next === null) return;
     event.preventDefault();
     select(next, true);
@@ -112,6 +101,7 @@ export function Steps() {
 
   return (
     <section
+      ref={sectionRef}
       id="how"
       data-ed-section
       aria-labelledby="how-title"
@@ -125,12 +115,12 @@ export function Steps() {
               id="how-title"
               className="mt-4 text-[clamp(1.9rem,3vw,2.8rem)] font-normal tracking-tight"
             >
-              From link to private balance in three steps
+              From sign-up to a private balance in four steps
             </h2>
           </div>
           <p className="max-w-[46ch] self-end text-lg leading-relaxed text-graphite/70 lg:justify-self-end">
-            No seed phrase, no gas, no new wallet for every invoice. Just a link
-            you share and a balance only you can see.
+            No seed phrase, no new wallet for every client, no server watching
+            your payments. A link you share and a balance only you can see.
           </p>
         </div>
 
@@ -215,7 +205,7 @@ export function Steps() {
                       className="absolute inset-x-0 bottom-0 h-0.5 bg-graphite/5"
                     >
                       <span
-                        key={`${active}-${paused}`}
+                        key={`${active}-${paused}-${inView}`}
                         className="block h-full origin-left bg-violet"
                         style={{
                           animation: paused
@@ -258,52 +248,6 @@ export function Steps() {
 
 /* ---- product mocks (decorative copies of real Zua screens) ---------------- */
 
-function MockWindow({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="border border-starlight/15 bg-void">
-      <div className="flex items-center gap-2 border-b border-starlight/10 px-4 py-3">
-        <span className="size-2.5 rounded-full bg-starlight/20" />
-        <span className="size-2.5 rounded-full bg-starlight/20" />
-        <span className="size-2.5 rounded-full bg-starlight/20" />
-        <span className="ml-2 truncate font-landing text-[11px] text-starlight/50">
-          {title}
-        </span>
-      </div>
-      <div className="p-5 sm:p-6">{children}</div>
-    </div>
-  );
-}
-
-function Row({
-  label,
-  value,
-  accent = false,
-}: {
-  label: string;
-  value: ReactNode;
-  accent?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex items-center justify-between rounded-none border px-3.5 py-2.5 text-sm",
-        accent
-          ? "border-violet/50 bg-violet/10"
-          : "border-starlight/10 bg-void/60",
-      )}
-    >
-      <span className="text-starlight/60">{label}</span>
-      <span className="flex items-center gap-1.5 text-starlight">{value}</span>
-    </div>
-  );
-}
-
 function ClaimMock() {
   return (
     <MockWindow title="zua">
@@ -311,160 +255,140 @@ function ClaimMock() {
       <p className="mt-1 text-sm text-starlight/55">
         This becomes your payment link.
       </p>
-      <div className="mt-5 flex items-center rounded-none border border-violet/60 bg-void px-3.5 py-3 font-landing text-sm">
+      <div className="mt-5 flex items-center border border-violet/60 bg-void px-3.5 py-3 font-landing-mono text-sm">
         <span className="text-starlight/45">zua/pay/</span>
         <span className="text-starlight">dinar</span>
         <span className="ml-0.5 h-4 w-px bg-violet motion-safe:animate-pulse" />
       </div>
-      <p className="mt-2 flex items-center gap-1.5 text-xs text-emerald-300">
-        <Check className="size-3.5" /> Available
+      <p className="mt-2 flex items-center gap-1.5 text-xs text-(--signal-ink)">
+        <Check className="size-3.5" aria-hidden="true" /> Available
       </p>
-      <div className="mt-5 rounded-none bg-indigo-glow py-3 text-center text-sm font-medium">
+      <MockButton decorative className="mt-5">
         Claim @dinar
-      </div>
-      <div className="mt-4 flex items-center gap-2.5 rounded-none border border-starlight/10 px-3.5 py-3 text-sm">
-        <Fingerprint className="size-4 text-violet" />
+      </MockButton>
+      <div className="mt-4 flex items-center gap-2.5 border border-starlight/10 px-3.5 py-3 text-sm">
+        <Fingerprint
+          className="size-4 text-(--signal-ink)"
+          aria-hidden="true"
+        />
         <span className="text-starlight/75">
-          Keys protected by your passkey
+          Keys derived from your passkey or PIN
         </span>
       </div>
     </MockWindow>
   );
 }
 
-/** Decorative QR-style grid (not a scannable code). */
-function FauxQr() {
-  const size = 17;
-  const cells: { x: number; y: number }[] = [];
-  let seed = 7;
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-      const inFinder =
-        (x < 5 && y < 5) || (x > size - 6 && y < 5) || (x < 5 && y > size - 6);
-      if (!inFinder && seed % 3 === 0) cells.push({ x, y });
-    }
-  }
-  const finder = (x: number, y: number) => (
-    <g key={`${x}-${y}`}>
-      <rect
-        x={x + 0.5}
-        y={y + 0.5}
-        width="4"
-        height="4"
-        rx="0.8"
-        fill="none"
-        stroke="currentColor"
-      />
-      <rect
-        x={x + 1.5}
-        y={y + 1.5}
-        width="2"
-        height="2"
-        rx="0.4"
-        fill="currentColor"
-      />
-    </g>
-  );
-  return (
-    <svg
-      viewBox={`0 0 ${size} ${size}`}
-      className="size-28 text-graphite"
-      aria-hidden="true"
-    >
-      {cells.map((c) => (
-        <rect
-          key={`${c.x}-${c.y}`}
-          x={c.x + 0.1}
-          y={c.y + 0.1}
-          width="0.8"
-          height="0.8"
-          rx="0.2"
-          fill="currentColor"
-        />
-      ))}
-      {finder(0, 0)}
-      {finder(size - 5, 0)}
-      {finder(0, size - 5)}
-    </svg>
-  );
-}
-
 function PayMock() {
   return (
-    <MockWindow title="zua/pay/dinar">
+    <MockWindow title="zua/pay/dinar/logo">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm text-starlight/55">Pay @dinar</p>
           <p className="mt-1 text-3xl font-normal">0.80 ZEC</p>
           <p className="mt-1 text-sm text-starlight/55">Logo design</p>
         </div>
-        <div className="rounded-none bg-white p-2">
+        <div className="border border-starlight/10 bg-white p-2">
           <FauxQr />
         </div>
       </div>
       <div className="mt-5 grid gap-2">
-        <Row
+        <MockRow
           label="Paying from"
           value={
             <>
-              <Wallet className="size-3.5" /> Zodl
+              <Wallet className="size-3.5" aria-hidden="true" /> Any Zcash
+              wallet
             </>
           }
         />
-        <Row
+        <MockRow
           accent
-          label="Network fee"
+          label="Address"
           value={
             <>
-              <Zap className="size-3.5 text-violet" /> &lt; $0.01
+              <BadgeCheck
+                className="size-3.5 text-(--signal-ink)"
+                aria-hidden="true"
+              />{" "}
+              Signed by @dinar
             </>
           }
         />
       </div>
-      <div className="mt-5 rounded-none bg-indigo-glow py-3 text-center text-sm font-medium">
-        Pay 0.80 ZEC
-      </div>
+      <MockButton decorative className="mt-5">
+        Open in wallet
+      </MockButton>
     </MockWindow>
   );
 }
 
-function WithdrawMock() {
+function DetectMock() {
+  const lines = [
+    ["sync", "blocks 3,141,560 → 3,141,592"],
+    ["found", "0.80 ZEC · memo zua:inv:Q7xK2…"],
+    ["match", "INV-0042 → paid"],
+  ];
   return (
-    <MockWindow title="Zua · Withdraw">
-      <p className="text-sm text-starlight/55">Private balance</p>
-      <p className="mt-1 text-3xl font-normal">$1,240.50</p>
-      <ul className="mt-4 grid gap-1.5">
-        {[
-          { id: "note-a", label: "Private payment", amount: "$300.00" },
-          { id: "note-b", label: "Private payment", amount: "$640.50" },
-          { id: "note-c", label: "Private payment", amount: "$300.00" },
-        ].map(({ id, label, amount }) => (
+    <MockWindow title="zua · your browser">
+      <ol className="grid list-none gap-2 font-landing-mono text-xs">
+        {lines.map(([tag, text], i) => (
           <li
-            key={id}
-            className="flex items-center justify-between rounded-none bg-void/60 px-3.5 py-2 text-sm"
+            key={tag}
+            className="flex gap-3 border border-starlight/10 bg-void px-3 py-2.5 motion-safe:animate-[mock-in_400ms_ease-out_both]"
+            style={{ animationDelay: `${i * 350}ms` }}
           >
-            <span className="flex items-center gap-2 text-starlight/70">
-              <Lock className="size-3.5 text-violet" /> {label}
-            </span>
-            <span>{amount}</span>
+            <span className="w-12 shrink-0 text-(--signal-ink)">{tag}</span>
+            <span className="min-w-0 truncate">{text}</span>
           </li>
         ))}
-      </ul>
+      </ol>
+      <div
+        className="mt-5 flex items-center gap-4 border border-violet/50 bg-violet/10 p-4 motion-safe:animate-[mock-in_400ms_ease-out_both]"
+        style={{ animationDelay: "1100ms" }}
+      >
+        <Mascot mood="success" size={48} tone="ink" />
+        <div>
+          <p className="text-sm">Invoice INV-0042 paid</p>
+          <p className="mt-0.5 text-xs text-starlight/55">
+            +0.80 ZEC · Northwind Studio
+          </p>
+        </div>
+      </div>
+      <p className="mt-4 text-center font-landing-mono text-[11px] uppercase tracking-[0.18em] text-starlight/50">
+        Decrypted on this device only
+      </p>
+    </MockWindow>
+  );
+}
+
+function SpendMock() {
+  return (
+    <MockWindow title="zua · Send">
+      <p className="text-sm text-starlight/55">Shielded balance</p>
+      <p className="mt-1 text-3xl font-normal">
+        5.14 <span className="text-base text-starlight/60">ZEC</span>
+      </p>
       <div className="mt-4 grid gap-2">
-        <Row label="To" value="0x9F2c…41aB" />
-        <Row
+        <MockRow label="To" value="@studio_rent" />
+        <MockRow label="Amount" value="1.50 ZEC" />
+        <MockRow label="Note (encrypted)" value="November studio" />
+        <MockRow
           accent
           label="Proof built in your browser"
           value={
             <>
-              <Check className="size-3.5 text-emerald-300" /> Ready
+              <Check
+                className="size-3.5 text-(--signal-ink)"
+                aria-hidden="true"
+              />{" "}
+              Ready
             </>
           }
         />
       </div>
-      <p className="mt-4 text-center font-landing text-[11px] uppercase tracking-[0.18em] text-starlight/50">
-        Not linked to any deposit
+      <p className="mt-4 text-center font-landing-mono text-[11px] uppercase tracking-[0.18em] text-starlight/50">
+        Sender, recipient and amount stay private
       </p>
     </MockWindow>
   );

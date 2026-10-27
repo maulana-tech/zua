@@ -1,9 +1,8 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useWallet } from "../WalletProvider";
-import { LANDING_SECTIONS } from "./Nav";
+import { LiveLedger } from "./LiveLedger";
 import {
   Frame,
   MonoLabel,
@@ -13,9 +12,9 @@ import {
 
 // Product facts only — no vanity metrics.
 const FACTS = [
-  { value: "Ironwood", label: "Zcash's shielded pool" },
+  { value: "Halo 2", label: "Proofs built on your device" },
   { value: "0 seed", label: "Phrases to write down" },
-  { value: "1 link", label: "For every client" },
+  { value: "1 address", label: "Per invoice, link and checkout" },
   { value: "100%", label: "Self-custodial" },
 ] as const;
 
@@ -29,7 +28,7 @@ export function Hero() {
       className="relative isolate overflow-hidden"
     >
       <Frame className="flex min-h-[92svh] flex-col justify-end pt-28 pb-14 sm:pb-20">
-        <div className="grid items-end gap-12 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid items-end gap-12 lg:grid-cols-[minmax(0,1fr)_400px] xl:gap-20">
           <div className="max-w-3xl">
             <h1
               id="hero-title"
@@ -40,9 +39,10 @@ export function Hero() {
               Keep your income private.
             </h1>
             <p className="mt-7 max-w-[56ch] text-base leading-relaxed text-starlight/80 sm:text-lg">
-              Share one payment link or invoice. Your client pays from any Zcash
-              wallet, and the money lands in a shielded balance only you can
-              see. Zcash hides who paid, who was paid and how much.
+              Payment links, invoices, a point of sale and payroll, all on
+              shielded Zcash. Clients pay from any Zcash wallet, and the money
+              lands in a balance only you can see. Your wallet runs in your
+              browser, so Zua never sees who paid you or how much.
             </p>
             <div className="mt-9 flex flex-wrap gap-3">
               {authenticated ? (
@@ -64,27 +64,9 @@ export function Hero() {
             </div>
           </div>
 
-          <nav aria-label="Explore Zua" className="hidden lg:block">
-            <MonoLabel className="block border-b border-starlight/70 pb-3 text-starlight/85">
-              Explore Zua
-            </MonoLabel>
-            <ul className="list-none">
-              {LANDING_SECTIONS.map((section) => (
-                <li key={section.id}>
-                  <a
-                    href={`#${section.id}`}
-                    className="group flex items-center justify-between border-b border-starlight/15 py-3 font-landing text-xs uppercase tracking-[0.22em] text-starlight/80 transition-colors hover:text-starlight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-starlight"
-                  >
-                    {section.label}
-                    <ArrowRight
-                      className="size-4 transition-transform group-hover:translate-x-0.5"
-                      aria-hidden="true"
-                    />
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
+          <div className="w-full max-w-[440px] lg:max-w-none">
+            <LiveLedger />
+          </div>
         </div>
       </Frame>
 

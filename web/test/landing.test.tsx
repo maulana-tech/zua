@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ useWallet: vi.fn(), signIn: vi.fn() }));
 
@@ -18,7 +18,16 @@ const wallet = (authenticated = false) => ({
   signIn: mocks.signIn,
 });
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  // The hero's demo asks for a ZEC price; without one it shows ZEC only.
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(null, { status: 503 })),
+  );
+});
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe("landing hero", () => {
   it("leads with the promise and starts sign-in from the primary CTA", async () => {
@@ -54,9 +63,9 @@ describe("landing hero", () => {
     mocks.useWallet.mockReturnValue(wallet());
     render(<Hero />);
     for (const label of [
-      "Zcash's shielded pool",
+      "Proofs built on your device",
       "Phrases to write down",
-      "For every client",
+      "Per invoice, link and checkout",
       "Self-custodial",
     ]) {
       expect(screen.getByText(label)).toBeInTheDocument();

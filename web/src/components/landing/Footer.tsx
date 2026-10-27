@@ -8,10 +8,20 @@ const COLUMNS: {
   {
     title: "Product",
     links: [
-      { label: "Why Zua", href: "#why" },
+      { label: "Privacy", href: "#privacy" },
+      { label: "Tools", href: "#product" },
       { label: "How it works", href: "#how" },
+      { label: "Pricing", href: "#pricing" },
       { label: "Who it's for", href: "#who" },
       { label: "FAQ", href: "#faq" },
+    ],
+  },
+  {
+    title: "Developers",
+    links: [
+      { label: "Checkout API", href: "#developers" },
+      { label: "Widget demo", href: "/embed-demo.html" },
+      { label: "Under the hood", href: "#tech" },
     ],
   },
   {
@@ -39,8 +49,8 @@ export function Footer() {
             <span className="text-xl font-medium tracking-tight">Zua</span>
           </a>
           <p className="mt-4 max-w-[36ch] text-sm leading-relaxed text-starlight/55">
-            Shielded ZEC payment links and invoices on Zcash. Private by
-            default, provable on demand.
+            Shielded ZEC payment links, invoices and checkout on Zcash. Private
+            by default, provable on demand.
           </p>
         </div>
         <nav

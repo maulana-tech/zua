@@ -9,7 +9,7 @@ import {
 } from "../../lib/fiat";
 import { ZAT_PER_ZEC } from "../../lib/zcash/units";
 
-type Rates = Partial<Record<FiatCode, number>>;
+export type Rates = Partial<Record<FiatCode, number>>;
 
 let shared: Promise<Rates | null> | null = null;
 
@@ -25,7 +25,8 @@ function fetchRates(): Promise<Rates | null> {
   return shared;
 }
 
-function useRates(): Rates | null {
+/** Price of 1 ZEC in every currency CoinGecko returned, or null while loading/unavailable. */
+export function useRates(): Rates | null {
   const [rates, setRates] = useState<Rates | null>(null);
   useEffect(() => {
     let alive = true;

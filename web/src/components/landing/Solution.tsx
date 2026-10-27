@@ -9,12 +9,12 @@ const REASONS = [
   },
   {
     title: "Provable when it matters",
-    body: "Invoices turn paid on their own and come with a PDF receipt for your accountant, without revealing the rest of your history.",
+    body: "Hand your accountant a signed receipt, proof of payment or income statement. Anyone can check it on /verify against the chain, without seeing the rest of your history.",
     Figure: Loupe,
   },
   {
-    title: "Your passkey is the key",
-    body: "Your Zcash wallet is rebuilt from your passkey on each device. No seed phrase to write down, and nothing secret stored with us.",
+    title: "Your passkey or PIN is the key",
+    body: "Your Zcash wallet is rebuilt in the browser on each device, from your passkey or a 6-digit PIN. No seed phrase to write down. With a PIN, we keep only an encrypted copy of your key that your PIN unlocks.",
     Figure: Padlock,
   },
   {

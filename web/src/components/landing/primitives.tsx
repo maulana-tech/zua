@@ -59,6 +59,52 @@ export function MonoLabel({
   );
 }
 
+/** Solid paper panel for dense content (tables, code, mocks) over the dither. */
+export const panel = "border border-starlight/10 bg-void-2";
+
+/** Segmented control: a row of options where one is pressed/selected. */
+export const segmentGroup =
+  "inline-flex flex-wrap gap-1 rounded-[1.5rem] border border-starlight/15 bg-void-2 p-1";
+export const segmentButton =
+  "inline-flex min-h-10 items-center gap-2 rounded-full px-4 text-sm text-starlight/70 transition-colors hover:text-starlight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet aria-selected:bg-starlight aria-selected:text-void aria-pressed:bg-starlight aria-pressed:text-void";
+
+/**
+ * Section opener: tracked label, title, and an intro that sits beside the
+ * title on wide screens. `titleId` names the section (aria-labelledby).
+ */
+export function SectionIntro({
+  label,
+  title,
+  titleId,
+  children,
+  className,
+}: {
+  label: string;
+  title: ReactNode;
+  titleId: string;
+  children?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("grid gap-6 lg:grid-cols-2", className)}>
+      <div>
+        <MonoLabel className="text-starlight/60">{label}</MonoLabel>
+        <h2
+          id={titleId}
+          className="mt-4 max-w-[22ch] text-[clamp(1.9rem,3vw,2.8rem)] font-normal leading-[1.1] tracking-tight"
+        >
+          {title}
+        </h2>
+      </div>
+      {children ? (
+        <div className="max-w-[48ch] self-end text-lg leading-relaxed text-starlight/75 lg:justify-self-end">
+          {children}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /** Content width + hairline frame shared by every section. */
 export function Frame({
   children,
