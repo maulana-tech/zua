@@ -59,7 +59,7 @@ const localRows = [
   ],
   [
     "Wallet database",
-    "A copy of your wallet database is cached in your browser storage so the next unlock is faster. It is encrypted with a key derived from your PIN or passkey, and it is cleared when you sign out.",
+    "A copy of your wallet database is cached in your browser storage so the next unlock is faster. It is encrypted with a key derived from your PIN or passkey, and it stays on that device until you clear the site data.",
   ],
   [
     "Memos",
@@ -326,9 +326,8 @@ export default function PrivacyPage() {
                 <p>
                   Zua uses memos to attach an invoice, request, or link
                   reference to a payment. Memos are decrypted in your browser.
-                  Our servers see the reference when the payer reports the
-                  payment, but not the full memo content of your other
-                  transactions.
+                  When a payer settles an invoice, our servers receive the
+                  invoice identifier and the amount, not the memo text.
                 </p>
               </Subsection>
             </PolicySection>
@@ -361,15 +360,16 @@ export default function PrivacyPage() {
               <p>
                 Account and payment records are kept while your account exists,
                 so your history and your payers&apos; receipts stay consistent.
-                When you delete your account, we delete your profile, addresses,
-                invoices, links, requests, claim links, API keys, and webhook
-                settings from the active database, and remove them from backups
-                as those backups rotate.
+                When you ask us to delete your account, we delete your profile,
+                addresses, invoices, links, requests, claim links, API keys, and
+                webhook settings from the active database, and remove them from
+                backups as those backups rotate.
               </p>
               <p>
-                Signing out clears the local wallet cache on that device. Data
-                already written to the Zcash blockchain cannot be deleted by us
-                or by anyone else.
+                Signing out ends your session but keeps the encrypted wallet
+                cache on that device so you can unlock again; clearing the site
+                data removes it. Data already written to the Zcash blockchain
+                cannot be deleted by us or by anyone else.
               </p>
               <p>
                 We may keep limited records longer where we must, for example to
