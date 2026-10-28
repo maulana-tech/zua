@@ -3,9 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { isProtectedRoute } from "../lib/auth-routes";
 import { APP_NAME } from "../lib/brand";
+import {
+  ensureCrossOriginIsolation,
+  needsCrossOriginIsolation,
+} from "../lib/isolation";
 import { network } from "../lib/zcash/network";
 import { AccountTypeDialog } from "./AccountTypeDialog";
 import { BackLink } from "./BackLink";
@@ -43,6 +47,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isPay = pathname.startsWith("/pay");
   const protectedRoute = isProtectedRoute(pathname);
+  const [reloading, setReloading] = useState(false);
+
+  // The wallet needs cross-origin isolation, which a client-side navigation
+  // from the login page cannot provide (patch 0012 behaviour).
+  useEffect(() => {
+    if (!needsCrossOriginIsolation(pathname)) return;
+    if (ensureCrossOriginIsolation() === "reloading") setReloading(true);
+  }, [pathname]);
 
   const networkBanner = protectedRoute ? (
     <StickyBanner
@@ -95,6 +107,18 @@ export function AppShell({ children }: { children: ReactNode }) {
       onChoose={chooseAccountType}
     />
   );
+
+  if (reloading) {
+    return (
+      <div className="theme-product contents" data-product-theme="">
+        <div className="grid min-h-svh place-items-center bg-background px-6 text-center">
+          <p className="text-sm text-ink/70" role="status">
+            Preparing the shielded wallet…
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (pathname === "/" || protectedRoute) {
     if (pathname !== "/") {
