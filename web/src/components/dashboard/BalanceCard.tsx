@@ -6,6 +6,7 @@ import { useFiat } from "../../features/zcash/useZecPrice";
 import { SEND_PATH } from "../../lib/auth-routes";
 import { zatToZec } from "../../lib/zcash/units";
 import type { ZcashState } from "../WalletProvider";
+import { TestnetFaucetNote } from "../zcash/TestnetFaucetNote";
 import {
   dashButtonPrimary,
   dashButtonSecondary,
@@ -103,6 +104,9 @@ export function BalanceCard({
           <p className="mt-4 text-xs text-(--dash-ash)" role="status">
             {syncLabel(zcash)}
           </p>
+          {spendable === 0n ? (
+            <TestnetFaucetNote className="mt-3 max-w-md text-xs leading-5 text-(--dash-ash)" />
+          ) : null}
           <div className="mt-auto flex flex-wrap gap-2 pt-6">
             {onReceive ? (
               <button

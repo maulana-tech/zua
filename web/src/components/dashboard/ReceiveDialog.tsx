@@ -13,6 +13,7 @@ import {
 } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { QrPanel } from "../zcash/QrPanel";
+import { TestnetFaucetNote } from "../zcash/TestnetFaucetNote";
 
 /** Request a specific amount: optional amount and note baked into a ZIP-321 QR/link. */
 export function ReceiveDialog({
@@ -85,6 +86,7 @@ export function ReceiveDialog({
             Enter a ZEC amount with up to 8 decimals.
           </p>
         )}
+        <TestnetFaucetNote className="text-xs leading-5 text-foreground/60" />
       </DialogContent>
     </Dialog>
   );
