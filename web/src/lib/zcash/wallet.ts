@@ -10,17 +10,22 @@ let modulePromise: Promise<typeof WebZjs> | null = null;
 
 export function loadWebZjs(): Promise<typeof WebZjs> {
   modulePromise ??= (async () => {
+    // WebZjs hands its wasm memory to a worker thread, and only a
+    // cross-origin isolated document may share that memory. Without it the
+    // browser throws DataCloneError ("The object can not be cloned.") from
+    // inside postMessage, which reads like a bug in our own code.
+    if (!self.crossOriginIsolated) {
+      throw new Error(
+        "The shielded wallet needs a cross-origin isolated page. Reload this page; if it keeps happening, open Zua in Chrome, Edge, Firefox 119+, or Safari 15.2+.",
+      );
+    }
     // Served from public/webzjs (scripts/sync-webzjs.mjs), not bundled: its
     // thread workers only resolve as native ES modules.
     const z: typeof WebZjs = await import(
       /* webpackIgnore: true */ `${location.origin}/webzjs/webzjs_wallet.js`
     );
     await z.default();
-    // Threads need cross-origin isolation (COOP/COEP); without it, prove on
-    // one thread rather than failing.
-    const threads = self.crossOriginIsolated
-      ? Math.min(navigator.hardwareConcurrency || 4, 8)
-      : 1;
+    const threads = Math.min(navigator.hardwareConcurrency || 4, 8);
     await z.initThreadPool(threads);
     return z;
   })();

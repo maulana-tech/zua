@@ -37,12 +37,20 @@ const nextConfig = {
     // Cross-origin isolation lets the Zcash wallet (WebZjs) prove on several
     // threads. Only the signed-in app routes (and /verify, which checks
     // receipts with it) get it: login (Privy) happens on public pages, which
-    // stay unisolated. Without it the wallet falls back
-    // to one thread.
-    const isolated = [
+    // stay unisolated.
+    //
+    // WebKit (Safari, and every browser on iOS) never implements
+    // `credentialless`: there only `require-corp` isolates the document. Get
+    // it wrong and SharedArrayBuffer stays unavailable, so the wallet's
+    // worker hand-off throws "The object can not be cloned". Chrome, Edge,
+    // Firefox and Arc keep `credentialless` so the Privy iframe (which sends
+    // no Cross-Origin-Resource-Policy) still loads.
+    const isolation = (coep) => [
       { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
-      { key: "Cross-Origin-Embedder-Policy", value: "credentialless" },
+      { key: "Cross-Origin-Embedder-Policy", value: coep },
     ];
+    const webkitUA = "(CriOS|FxiOS|EdgiOS|OPiOS|Version/[0-9.]+ Safari/)";
+    const webkit = { type: "header", key: "user-agent", value: webkitUA };
     const appRoutes = [
       "dashboard",
       "send",
@@ -74,11 +82,29 @@ const nextConfig = {
         headers: [{ key: "Cache-Control", value: "public, max-age=300" }],
       },
       ...appRoutes.flatMap((route) => [
-        { source: `/${route}`, headers: isolated },
-        { source: `/${route}/:path*`, headers: isolated },
+        {
+          source: `/${route}`,
+          has: [webkit],
+          headers: isolation("require-corp"),
+        },
+        {
+          source: `/${route}`,
+          missing: [webkit],
+          headers: isolation("credentialless"),
+        },
+        {
+          source: `/${route}/:path*`,
+          has: [webkit],
+          headers: isolation("require-corp"),
+        },
+        {
+          source: `/${route}/:path*`,
+          missing: [webkit],
+          headers: isolation("credentialless"),
+        },
       ]),
       // Wallet workers (public/webzjs) must match the isolated page's COEP.
-      { source: "/webzjs/:path*", headers: isolated },
+      { source: "/webzjs/:path*", headers: isolation("credentialless") },
       {
         source: "/i/:path*",
         headers: [
