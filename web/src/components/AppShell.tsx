@@ -187,9 +187,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {/* my-auto, not flex-1 + content-center: a card taller than the
                 viewport then grows the page instead of being stretched to the
                 leftover height and clipped by its own overflow-hidden. */}
-            <div className="my-auto grid gap-5 py-8">
-              {children}
-            </div>
+            <div className="my-auto grid gap-5 py-8">{children}</div>
           </DashboardShell>
         </DashboardBackground>
       </div>
