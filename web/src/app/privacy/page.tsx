@@ -8,166 +8,97 @@ import { Footer } from "@/components/landing/Footer";
 export const metadata: Metadata = {
   title: "Privacy Policy | Zua",
   description:
-    "Learn how Zua collects, uses, protects, and shares personal data.",
+    "What Zua stores, what stays in your browser, and which providers process data for shielded Zcash payments.",
 };
 
 const SECTIONS = [
   ["who-we-are", "Who we are"],
-  ["scope-and-privacy-limits", "Scope and privacy limits"],
-  ["personal-data-we-process", "Personal data we process"],
-  ["where-information-comes-from", "Where information comes from"],
-  ["purposes-and-legal-bases", "Purposes and legal bases"],
-  ["verification-through-sumsub", "Verification through Sumsub"],
-  [
-    "business-passport-and-public-profiles",
-    "Business Passport and public profiles",
-  ],
-  [
-    "public-blockchains-and-payment-privacy",
-    "Public blockchains and payment privacy",
-  ],
-  ["payment-disclosure-exports", "Payment disclosure exports"],
-  ["recipients-and-service-providers", "Recipients and service providers"],
-  [
-    "advertising-and-sale-of-information",
-    "Advertising and sale of information",
-  ],
-  ["international-transfers", "International transfers"],
+  ["summary", "Summary"],
+  ["keys-and-your-browser", "Keys and your browser"],
+  ["what-we-store", "What we store"],
+  ["payment-privacy", "Payment privacy"],
+  ["service-providers", "Service providers"],
   ["retention-and-deletion", "Retention and deletion"],
-  ["security-and-recovery", "Security and recovery"],
-  ["automated-checks-and-review", "Automated checks and review"],
-  ["your-rights-and-choices", "Your rights and choices"],
-  ["cookies-and-browser-storage", "Cookies and browser storage"],
-  ["age-eligibility", "Age eligibility"],
-  ["incidents-and-lawful-requests", "Incidents and lawful requests"],
-  [
-    "indonesian-law-and-other-jurisdictions",
-    "Indonesian law and other jurisdictions",
-  ],
+  ["your-rights", "Your rights"],
+  ["security-and-limits", "Security and limits"],
   ["changes-and-contact", "Changes and contact"],
 ] as const;
 
-const purposeRows = [
+const storageRows = [
   [
-    "Provide accounts, authentication, wallet recovery, and requested payments",
-    "Account, wallet, recovery, and payment information",
-    "Performance of a contract or requested precontractual steps, where applicable",
+    "Account",
+    "Privy user ID, email address or Google account, username, account type, business name",
+    "Sign-in, your public profile, and the tools enabled for your account",
   ],
   [
-    "Carry out identity/business verification and determine passport eligibility",
-    "Verification submissions, results, business relationships, and case records",
-    "[IDENTIFY THE BASIS FOR EACH CHECK; CITE ANY APPLICABLE LEGAL OBLIGATION. DO NOT ASSUME ALL KYC IS LEGALLY MANDATED FOR ZUA.]",
+    "Payment identities",
+    "Unified addresses and the Orchard receiver of each address you publish or invoice with",
+    "Matching an incoming payment to its invoice, request, or payment link",
   ],
   [
-    "Publish a Business Passport at an authorized user's request",
-    "The public fields listed in Section 7 and publication evidence",
-    "[CONFIRM THE BASIS AND AUTHORITY TO PUBLISH PERSONAL DATA, INCLUDING REPRESENTATIVE OR SOLE-TRADER NAMES]",
+    "Payment records",
+    "Invoices, payment links, requests, claim links, checkouts, amounts, references, status, transaction IDs, and the contacts you choose to save",
+    "Showing your history, settling records, and telling payers what is still due",
   ],
   [
-    "Protect accounts, investigate misuse, and maintain security",
-    "Relevant account, technical, payment, and verification records",
-    "Legitimate interests where recognized and appropriately balanced; legal obligation where specifically applicable",
+    "Developer integrations",
+    "API key hashes, webhook URLs, webhook signing secrets, and webhook delivery logs",
+    "Authenticating your API calls and retrying webhook deliveries",
   ],
   [
-    "Respond to support requests and resolve disputes",
-    "Communications and relevant service records",
-    "Contractual necessity or legitimate interests, as applicable",
+    "Notifications",
+    "Notification preferences and a log of what was sent",
+    "Avoiding duplicate emails and honouring your choices",
+  ],
+] as const;
+
+const localRows = [
+  [
+    "Wallet keys",
+    "Your mnemonic is derived from your PIN or passkey on your device. It is never sent to Zua.",
   ],
   [
-    "Meet accounting, reporting, or other mandatory obligations",
-    "Records required by the particular obligation",
-    "The applicable legal obligation, identified in our processing and retention records",
+    "Wallet database",
+    "A copy of your wallet database is cached in your browser storage so the next unlock is faster. It is encrypted with a key derived from your PIN or passkey, and it is cleared when you sign out.",
   ],
   [
-    "Establish, exercise, or defend legal claims",
-    "Relevant communications and transaction or account records",
-    "An applicable lawful basis and any additional conditions required for protected data",
+    "Memos",
+    "Payment memos are decrypted in your browser and cached only there, so invoices and cashier screens can show them again.",
   ],
   [
-    "Run optional analytics, if enabled",
-    "The categories stated in the applicable notice",
-    "Consent before activating optional analytics where required by applicable law; the relevant notice identifies the technologies and purposes.",
+    "Receipts",
+    "Receipt files are generated and stored on your device. Zua keeps the record of the payment, not a copy of the file.",
   ],
 ] as const;
 
 const providerRows = [
   [
     "Privy",
-    "Authentication and configured wallet services; account identifiers and sign-in information.",
-    "Responsibilities depend on the service and applicable agreement; independent processing is described in Privy’s privacy notice.",
-    "[CONFIRM CONTRACTED ENTITY, PROCESSING LOCATIONS, AND APPLICABLE TRANSFER SAFEGUARDS]",
+    "Sign-in by email one-time code, Google, or passkey. Receives your email or Google account and issues the session token that Zua verifies.",
   ],
   [
-    "Sumsub",
-    "Configured identity and business verification; verification submissions, technical information, and results.",
-    "Processor for checks performed on Zua’s instructions; independent controller for specified own-purpose processing described in its notice.",
-    "[CONFIRM CONTRACTED ENTITY, ENABLED CHECKS, DATA REGION, AND TRANSFER SAFEGUARDS]",
+    "MongoDB Atlas",
+    "Database hosting for the account and payment records listed above.",
   ],
   [
-    "Zcash network and lightwalletd providers",
-    "Syncing the wallet and broadcasting Zcash transactions; your IP address and the blocks your wallet requests. Shielded transaction contents stay encrypted.",
-    "Public network and infrastructure services; Zua separately processes its own payment-session records.",
-    "Public blockchain information is distributed across network participants. [CONFIRM RPC PROVIDER, SERVICE TERMS, AND OFF-CHAIN PROCESSING LOCATIONS]",
+    "Vercel",
+    "Hosting for the web app and its API routes, including request logs kept by the platform.",
   ],
   [
-    "Application hosting",
-    "Zua-operated application services deployed to a virtual private server; service requests, account data, and operational information.",
-    "Zua controls application processing; the infrastructure provider’s role is governed by the hosting arrangement.",
-    "[CONFIRM VPS PROVIDER, SERVER COUNTRY/REGION, AND TRANSFER SAFEGUARDS]",
+    "ChainSafe lightwalletd proxy",
+    "Your browser fetches Zcash compact blocks from this public gRPC-web proxy. It can see your IP address and the blocks you request, as any node you connect to can. It never sees your keys.",
   ],
   [
-    "Database hosting",
-    "MongoDB storage for account, payment, verification, and operational records.",
-    "Zua controls database processing. MongoDB identifies the database technology, not necessarily the hosting provider.",
-    "[CONFIRM SELF-HOSTED OR MANAGED DATABASE, HOSTING PROVIDER, REGION, AND SAFEGUARDS]",
+    "Resend",
+    "Only if email notifications are enabled: receives the recipient address and the message content.",
   ],
   [
-    "Operational logs and backups",
-    "Application/container logs and database recovery copies. Deployment configuration uses size-based log rotation; backup arrangements require confirmation.",
-    "Zua manages operational processing; any external storage provider’s role depends on the actual arrangement.",
-    "[CONFIRM LOG ACCESS, BACKUP PROVIDER/LOCATION, RETENTION, AND SAFEGUARDS]",
-  ],
-  [
-    "Google Gmail — company contact mailbox",
-    "Support and privacy correspondence sent to ptpentahelixsistemterpercaya@gmail.com, including sender details, messages, and attachments.",
-    "Email service supporting the company contact mailbox; applicable account terms determine the provider’s responsibilities.",
-    "[CONFIRM ACCOUNT TERMS AND TRANSFER ARRANGEMENTS; CONFIRM THE SEPARATE ZUA-DOMAIN EMAIL HOST]",
+    "Merchant webhooks",
+    "Only for developers who register a webhook: checkout events are delivered to the URL that developer controls.",
   ],
 ] as const;
 
-const retentionRows = [
-  [
-    "Account and business membership records",
-    "[ACTIVE ACCOUNT PERIOD AND DEFINED POST-CLOSURE PERIOD]",
-  ],
-  [
-    "Verification cases, applicant references, and review metadata",
-    "[PERIOD, STARTING EVENT, AND APPLICABLE REQUIREMENT]",
-  ],
-  [
-    "Passport credentials and publication/action audit records",
-    "[PERIOD AND STARTING EVENT; DISTINGUISH PUBLIC AVAILABILITY FROM INTERNAL RETENTION]",
-  ],
-  [
-    "Provider-held verification documents and biometric information",
-    "[AGREED PROVIDER RETENTION AND DELETION ARRANGEMENT, INCLUDING INDEPENDENT PROCESSING WHERE APPLICABLE]",
-  ],
-  [
-    "Payments, settlement records, and accounting information",
-    "[PERIOD AND APPLICABLE REQUIREMENT]",
-  ],
-  [
-    "Encrypted recovery material",
-    "[RETENTION AND ACCOUNT-CLOSURE/DELETION RULE]",
-  ],
-  [
-    "Security logs, support records, and processed webhook events",
-    "[SEPARATE PERIODS BY CATEGORY]",
-  ],
-  ["Backups", "[BACKUP EXPIRY CYCLE AND RESTRICTIONS ON RESTORED DATA]"],
-] as const;
-
-export default function PrivacyPolicyPage() {
+export default function PrivacyPage() {
   return (
     <div className="min-h-svh bg-paper text-ink">
       <header className="bg-brand-obsidian text-brand-linen">
@@ -215,17 +146,17 @@ export default function PrivacyPolicyPage() {
               Privacy Policy
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-olive-deep sm:text-lg">
-              How Zua processes personal data across accounts, payments,
-              verification, and Business Passport services.
+              What Zua stores on its servers, what never leaves your browser,
+              and who else processes data so that shielded payments can work.
             </p>
             <dl className="mt-10 flex flex-col gap-4 border-t border-line pt-6 text-sm sm:flex-row sm:gap-12">
               <div>
                 <dt className="text-olive/70">Effective date</dt>
-                <dd className="mt-1 font-semibold">September 30, 2026</dd>
+                <dd className="mt-1 font-semibold">October 28, 2026</dd>
               </div>
               <div>
                 <dt className="text-olive/70">Last updated</dt>
-                <dd className="mt-1 font-semibold">September 30, 2026</dd>
+                <dd className="mt-1 font-semibold">October 28, 2026</dd>
               </div>
             </dl>
           </div>
@@ -261,777 +192,272 @@ export default function PrivacyPolicyPage() {
           <article className="min-w-0 max-w-3xl">
             <PolicySection number={1} id="who-we-are" title="Who we are">
               <p>
-                This Privacy Policy explains how{" "}
-                <strong>PT PENTAHELIX SISTEM TERPERCAYA</strong>, trading as{" "}
-                <strong>Zua</strong> (&quot;Zua,&quot; &quot;we,&quot;
-                &quot;us,&quot; or &quot;our&quot;), processes personal data
-                when you use Zua and our related account, payment, verification,
-                and Business Passport services (the &quot;Services&quot;).
+                Zua is a shielded payment app for Zcash, operated by{" "}
+                <strong>PT Pentahelix Sistem Terpercaya</strong>{" "}
+                (&quot;Zua,&quot; &quot;we,&quot; &quot;us&quot;). This policy
+                covers the Zua web app, its API for developers, and the public
+                pages that payers open, such as invoices, payment links, and
+                checkout pages.
               </p>
               <p>
-                The entity responsible for determining the purposes and means of
-                the processing described in this Policy is:
-              </p>
-              <ul>
-                <li>
-                  <strong>Legal entity:</strong> PT PENTAHELIX SISTEM TERPERCAYA
-                </li>
-                <li>
-                  <strong>Registered address:</strong> Jl. Pondok Kopi Raya No.
-                  180, Pondok Kopi Village, Duren Sawit District, East Jakarta
-                  Administrative City, DKI Jakarta Province, Postal Code: 13460
-                </li>
-                <li>
-                  <strong>Privacy contact:</strong> <ContactLinks />
-                </li>
-                <li>
-                  <strong>Compliance contact:</strong> <ContactLinks />
-                </li>
-              </ul>
-              <p>
-                This Policy describes information processing; it does not itself
-                constitute consent to every activity described below. Where
-                consent is required, we request it through the relevant flow.
+                The source code is open source. You can read exactly what the
+                app does instead of taking this document on trust.
               </p>
             </PolicySection>
 
-            <PolicySection
-              number={2}
-              id="scope-and-privacy-limits"
-              title="Scope and privacy limits"
-            >
-              <p>
-                The information we process depends on the features you use, your
-                account type, and the services available in your location. A
-                description of a payment route or provider does not mean that
-                route is available to every user.
-              </p>
-              <p>
-                Zua uses privacy technologies to reduce unnecessary public
-                exposure of payment information. These technologies do not
-                guarantee anonymity or prevent all links between accounts,
-                identities, and transactions. Information visible to Zua or a
-                service provider can differ from information visible on a public
-                blockchain.
-              </p>
-              <p>
-                The current Business Passport provides identity-verification
-                status. This Policy does not describe an available revenue
-                score, credit rating, business-quality grade, or portable
-                cryptographically signed financial credential. Before
-                introducing additional uses of personal data for such products,
-                we will provide the relevant information and obtain consent
-                where required.
-              </p>
+            <PolicySection number={2} id="summary" title="Summary">
+              <ul>
+                <li>
+                  <strong>Your keys never reach us.</strong> The mnemonic that
+                  controls your funds is derived on your device from your PIN or
+                  passkey, and it is never transmitted to Zua.
+                </li>
+                <li>
+                  <strong>We store account and payment metadata</strong>, not
+                  your spending keys: who you are on Zua, which invoices and
+                  links you created, and which payments settled them.
+                </li>
+                <li>
+                  <strong>No advertising, no analytics, no trackers.</strong>{" "}
+                  The app ships no third-party analytics, advertising, or
+                  session recording scripts.
+                </li>
+                <li>
+                  <strong>No identity verification.</strong> Zua does not ask
+                  for identity documents. A verified badge means a username or
+                  receipt signature was checked against a public key, not that
+                  we confirmed who a person is.
+                </li>
+                <li>
+                  <strong>Payments are public at the network level.</strong>{" "}
+                  Shielded transactions hide amounts and addresses, but the fact
+                  that a transaction exists, and when, is visible on the Zcash
+                  blockchain.
+                </li>
+              </ul>
             </PolicySection>
 
             <PolicySection
               number={3}
-              id="personal-data-we-process"
-              title="Personal data we process"
+              id="keys-and-your-browser"
+              title="Keys and your browser"
             >
-              <Subsection title="Account and authentication information">
-                <p>
-                  We process account identifiers, usernames, authentication and
-                  session information, and contact details supplied through your
-                  selected sign-in method or directly to us. We also process
-                  business membership and permission information, such as
-                  whether an account is a business owner or administrator.
-                </p>
+              <p>
+                Zua runs the Zcash wallet inside your browser, compiled to
+                WebAssembly. Your device derives the wallet keys, scans compact
+                blocks, decrypts your notes, and builds the zero-knowledge
+                proofs for spending. Our servers coordinate accounts, invoices,
+                and statuses; they do not hold the keys needed to move funds.
+              </p>
+              <Subsection title="What stays on your device">
+                <PolicyTable
+                  headers={["Item", "Where it lives"]}
+                  rows={localRows.map((row) => [row[0], row[1]])}
+                />
               </Subsection>
-              <Subsection title="Identity and business verification information">
+              <Subsection title="Why we cannot recover your funds">
                 <p>
-                  When you undertake KYC or KYB verification, the configured
-                  process may require names, dates of birth, nationality,
-                  addresses, government identification details,
-                  identity-document images, proof of address, business
-                  registration details, business activities, and information
-                  about representatives, directors, controllers, or beneficial
-                  owners.
+                  Because the keys are derived from your PIN or passkey, we
+                  cannot reset them, and we cannot restore access to a balance
+                  for you. If you lose both your PIN and your passkey, the funds
+                  in that account stay where they are. Keep the recovery method
+                  you chose available.
                 </p>
-                <p>
-                  Sumsub collects and processes verification submissions through
-                  the configured verification flow. Zua receives and stores
-                  verification metadata, including applicant and case
-                  identifiers, status, check timestamps, rejection labels,
-                  associated-person references and roles, and moderation
-                  comments. Free-text comments may contain personal information.
-                  Our integration may also receive applicant information while
-                  retrieving and interpreting verification results, even when
-                  only a smaller set of fields is retained in our operational
-                  records.
-                </p>
-                <p>
-                  Documents and selfies submitted through Sumsub are handled in
-                  its verification environment. This does not mean that Zua
-                  receives only a yes/no result or can never process information
-                  contained in a verification case.
-                </p>
-              </Subsection>
-              <Subsection title="Facial verification and biometric information">
-                <p>
-                  Where the selected verification process requires facial
-                  matching or liveness checks, Sumsub may process selfies,
-                  facial images, video, and derived facial or biometric
-                  information as described in the notices presented during
-                  verification. The information collected depends on the
-                  configured checks.
-                </p>
-                <p>
-                  Zua does not use verification documents or biometric
-                  information for advertising. Where separate consent is
-                  required for biometric processing, it must be obtained before
-                  that processing begins. Required notices explain the relevant
-                  purposes and parties involved.
-                </p>
-              </Subsection>
-              <Subsection title="Verification, fraud, and compliance records">
-                <p>
-                  We process verification outcomes, review history, credential
-                  eligibility, suspensions, screening indicators returned by
-                  enabled checks, and audit records of relevant actions. We may
-                  request additional information when necessary to resolve a
-                  verification issue, investigate suspected misuse, or meet an
-                  applicable obligation.
-                </p>
-                <p>
-                  An automated flag or screening match does not by itself
-                  establish wrongdoing. Not every screening or
-                  transaction-monitoring product offered by a provider is
-                  necessarily enabled for Zua.
-                </p>
-              </Subsection>
-              <Subsection title="Wallet, payment, and blockchain information">
-                <p>
-                  Depending on the payment route, we process public addresses
-                  and keys, account or username references, transaction hashes,
-                  assets, amounts, timestamps, commitments, payment references,
-                  recipient information, fee quotes, payment status, settlement
-                  information, and related cryptographic data.
-                </p>
-                <p>
-                  Fiat payment or bridge services may require additional
-                  customer information, such as contact details, and may
-                  generate records linking a user or username with a payment
-                  amount and transaction reference. Some session information is
-                  encrypted in storage but can be decrypted by Zua&apos;s
-                  service to operate the transaction.
-                </p>
-              </Subsection>
-              <Subsection title="Wallet recovery and device storage">
-                <p>
-                  For the supported recovery flow, Zua stores an encrypted
-                  wallet recovery master together with the salt and
-                  key-derivation parameters needed for recovery. The application
-                  uses your recovery credentials to perform the relevant
-                  cryptographic operations. Encrypted recovery material is still
-                  sensitive information.
-                </p>
-                <p>
-                  The application also stores wallet owner and viewing secrets
-                  in browser local storage for wallet functionality. Those
-                  stored values are usable secret material and are not all
-                  protected by an additional application-level encryption layer.
-                  Browser storage may also contain preferences and cached wallet
-                  information.
-                </p>
-              </Subsection>
-              <Subsection title="Business Passport information">
-                <p>
-                  We process the business profile, authorized members,
-                  verification case references, credential status, publication
-                  choices, and related audit records. The public fields are
-                  described in Section 7.
-                </p>
-              </Subsection>
-              <Subsection title="Technical and support information">
-                <p>
-                  We process technical information necessary for authentication,
-                  request handling, security, and troubleshooting, which can
-                  include IP addresses, browser or device information, session
-                  information, timestamps, and error records. We also process
-                  messages, attachments, and contact details you provide when
-                  requesting support or reporting an issue.
-                </p>
-                <ReviewText>
-                  [CONFIRM THE PRODUCTION LOGGING AND ANALYTICS INVENTORY;
-                  IDENTIFY ANY OPTIONAL ANALYTICS DATA AND PROVIDERS BEFORE
-                  PUBLICATION.]
-                </ReviewText>
               </Subsection>
             </PolicySection>
 
-            <PolicySection
-              number={4}
-              id="where-information-comes-from"
-              title="Where information comes from"
-            >
+            <PolicySection number={4} id="what-we-store" title="What we store">
               <p>
-                We receive information from you, authorized business members,
-                payment counterparties, authentication and verification
-                providers, payment providers, and blockchain networks.
-                Verification providers may consult public registers and
-                screening sources as part of enabled checks.
+                Everything below is stored on our servers so the product can
+                work across devices and so payers can see what they owe.
               </p>
-              <p>
-                If you submit personal information about a representative,
-                director, beneficial owner, or another person, you must have
-                appropriate authority or another lawful basis to provide it and
-                give them the relevant privacy information. This does not remove
-                Zua&apos;s own responsibility to provide notices where required.
-              </p>
+              <PolicyTable
+                headers={["Category", "Examples", "Why"]}
+                rows={storageRows}
+              />
+              <Subsection title="Public profiles">
+                <p>
+                  A username and, for business accounts, a business name are
+                  public. They appear when someone opens your payment link,
+                  invoice, or claim link, and they are used to resolve
+                  &quot;send to @username&quot; payments before a transfer is
+                  built.
+                </p>
+              </Subsection>
+              <Subsection title="Receipts and payment disclosure">
+                <p>
+                  A receipt is a signed statement about a payment. Whoever holds
+                  the file can use it to reveal the outputs it lists, including
+                  amounts. Share receipts the way you would share a bank
+                  statement, not the way you would share a link.
+                </p>
+              </Subsection>
+              <Subsection title="Developer data">
+                <p>
+                  If you create an API key, we store a hash of it and never the
+                  key itself. Webhook signing secrets are stored so that
+                  deliveries can be signed. Webhook payloads include the
+                  checkout data you sent us, so avoid putting personal data in
+                  descriptions that do not need it.
+                </p>
+              </Subsection>
             </PolicySection>
 
             <PolicySection
               number={5}
-              id="purposes-and-legal-bases"
-              title="Purposes and legal bases"
+              id="payment-privacy"
+              title="Payment privacy"
             >
               <p>
-                We use personal data for defined purposes and rely on the basis
-                applicable to the activity and jurisdiction. We do not treat
-                consent as the basis for all processing or describe fraud
-                prevention itself as a separate legal basis.
+                Zcash shielded transactions keep amounts, addresses, and memos
+                out of public view. Zua only accepts shielded addresses, so a
+                payment through Zua does not publish a balance or a recipient
+                list on the blockchain. What remains public is that some
+                transaction was mined, in which block, and its fee.
               </p>
-              <PolicyTable
-                headers={[
-                  "Purpose",
-                  "Data involved",
-                  "Applicable basis to be confirmed for publication",
-                ]}
-                rows={purposeRows}
-              />
               <p>
-                Sensitive or specially protected information may require
-                additional conditions or explicit consent. We identify those
-                conditions before the relevant processing. We do not use a
-                general acceptance of this Policy as a substitute.
+                Reading your own notes requires the wallet to fetch compact
+                blocks. That traffic goes through a public lightwalletd proxy,
+                which sees your IP address and the blocks you ask for, in the
+                same way any node you connect to would. Zua is not the operator
+                of that proxy.
               </p>
+              <Subsection title="Memos">
+                <p>
+                  Zua uses memos to attach an invoice, request, or link
+                  reference to a payment. Memos are decrypted in your browser.
+                  Our servers see the reference when the payer reports the
+                  payment, but not the full memo content of your other
+                  transactions.
+                </p>
+              </Subsection>
             </PolicySection>
 
             <PolicySection
               number={6}
-              id="verification-through-sumsub"
-              title="Verification through Sumsub"
+              id="service-providers"
+              title="Service providers"
             >
               <p>
-                Zua integrates with Sumsub for the identity and business
-                verification checks configured for the relevant product. The
-                verification flow identifies the information required and
-                presents the relevant notices and consents before submission.
+                We use a small number of providers. We do not sell personal data
+                and we do not share it for advertising.
               </p>
+              <PolicyTable
+                headers={["Provider", "What it processes"]}
+                rows={providerRows}
+              />
               <p>
-                For processing undertaken on Zua&apos;s instructions, the
-                respective responsibilities are governed by our agreement with
-                the provider. Sumsub may also act as an independent controller
-                for particular processing described in its applicable notice.
-                Its role is not necessarily the same for every purpose.
-              </p>
-              <p>
-                Read the{" "}
-                <a
-                  href="https://sumsub.com/privacy-notice-service/"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Sumsub Service Delivery Privacy Notice
-                </a>{" "}
-                and any additional notices presented during verification.{" "}
-                <strong>
-                  [CONFIRM THIS NOTICE MATCHES THE CONTRACTED SUMSUB ENTITY AND
-                  SERVICES.]
-                </strong>
-              </p>
-              <p>
-                Sumsub&apos;s SDK handles provider consent collection within its
-                supported flow. Zua remains responsible for its own applicable
-                transparency and consent requirements. Where required,
-                additional notices or consent are presented separately.
-                Acceptance records must be available to demonstrate the relevant
-                choices.
-              </p>
-              <p>
-                If you decline information or consent necessary for a particular
-                check, that check may not be completed and the associated
-                feature or passport may be unavailable. This does not
-                automatically mean that every Zua service is unavailable.
+                Some providers process data outside Indonesia. Where the law
+                requires it, we rely on appropriate safeguards for those
+                transfers, and we limit what is sent to what the service needs.
               </p>
             </PolicySection>
 
             <PolicySection
               number={7}
-              id="business-passport-and-public-profiles"
-              title="Business Passport and public profiles"
+              id="retention-and-deletion"
+              title="Retention and deletion"
             >
               <p>
-                The current Business Passport is a Zua-issued
-                identity-verification status displayed through a hosted public
-                page. Sumsub performs configured checks; Zua applies its
-                credential policy to determine eligibility.
+                Account and payment records are kept while your account exists,
+                so your history and your payers&apos; receipts stay consistent.
+                When you delete your account, we delete your profile, addresses,
+                invoices, links, requests, claim links, API keys, and webhook
+                settings from the active database, and remove them from backups
+                as those backups rotate.
               </p>
               <p>
-                An authorized owner or administrator can choose to publish an
-                eligible passport. The public response contains:
-              </p>
-              <ul>
-                <li>
-                  The profile&apos;s public identifier and display name, if
-                  supplied.
-                </li>
-                <li>
-                  Whether the profile represents an individual or a company.
-                </li>
-                <li>
-                  Its verified status, issuer, and identity-verification scope.
-                </li>
-                <li>
-                  The credential policy version, verification date, and expiry
-                  date.
-                </li>
-              </ul>
-              <p>
-                The public response does not include identity documents,
-                selfies, provider rejection reasons, private transaction
-                history, or wallet recovery secrets.
+                Signing out clears the local wallet cache on that device. Data
+                already written to the Zcash blockchain cannot be deleted by us
+                or by anyone else.
               </p>
               <p>
-                A published page is accessible to anyone with its link.
-                Search-engine exclusion does not make it access-controlled.
-                Recipients may copy, screenshot, retain, or redistribute
-                information they receive.
-              </p>
-              <p>
-                Eligibility is reassessed over time. A passport may become
-                unavailable when unpublished, suspended, stale, or expired.
-                Unpublishing removes public availability through Zua&apos;s
-                passport response; it does not delete internal verification
-                records or remove copies already held by others.
-              </p>
-              <p>
-                The passport does not certify revenue, transaction volume,
-                independent customers, creditworthiness, business quality, or
-                general legal compliance. Publishing it does not authorize
-                publication of the business&apos;s entire financial history.
+                We may keep limited records longer where we must, for example to
+                resolve a dispute, prevent abuse, or meet a legal obligation.
               </p>
             </PolicySection>
 
-            <PolicySection
-              number={8}
-              id="public-blockchains-and-payment-privacy"
-              title="Public blockchains and payment privacy"
-            >
+            <PolicySection number={8} id="your-rights" title="Your rights">
               <p>
-                Public blockchain records are replicated by independent network
-                participants. Zua cannot generally erase, amend, or control
-                their copies.
+                Subject to applicable law, including Indonesia&apos;s Personal
+                Data Protection Law (Law No. 27 of 2022), you can ask us to:
               </p>
+              <ul>
+                <li>confirm what we hold about you and give you a copy;</li>
+                <li>correct inaccurate account or profile data;</li>
+                <li>delete your account and the records listed above;</li>
+                <li>
+                  export your payment history, which the app already provides as
+                  CSV and as receipt files;
+                </li>
+                <li>
+                  stop non-essential messages, such as email notifications.
+                </li>
+              </ul>
               <p>
-                Depending on the route and contract operation, public
-                information can include addresses, registered public keys or
-                identifiers, deposits, withdrawals, amounts, transaction hashes,
-                timestamps, commitments, fees, and contract events. Certain
-                payment-fee events contain payer and amount information. Other
-                information may become linkable through timing, payment
-                references, or data held by counterparties.
-              </p>
-              <p>
-                Privacy mechanisms can reduce particular links between
-                transactions but do not conceal every amount or all activity.
-                Zua and enabled payment providers may hold off-chain records
-                that connect accounts or business information with transactions.
-              </p>
-              <p>
-                Do not add identification numbers, private keys, recovery
-                credentials, or unnecessary personal information to public
-                transaction fields. Ordinary identity verification does not
-                require you to give Zua or Sumsub your wallet seed phrase or
-                private key.
+                Write to the address in the last section. We may need to verify
+                that the account is yours before acting. Because we do not hold
+                your keys, we cannot act on requests about funds themselves.
               </p>
             </PolicySection>
 
             <PolicySection
               number={9}
-              id="payment-disclosure-exports"
-              title="Payment disclosure exports"
+              id="security-and-limits"
+              title="Security and limits"
             >
               <p>
-                When you choose to export a receipt or income statement, the
-                bundle includes, for each payment it covers, the transaction ID
-                and block height, the exact amount, the memo, the receiving
-                address and the note encryption key of just those outputs. It
-                also includes the signing username, the network, the period of a
-                statement, the total, the issue date and a signature.
+                Access to the app requires a Privy session. Your wallet requires
+                your PIN or your passkey before keys are derived, and the local
+                cache is encrypted with material derived from it. API keys are
+                stored as hashes, and the API never accepts a key that does not
+                match one on file.
               </p>
               <p>
-                These fields allow a recipient to inspect the disclosed payment
-                information and can link the disclosure with other records. This
-                export is not an amount-hiding proof that merely confirms a
-                threshold, and it is not a guarantee that the recipient cannot
-                infer additional information.
+                No system is perfect. A compromised device, a malicious browser
+                extension, a shared computer left unlocked, or a weak PIN can
+                defeat these controls. Use a device you trust, keep the browser
+                updated, and prefer a passkey when your provider supports it.
               </p>
               <p>
-                Share disclosures only with recipients you intend to receive
-                them. A recipient can retain or redistribute a downloaded
-                export. Zua cannot revoke copies already received. The bundle
-                does not contain the wallet owner secret or recovery master.
+                Zua is software, not a bank or a custodian. We do not hold your
+                funds, we cannot freeze them, and we cannot reverse a payment
+                that the network has confirmed.
               </p>
             </PolicySection>
 
             <PolicySection
               number={10}
-              id="recipients-and-service-providers"
-              title="Recipients and service providers"
-            >
-              <p>
-                We share information necessary for the relevant service or
-                lawful purpose with:
-              </p>
-              <ul>
-                <li>
-                  Authentication and wallet providers, including Privy for the
-                  configured authentication services.
-                </li>
-                <li>Sumsub for configured verification services.</li>
-                <li>
-                  Payment, bridge, settlement, or anchor providers involved in
-                  the route you select.
-                </li>
-                <li>
-                  Hosting, database, infrastructure, security, and support
-                  providers used to operate the Services.
-                </li>
-                <li>
-                  Professional advisers where necessary for legal, accounting,
-                  audit, or compliance work.
-                </li>
-                <li>
-                  Authorities where disclosure is required or otherwise lawfully
-                  justified.
-                </li>
-                <li>
-                  Parties involved in a proposed business transfer, subject to
-                  appropriate confidentiality, legal basis, and required
-                  notices.
-                </li>
-              </ul>
-              <p>
-                Public passport viewers and people to whom you send disclosure
-                exports also receive information as described above.
-              </p>
-              <p>
-                The following provider schedule must accurately identify the
-                production arrangements:
-              </p>
-              <PolicyTable
-                headers={[
-                  "Provider / legal entity",
-                  "Purpose and relevant data",
-                  "Role",
-                  "Processing locations and transfer safeguards",
-                ]}
-                rows={providerRows}
-              />
-              <p>
-                Third parties acting independently may process information under
-                their own notices. Their independent role does not remove
-                Zua&apos;s responsibility for disclosures or processing under
-                Zua&apos;s control.
-              </p>
-            </PolicySection>
-
-            <PolicySection
-              number={11}
-              id="advertising-and-sale-of-information"
-              title="Advertising and sale of information"
-            >
-              <p>
-                Zua does not sell personal data for monetary consideration or
-                use KYC documents, biometric information, private payment
-                records, or non-public financial history for third-party
-                behavioral advertising.
-              </p>
-              <ReviewText>
-                [VALIDATE THIS STATEMENT AGAINST THE PRODUCTION SDK, ANALYTICS,
-                AND COMMERCIAL INVENTORY BEFORE PUBLICATION.]
-              </ReviewText>
-            </PolicySection>
-
-            <PolicySection
-              number={12}
-              id="international-transfers"
-              title="International transfers"
-            >
-              <p>
-                Providers and infrastructure may process information outside
-                your country. The schedule in Section 10 identifies the relevant
-                locations and safeguards.
-              </p>
-              <p>
-                For transfers subject to Indonesian personal-data law, we assess
-                the recipient country&apos;s level of protection and, where that
-                requirement is not met, the availability of adequate and binding
-                safeguards. Where the preceding requirements cannot be met, the
-                applicable consent requirements must be addressed before
-                transfer. These are not interchangeable options chosen without
-                assessment.
-              </p>
-              <p>
-                Where another transfer regime applies, we use its required
-                mechanism and provide additional information as required. You
-                can request information about applicable safeguards through the
-                privacy contact.
-              </p>
-            </PolicySection>
-
-            <PolicySection
-              number={13}
-              id="retention-and-deletion"
-              title="Retention and deletion"
-            >
-              <p>
-                We retain personal data for the period necessary for its stated
-                purpose and any applicable, identified legal obligations.
-                Retention is determined by category and trigger, rather than by
-                an indefinite general need for compliance.
-              </p>
-              <PolicyTable
-                headers={[
-                  "Record category",
-                  "Retention period or specific criterion",
-                ]}
-                rows={retentionRows}
-              />
-              <p>
-                If a specific legal hold requires longer retention, we limit it
-                to the affected records and retain them for the applicable
-                purpose and duration. Once retention is no longer justified, we
-                delete or effectively anonymize the relevant information
-                according to the applicable process.
-              </p>
-              <p>
-                Unpublishing or suspending a passport does not itself delete
-                verification data. Deletion requests are assessed across
-                Zua&apos;s records and information processed on our behalf by
-                providers. Provider-independent processing may require a
-                separate request or explanation of the provider&apos;s
-                obligations.
-              </p>
-              <p>
-                Public blockchain records and copies independently retained by
-                disclosure recipients are not generally deletable by Zua. We
-                explain these limits when responding to relevant requests.
-              </p>
-            </PolicySection>
-
-            <PolicySection
-              number={14}
-              id="security-and-recovery"
-              title="Security and recovery"
-            >
-              <p>
-                We use safeguards appropriate to the systems and information
-                involved. The architecture includes encrypted recovery records
-                and encrypted fields for some payment-session information, but
-                this does not mean that every record is encrypted in every
-                location or inaccessible to Zua.
-              </p>
-              <p>
-                No online service, device, or cryptographic system guarantees
-                absolute security. Protect your device, browser profile,
-                authentication access, and recovery credentials. Clearing
-                browser storage or deleting recovery information can affect
-                access to wallet functionality; confirm that you have an
-                appropriate recovery method before doing so.
-              </p>
-              <ReviewText>
-                [CONFIRM IMPLEMENTED ACCESS CONTROLS, SECURITY PROCEDURES, AND
-                RECOVERY INSTRUCTIONS BEFORE PUBLICATION.]
-              </ReviewText>
-            </PolicySection>
-
-            <PolicySection
-              number={15}
-              id="automated-checks-and-review"
-              title="Automated checks and review"
-            >
-              <p>
-                Configured verification processes use automated checks, which
-                may include document checks, facial matching, liveness, and
-                screening. Zua also applies credential eligibility rules based
-                on verification results and their freshness. These can prevent
-                publication, require further information, or make an existing
-                passport unavailable.
-              </p>
-              <p>
-                If you believe a result or restriction is incorrect, contact{" "}
-                <ContactLinks />. We will assess the request and provide the
-                review and challenge mechanisms required by applicable law. A
-                flag or failed check is not a public finding that you committed
-                wrongdoing.
-              </p>
-            </PolicySection>
-
-            <PolicySection
-              number={16}
-              id="your-rights-and-choices"
-              title="Your rights and choices"
-            >
-              <p>
-                Depending on applicable law, you may request information about
-                processing, access, correction, deletion, restriction,
-                portability, withdrawal of consent, or objection to certain
-                processing. You may also have rights concerning decisions based
-                solely on automated processing and the right to complain to a
-                competent authority.
-              </p>
-              <p>
-                Send requests to <ContactLinks />. We may ask for proportionate
-                information to verify your identity or authority to act for a
-                business. We respond within the applicable legal period and
-                explain any lawful limitations or retained categories.
-              </p>
-              <p>
-                Where processing relies on consent, you can withdraw that
-                consent through the relevant control or by contacting us.
-                Withdrawal does not invalidate prior lawful processing. It may
-                affect the feature requiring that consent. Continued processing
-                requires an independently applicable lawful basis; withdrawing
-                consent is not a blanket authorization for indefinite retention.
-              </p>
-              <p>
-                You can request that a passport be unpublished separately from
-                requesting deletion of personal data.
-              </p>
-            </PolicySection>
-
-            <PolicySection
-              number={17}
-              id="cookies-and-browser-storage"
-              title="Cookies and browser storage"
-            >
-              <p>
-                The Services use authentication/session technologies and browser
-                storage for account and wallet functionality. Wallet storage
-                includes the secrets described in Section 3, so its consequences
-                extend beyond ordinary website preferences.
-              </p>
-              <p>
-                Optional analytics or other non-essential technologies, if
-                enabled, are described in the relevant notice and require
-                consent where applicable. Browser controls may remove stored
-                information, but doing so can sign you out or affect wallet
-                access.
-              </p>
-              <p>
-                Browser local storage holds wallet secrets, account references,
-                cached wallet information, and your dashboard theme preference.
-                It generally persists across browser sessions until removed by
-                the application, you, or your browser. You can manage site data
-                through your browser settings. Removing wallet data can affect
-                access, so confirm your recovery method first.
-              </p>
-            </PolicySection>
-
-            <PolicySection
-              number={18}
-              id="age-eligibility"
-              title="Age eligibility"
-            >
-              <p>
-                The Services are intended for users aged 18 or older. If you
-                believe a child has provided personal data through the Services,
-                contact us so we can assess the information and take appropriate
-                action.
-              </p>
-              <ReviewText>
-                [CONFIRM THIS AGE RULE MATCHES THE TERMS, SUPPORTED MARKETS, AND
-                ONBOARDING CONTROLS.]
-              </ReviewText>
-            </PolicySection>
-
-            <PolicySection
-              number={19}
-              id="incidents-and-lawful-requests"
-              title="Incidents and lawful requests"
-            >
-              <p>
-                We investigate personal-data incidents and provide notifications
-                required by applicable law within the applicable deadlines. For
-                incidents subject to Article 46 of Indonesia&apos;s Personal
-                Data Protection Law, this includes the applicable written
-                notification requirement within 3 × 24 hours. Our incident
-                procedures must account for the relevant recipients, content,
-                and any applicable exceptions.
-              </p>
-              <p>
-                We assess official requests for their legal basis, authority,
-                and scope, and limit disclosures as required by law. Where
-                legally permitted and appropriate, we provide notice. Some
-                investigations or legal obligations may restrict what we can
-                disclose about a request.
-              </p>
-            </PolicySection>
-
-            <PolicySection
-              number={20}
-              id="indonesian-law-and-other-jurisdictions"
-              title="Indonesian law and other jurisdictions"
-            >
-              <p>
-                Where Indonesia&apos;s Law No. 27 of 2022 concerning Personal
-                Data Protection applies, our processing is subject to its
-                requirements, including those concerning specific personal data,
-                rights, security, accountability, and international transfers.
-                Biometric and personal financial information require particular
-                attention under that law.
-              </p>
-              <p>
-                We conduct a data-protection impact assessment where required
-                for high-risk processing. We also assess whether appointment of
-                a data protection officer or another designated contact is
-                required.
-              </p>
-              <p>
-                If additional jurisdiction-specific notices or rights apply, we
-                provide the necessary information for those services and users.
-                This Policy does not itself establish that Zua offers services
-                in the EEA, United Kingdom, United States, or every other
-                jurisdiction.
-              </p>
-            </PolicySection>
-
-            <PolicySection
-              number={21}
               id="changes-and-contact"
               title="Changes and contact"
             >
               <p>
-                We update this Policy when our processing changes and revise the
-                date above. Where required, we provide advance or additional
-                notice and obtain new consent before the relevant change takes
-                effect.
+                We update this policy when the product or the law changes, and
+                we revise the date at the top. Material changes are announced in
+                the app before they take effect.
               </p>
-              <p>For questions, requests, or complaints, contact:</p>
+              <p>Questions, requests, or complaints:</p>
               <address className="not-italic">
                 <strong>Zua Privacy Team</strong>
                 <br />
-                PT PENTAHELIX SISTEM TERPERCAYA
+                PT Pentahelix Sistem Terpercaya
                 <br />
-                Jl. Pondok Kopi Raya No. 180, Pondok Kopi Village, Duren Sawit
-                District, East Jakarta Administrative City, DKI Jakarta
-                Province, Postal Code: 13460
+                Jl. Pondok Kopi Raya No. 180, Pondok Kopi, Duren Sawit, East
+                Jakarta, DKI Jakarta 13460, Indonesia
                 <br />
-                <ContactLinks />
+                <a href="mailto:ptpentahelixsistemterpercaya@gmail.com">
+                  ptpentahelixsistemterpercaya@gmail.com
+                </a>
               </address>
               <p>
-                You may also contact the competent data-protection authority
-                where applicable law provides that right.
+                You may also contact the data protection authority where the law
+                gives you that right.
               </p>
             </PolicySection>
 
             <div className="mt-16 border-t border-line pt-8">
               <a
-                href="mailto:[CONTACT EMAIL]"
+                href="mailto:ptpentahelixsistemterpercaya@gmail.com"
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-ed-dark bg-ed-dark px-3 text-center text-sm font-semibold tracking-[0.02em] !text-ed-cream transition-opacity hover:!text-ed-cream hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ed-dark focus-visible:ring-offset-2 focus-visible:ring-offset-paper sm:px-5"
               >
                 <Mail className="size-4" aria-hidden="true" />
@@ -1091,25 +517,6 @@ function Subsection({
       </h3>
       {children}
     </div>
-  );
-}
-
-function ReviewText({ children }: { children: ReactNode }) {
-  return (
-    <p className="border-l-2 border-gold pl-4 font-semibold text-ink">
-      {children}
-    </p>
-  );
-}
-
-function ContactLinks() {
-  return (
-    <>
-      <a href="mailto:ptpentahelixsistemterpercaya@gmail.com">
-        ptpentahelixsistemterpercaya@gmail.com
-      </a>{" "}
-      / <a href="mailto:[CONTACT EMAIL]">[CONTACT EMAIL]</a>
-    </>
   );
 }
 
