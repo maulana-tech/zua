@@ -9,10 +9,9 @@ import {
 import {
   clearInstallPrompt,
   getInstallPrompt,
+  INSTALL_DISMISSED_KEY,
   type InstallEvent,
 } from "./installPrompt";
-
-const DISMISSED = "zua:pwa-install-dismissed";
 
 export function InstallApp() {
   const [prompt, setPrompt] = useState<InstallEvent | null>(null);
@@ -27,7 +26,7 @@ export function InstallApp() {
       (navigator as Navigator & { standalone?: boolean }).standalone === true;
     let dismissed = false;
     try {
-      dismissed = localStorage.getItem(DISMISSED) === "1";
+      dismissed = localStorage.getItem(INSTALL_DISMISSED_KEY) === "1";
     } catch {}
     if (standalone() || dismissed) return;
     setHidden(false);
@@ -63,7 +62,7 @@ export function InstallApp() {
   function dismiss() {
     clearInstallPrompt();
     try {
-      localStorage.setItem(DISMISSED, "1");
+      localStorage.setItem(INSTALL_DISMISSED_KEY, "1");
     } catch {}
     setHidden(true);
     setPrompt(null);
