@@ -49,7 +49,7 @@ const nextConfig = {
       { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
       { key: "Cross-Origin-Embedder-Policy", value: coep },
     ];
-    const webkitUA = "(CriOS|FxiOS|EdgiOS|OPiOS|Version/[0-9.]+ Safari/)";
+    const webkitUA = ".*(CriOS|FxiOS|EdgiOS|OPiOS|Version/[0-9.]+ Safari/).*";
     const webkit = { type: "header", key: "user-agent", value: webkitUA };
     const appRoutes = [
       "dashboard",
