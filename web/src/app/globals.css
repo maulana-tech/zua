@@ -839,6 +839,11 @@ body:has(.dashboard-app)
   box-shadow: inset 0 0 0 1px var(--dash-line-strong);
 }
 
+/* Native checkboxes and radios in ink instead of the browser's blue. */
+body:has(.dashboard-app) :is(input[type="checkbox"], input[type="radio"]) {
+  accent-color: var(--dash-fg);
+}
+
 /* Cards placed in a ledger become flat cells; the frame draws the lines. */
 body:has(.dashboard-app) .dash-ledger [data-slot="card"] {
   border-radius: 0;

@@ -238,7 +238,8 @@ export function SendDashboard() {
               <h2 className="text-2xl tracking-tight">Sent {amount} ZEC</h2>
               <p className="text-sm text-(--dash-ash)">
                 {recipient?.username ? `To @${recipient.username}. ` : ""}It
-                confirms in about a minute.
+                confirms in about a minute; the block explorer link below works
+                once it has.
               </p>
               {txids.map((id) => {
                 const url = explorerTxUrl(id);

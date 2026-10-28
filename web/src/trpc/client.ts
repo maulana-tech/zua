@@ -10,9 +10,8 @@ export const api = createTRPCProxyClient<AppRouter>({
       url: "/api/trpc",
       headers: async () => {
         if (typeof window === "undefined") return {};
-        const { getAccessToken } = await import("@privy-io/react-auth");
-        const token = await getAccessToken();
-        return token ? { authorization: `Bearer ${token}` } : {};
+        const { authHeader } = await import("./authHeader");
+        return authHeader();
       },
     }),
   ],

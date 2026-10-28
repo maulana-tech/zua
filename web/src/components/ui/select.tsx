@@ -85,4 +85,80 @@ function SelectItem({
   );
 }
 
-export { Select, SelectContent, SelectItem, SelectTrigger, SelectValue };
+export type SelectOption<V extends string> = {
+  value: V;
+  label: string;
+  /** Second line in the list only; the trigger shows just the label. */
+  hint?: string;
+};
+
+/**
+ * A select over a fixed list of string values: the replacement for a native
+ * <select>, styled like the fields around it. Name it with `aria-labelledby`
+ * (a visible label) or `aria-label`.
+ */
+function OptionSelect<V extends string>({
+  value,
+  onValueChange,
+  options,
+  id,
+  disabled,
+  title,
+  className,
+  "aria-label": ariaLabel,
+  "aria-labelledby": ariaLabelledBy,
+}: {
+  value: V;
+  onValueChange: (value: V) => void;
+  options: readonly SelectOption<V>[];
+  id?: string;
+  disabled?: boolean;
+  title?: string;
+  className?: string;
+  "aria-label"?: string;
+  "aria-labelledby"?: string;
+}) {
+  return (
+    <Select
+      value={value}
+      onValueChange={(next) => {
+        if (next !== null) onValueChange(next as V);
+      }}
+      items={options.map(({ value, label }) => ({ value, label }))}
+      disabled={disabled}
+    >
+      <SelectTrigger
+        id={id}
+        title={title}
+        aria-label={ariaLabel}
+        aria-labelledby={ariaLabelledBy}
+        className={className}
+      >
+        <SelectValue className="truncate" />
+      </SelectTrigger>
+      <SelectContent className="min-w-48">
+        {options.map((o) => (
+          <SelectItem key={o.value} value={o.value}>
+            <span className="grid min-w-0 gap-0.5">
+              <span className="truncate">{o.label}</span>
+              {o.hint ? (
+                <span className="text-xs leading-4 text-muted-foreground">
+                  {o.hint}
+                </span>
+              ) : null}
+            </span>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+export {
+  OptionSelect,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+};

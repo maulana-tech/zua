@@ -2,7 +2,11 @@
 
 import { Loader, ShieldAlert, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
-import { dashButtonSecondary } from "../../../components/dashboard/styles";
+import {
+  dashButtonSecondary,
+  dashCell,
+  dashLedger,
+} from "../../../components/dashboard/styles";
 import { Mascot } from "../../../components/Mascot";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
@@ -75,14 +79,27 @@ export function PayView({
   if (profile.isLoading || (slug && link.isLoading))
     return (
       <div
-        className="grid place-items-center py-16"
+        className="grid gap-5 motion-safe:animate-pulse"
         role="status"
         aria-label="Loading payment page"
       >
-        <Loader
-          className="size-8 motion-safe:animate-spin"
-          aria-hidden="true"
-        />
+        <div className="grid gap-3 pt-4">
+          <div className="h-9 w-56 rounded-(--dash-radius-sm) bg-(--dash-tint)" />
+          <div className="h-4 w-80 max-w-full rounded-(--dash-radius-sm) bg-(--dash-tint)" />
+        </div>
+        <div className={`${dashLedger} @container`}>
+          <div
+            className={`${dashCell} grid gap-4 p-5 @xl:grid-cols-[minmax(0,1fr)_16rem] sm:p-6`}
+          >
+            <div className="grid content-start gap-3">
+              <div className="h-3 w-16 rounded-full bg-(--dash-tint)" />
+              <div className="h-14 rounded-(--dash-radius-sm) bg-(--dash-tint)" />
+              <div className="h-3 w-24 rounded-full bg-(--dash-tint)" />
+              <div className="h-10 rounded-(--dash-radius-sm) bg-(--dash-tint)" />
+            </div>
+            <div className="mx-auto aspect-square w-full max-w-64 rounded-(--dash-radius-sm) bg-(--dash-tint)" />
+          </div>
+        </div>
       </div>
     );
 
@@ -129,107 +146,174 @@ export function PayView({
           message: link.data?.title,
         });
 
+  const amountInvalid = amountZat === null;
+
   return (
     <>
       <section className="grid gap-2 pt-4">
-        <h1 className="text-3xl font-bold">
+        <p className="dashboard-tile-title">
+          {link.data ? `@${username} · payment link` : "Shielded payment"}
+        </p>
+        <h1 className="text-[clamp(1.9rem,4vw,2.6rem)] leading-tight tracking-tight">
           {link.data ? link.data.title : `Pay @${username}`}
         </h1>
-        <p className="text-sm opacity-70">
+        <p className="max-w-xl text-[15px] leading-relaxed text-(--dash-ash)">
           {link.data?.description ??
-            "Your payment is shielded: only @" +
-              username +
-              " can see who paid and how much."}
+            `Only @${username} can see who paid and how much. Nobody else, us included.`}
         </p>
-        <p className="inline-flex items-center gap-1.5 text-xs opacity-70">
+        <p className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-full border border-(--dash-line-strong) px-3 py-1 text-xs font-medium">
           <ShieldCheck className="size-3.5" aria-hidden="true" />
           Address signed by @{username}
         </p>
       </section>
 
-      <Card appearance="glass" density="spacious" className="gap-4">
-        {paid ? (
+      {paid ? (
+        <div className={dashLedger}>
           <div
-            className="grid justify-items-center gap-3 py-6 text-center"
+            className={`${dashCell} grid justify-items-center gap-3 px-6 py-10 text-center`}
             role="status"
           >
             <Mascot mood="success" size={72} tone="white" />
             <h2 className="text-xl font-semibold">
               Thanks! @{username} has been told.
             </h2>
-            <p className="text-sm opacity-70">
+            <p className="max-w-sm text-sm text-(--dash-ash)">
               The payment shows up once their wallet syncs. Nothing about it was
               shared with us.
             </p>
           </div>
-        ) : (
-          <>
-            {fixedZat ? (
-              <p className="text-2xl font-semibold tabular-nums">
-                {link.data?.amountZec} ZEC{" "}
-                <span className="text-sm font-normal opacity-70">
-                  {fiat.format(fixedZat)}
-                </span>
-              </p>
-            ) : (
-              <label className="grid gap-1.5 text-sm font-medium">
-                Amount (ZEC)
+        </div>
+      ) : (
+        <div className="@container">
+          <div
+            className={`${dashLedger} @xl:grid-cols-[minmax(0,1fr)_minmax(0,18.5rem)] @xl:grid-rows-[auto_1fr]`}
+          >
+            <div className={`${dashCell} grid content-start gap-5 p-5 sm:p-6`}>
+              {fixedZat ? (
+                <div className="grid gap-1">
+                  <span className="dashboard-tile-title">Amount</span>
+                  <p className="text-[clamp(1.75rem,5vw,2.25rem)] leading-tight tabular-nums">
+                    {link.data?.amountZec}{" "}
+                    <span className="text-base font-semibold tracking-[0.08em] text-(--dash-ash)">
+                      ZEC
+                    </span>
+                  </p>
+                  <p className="text-sm text-(--dash-ash) tabular-nums">
+                    {fiat.format(fixedZat)}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-1.5">
+                  <label htmlFor="pay-amount" className="dashboard-tile-title">
+                    Amount
+                  </label>
+                  <div className="relative">
+                    <Input
+                      id="pay-amount"
+                      appearance="linen"
+                      inputMode="decimal"
+                      autoComplete="off"
+                      placeholder="0.00"
+                      className="h-14 pr-16 text-2xl tabular-nums md:text-2xl"
+                      value={amount}
+                      onChange={(e) =>
+                        setAmount(
+                          e.target.value
+                            .replace(",", ".")
+                            .replace(/[^\d.]/g, ""),
+                        )
+                      }
+                      aria-invalid={amountInvalid}
+                      aria-describedby="pay-amount-hint"
+                    />
+                    <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm font-semibold tracking-[0.08em] text-(--dash-ash)">
+                      ZEC
+                    </span>
+                  </div>
+                  <p
+                    id="pay-amount-hint"
+                    className={`text-xs tabular-nums ${amountInvalid ? "text-destructive" : "text-(--dash-ash)"}`}
+                  >
+                    {amountInvalid
+                      ? "Use a ZEC amount with up to 8 decimals, like 0.25."
+                      : typeof amountZat === "bigint"
+                        ? fiat.format(amountZat)
+                        : "Optional: leave it empty to type it in your wallet."}
+                  </p>
+                </div>
+              )}
+              <div className="grid gap-1.5">
+                <label htmlFor="pay-note" className="dashboard-tile-title">
+                  Note for @{username}
+                </label>
                 <Input
-                  appearance="glass"
-                  inputMode="decimal"
-                  placeholder="0.25"
-                  value={amount}
-                  onChange={(e) =>
-                    setAmount(e.target.value.replace(/[^\d.]/g, ""))
-                  }
-                  aria-invalid={amountZat === null}
+                  id="pay-note"
+                  appearance="linen"
+                  className="h-11"
+                  maxLength={200}
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Invoice #12"
+                  aria-describedby="pay-note-hint"
                 />
-                {typeof amountZat === "bigint" ? (
-                  <span className="text-xs font-normal opacity-70">
-                    {fiat.format(amountZat)}
-                  </span>
-                ) : null}
-              </label>
-            )}
-            <label className="grid gap-1.5 text-sm font-medium">
-              Note for @{username} (optional, encrypted)
-              <Input
-                appearance="glass"
-                maxLength={200}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Invoice #12"
-              />
-            </label>
-            {uri ? (
-              <QrPanel uri={uri} copyText={payTo} />
-            ) : (
-              <p className="text-sm text-destructive">
-                Enter a ZEC amount with up to 8 decimals.
-              </p>
-            )}
-            <p className="text-xs opacity-70">
-              Scan with Zodl or any Zcash wallet that supports shielded
-              payments. Fees are a fraction of a cent.
-            </p>
-            <button
-              type="button"
-              className={dashButtonSecondary}
-              disabled={ping.isPending}
-              onClick={async () => {
-                await ping
-                  .mutateAsync({ username, nonce: newMemoId() })
-                  .catch(() => {});
-                setPaid(true);
-                postToParent({ type: "zua:payer-says-paid" });
-              }}
+                <p id="pay-note-hint" className="text-xs text-(--dash-ash)">
+                  Optional. Sent encrypted in the payment memo.
+                </p>
+              </div>
+            </div>
+
+            <div
+              className={`${dashCell} p-5 sm:p-6 @xl:col-start-2 @xl:row-span-2 @xl:row-start-1`}
             >
-              I&apos;ve paid
-            </button>
-          </>
-        )}
-      </Card>
-      <p className="pt-3 text-center text-xs opacity-60">
+              {uri ? (
+                <QrPanel uri={uri} copyText={payTo} />
+              ) : (
+                <div className="mx-auto grid aspect-square w-full max-w-64 place-items-center rounded-(--dash-radius-sm) border border-dashed border-(--dash-line-strong) p-6 text-center text-sm text-(--dash-ash)">
+                  Fix the amount to get the payment code.
+                </div>
+              )}
+            </div>
+
+            <div className={`${dashCell} grid content-start gap-4 p-5 sm:p-6`}>
+              <ol className="grid gap-2 text-sm text-(--dash-ash)">
+                {[
+                  "Scan the code with Zodl or any Zcash wallet with shielded payments, or open it in a wallet on this device.",
+                  "Check the amount and send. The fee is a fraction of a cent.",
+                  `Tap “I've paid” so @${username} knows to look.`,
+                ].map((step, i) => (
+                  <li key={step} className="flex gap-3">
+                    <span className="grid size-5 shrink-0 place-items-center rounded-full border border-(--dash-line-strong) text-[11px] font-semibold text-(--dash-fg) tabular-nums">
+                      {i + 1}
+                    </span>
+                    <span className="leading-5">{step}</span>
+                  </li>
+                ))}
+              </ol>
+              <button
+                type="button"
+                className={`${dashButtonSecondary} w-full @xl:w-fit`}
+                disabled={ping.isPending}
+                onClick={async () => {
+                  await ping
+                    .mutateAsync({ username, nonce: newMemoId() })
+                    .catch(() => {});
+                  setPaid(true);
+                  postToParent({ type: "zua:payer-says-paid" });
+                }}
+              >
+                {ping.isPending ? (
+                  <Loader
+                    className="motion-safe:animate-spin"
+                    aria-hidden="true"
+                  />
+                ) : null}
+                I&apos;ve paid
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      <p className="pt-1 text-center text-xs text-(--dash-ash)">
         Shielded by Zcash · private by default ·{" "}
         {network === "main" ? "mainnet" : "testnet"}
       </p>

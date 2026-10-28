@@ -13,7 +13,7 @@ import { EmailNotificationsRow } from "../../features/notifications/EmailNotific
 import { useChangeRecoveryPin } from "../../features/recovery/hooks/useChangeRecoveryPin";
 import { PaymentAlertsRow } from "../../features/zcash/PaymentAlertsRow";
 import { setDisplayCurrency, useFiat } from "../../features/zcash/useZecPrice";
-import { FIAT_CURRENCIES, isFiatCode } from "../../lib/fiat";
+import { FIAT_CURRENCIES, type FiatCode } from "../../lib/fiat";
 import { trpc } from "../../trpc/react";
 import { ACCOUNT_TYPE_ICONS } from "../AccountTypeDialog";
 import { Badge } from "../ui/badge";
@@ -28,6 +28,7 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { Input } from "../ui/input";
+import { OptionSelect, type SelectOption } from "../ui/select";
 import { useWallet } from "../WalletProvider";
 import { ChangeRecoveryPinDialog } from "./ChangeRecoveryPinDialog";
 import { DashboardPageHeader } from "./DashboardPageHeader";
@@ -280,6 +281,10 @@ function AccountTypeTile() {
   );
 }
 
+const FIAT_OPTIONS: SelectOption<FiatCode>[] = FIAT_CURRENCIES.map(
+  ({ code, name }) => ({ value: code, label: `${code} · ${name}` }),
+);
+
 function DisplayCurrencyRow() {
   const fiat = useFiat();
   return (
@@ -294,23 +299,14 @@ function DisplayCurrencyRow() {
         ) : null
       }
     >
-      <label className="sr-only" htmlFor="display-currency">
-        Display currency
-      </label>
-      <select
+      <OptionSelect<FiatCode>
         id="display-currency"
+        aria-label="Display currency"
+        className="max-w-xs"
         value={fiat.currency}
-        onChange={(e) => {
-          if (isFiatCode(e.target.value)) setDisplayCurrency(e.target.value);
-        }}
-        className={`h-11 w-full max-w-xs rounded-(--dash-radius-sm) border border-(--dash-line-strong) bg-(--dash-surface) px-3 text-sm text-(--dash-fg) ${dashFocus}`}
-      >
-        {FIAT_CURRENCIES.map(({ code, name }) => (
-          <option key={code} value={code}>
-            {code} · {name}
-          </option>
-        ))}
-      </select>
+        onValueChange={setDisplayCurrency}
+        options={FIAT_OPTIONS}
+      />
     </SettingsRow>
   );
 }

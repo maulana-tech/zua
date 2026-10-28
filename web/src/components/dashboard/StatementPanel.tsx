@@ -5,7 +5,7 @@ import { utcDay } from "../../features/receipts/build";
 import { receiptCsv, receiptFilename } from "../../features/receipts/receipt";
 import { downloadText } from "../../lib/download";
 import { zatToZec } from "../../lib/zcash/units";
-import { Input } from "../ui/input";
+import { DatePicker } from "../ui/date-picker";
 import { useWallet } from "../WalletProvider";
 import { dashButtonPrimary, dashButtonSecondary, dashCell } from "./styles";
 
@@ -61,26 +61,26 @@ export function StatementPanel() {
         else.
       </p>
       <div className="mt-4 flex flex-wrap items-end gap-3">
-        <label className="grid gap-1.5 text-sm font-medium">
-          From
-          <Input
-            appearance="linen"
-            type="date"
+        <div className="grid gap-1.5 text-sm font-medium">
+          <span id="statement-from-label">From</span>
+          <DatePicker
+            aria-labelledby="statement-from-label"
+            className="w-44"
             value={from}
             max={to}
-            onChange={(e) => setFrom(e.target.value)}
+            onChange={setFrom}
           />
-        </label>
-        <label className="grid gap-1.5 text-sm font-medium">
-          To
-          <Input
-            appearance="linen"
-            type="date"
+        </div>
+        <div className="grid gap-1.5 text-sm font-medium">
+          <span id="statement-to-label">To</span>
+          <DatePicker
+            aria-labelledby="statement-to-label"
+            className="w-44"
             value={to}
             min={from}
-            onChange={(e) => setTo(e.target.value)}
+            onChange={setTo}
           />
-        </label>
+        </div>
         <button
           type="button"
           className={dashButtonPrimary}

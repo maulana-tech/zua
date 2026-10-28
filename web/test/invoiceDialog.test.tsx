@@ -65,7 +65,9 @@ describe("CreateInvoiceDialog", () => {
     expect(screen.getByLabelText("Invoice number")).toHaveValue("INV-2026-009");
     expect(screen.getByLabelText("Client name")).toHaveValue("Acme");
     expect(screen.getByLabelText("Description 1")).toHaveValue("Logo design");
-    expect(screen.getByLabelText("Repeat")).toHaveValue("none");
+    expect(screen.getByLabelText("Repeat")).toHaveTextContent(
+      "Does not repeat",
+    );
     await userEvent.click(
       screen.getByRole("button", { name: "Create invoice" }),
     );

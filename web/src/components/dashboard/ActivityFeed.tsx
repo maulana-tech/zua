@@ -121,7 +121,9 @@ export function ActivityFeed({
                 : tx.kind === "sent"
                   ? ArrowUpRight
                   : Repeat;
-            const url = explorerTxUrl(tx.txid);
+            // Explorers only know mined transactions; a pending one would
+            // open "not found".
+            const url = tx.height !== null ? explorerTxUrl(tx.txid) : null;
             const amount = `${tx.value > 0n ? "+" : tx.value < 0n ? "−" : ""}${zatToZec(tx.value < 0n ? -tx.value : tx.value)} ZEC`;
             const body = (
               <>
@@ -173,6 +175,7 @@ export function ActivityFeed({
                       href={url}
                       target="_blank"
                       rel="noopener noreferrer"
+                      title="View on a block explorer"
                       className={`flex items-center gap-3 py-3 ${dashFocus}`}
                     >
                       {body}

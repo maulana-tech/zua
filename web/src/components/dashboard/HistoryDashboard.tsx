@@ -15,21 +15,26 @@ import { useFiat } from "../../features/zcash/useZecPrice";
 import { downloadText } from "../../lib/download";
 import { unlockLabel } from "../../lib/passkey";
 import { zatToZec } from "../../lib/zcash/units";
+import { DatePicker } from "../ui/date-picker";
 import { Input } from "../ui/input";
 import { useWallet } from "../WalletProvider";
 import { ActivityFeed } from "./ActivityFeed";
 import { DashboardNotice } from "./DashboardNotice";
 import { DashboardPageHeader } from "./DashboardPageHeader";
+import { Segmented, type SegmentOption } from "./Segmented";
 import { StatementPanel } from "./StatementPanel";
 import {
   dashButtonPrimary,
   dashButtonSecondary,
   dashCell,
-  dashFocus,
   dashLedger,
 } from "./styles";
 
-const selectClass = `h-10 rounded-(--dash-radius-sm) border border-(--dash-line-strong) bg-(--dash-surface) px-3 text-sm text-(--dash-fg) ${dashFocus}`;
+const KIND_OPTIONS: SegmentOption<HistoryKind>[] = [
+  { value: "all", label: "All" },
+  { value: "received", label: "Received" },
+  { value: "sent", label: "Sent" },
+];
 
 export function HistoryDashboard() {
   const { accountUnlocked, promptUnlock, recoveryMethod, zcash, issueReceipt } =
@@ -109,39 +114,41 @@ export function HistoryDashboard() {
                   placeholder="Note, amount or transaction ID"
                 />
               </label>
-              <label className="grid gap-1.5 text-xs text-(--dash-ash)">
-                Type
-                <select
-                  className={selectClass}
+              <div className="grid gap-1.5 text-xs text-(--dash-ash)">
+                <span id="history-kind-label">Type</span>
+                <Segmented<HistoryKind>
+                  aria-labelledby="history-kind-label"
+                  className="lg:w-64"
                   value={filter.kind}
-                  onChange={(e) => set({ kind: e.target.value as HistoryKind })}
-                >
-                  <option value="all">All</option>
-                  <option value="received">Received</option>
-                  <option value="sent">Sent</option>
-                </select>
-              </label>
+                  onChange={(kind) => set({ kind })}
+                  options={KIND_OPTIONS}
+                />
+              </div>
               <div className="grid grid-cols-2 gap-3 lg:contents">
-                <label className="grid gap-1.5 text-xs text-(--dash-ash)">
-                  From
-                  <Input
-                    appearance="linen"
-                    type="date"
+                <div className="grid gap-1.5 text-xs text-(--dash-ash)">
+                  <span id="history-from-label">From</span>
+                  <DatePicker
+                    aria-labelledby="history-from-label"
+                    className="lg:w-40"
+                    placeholder="Any date"
+                    clearable
                     value={filter.from}
                     max={filter.to || undefined}
-                    onChange={(e) => set({ from: e.target.value })}
+                    onChange={(from) => set({ from })}
                   />
-                </label>
-                <label className="grid gap-1.5 text-xs text-(--dash-ash)">
-                  To
-                  <Input
-                    appearance="linen"
-                    type="date"
+                </div>
+                <div className="grid gap-1.5 text-xs text-(--dash-ash)">
+                  <span id="history-to-label">To</span>
+                  <DatePicker
+                    aria-labelledby="history-to-label"
+                    className="lg:w-40"
+                    placeholder="Any date"
+                    clearable
                     value={filter.to}
                     min={filter.from || undefined}
-                    onChange={(e) => set({ to: e.target.value })}
+                    onChange={(to) => set({ to })}
                   />
-                </label>
+                </div>
               </div>
               <div className="flex gap-2 sm:col-span-2 lg:col-span-1">
                 {filtered ? (

@@ -200,6 +200,8 @@ const SYNC_INTERVAL_MS = 30_000;
 const WATCH_SYNC_MS = 8_000;
 const HIDDEN_SYNC_MS = 120_000;
 const SYNC_TICK_MS = 4_000;
+/** Memo transactions fetched from lightwalletd at once after a sync. */
+const MEMO_FETCH_CONCURRENCY = 4;
 const SEEN_LIMIT = 1000;
 const dbId = (name: string) => `${network}:${name}`;
 
@@ -369,49 +371,66 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     await saveRecord(id, [...seen].slice(-SEEN_LIMIT), key);
   }, []);
 
+  /** The device's memo cache (features/zcash/memos), loaded once per session. */
+  const memoCache = useCallback(async (name: string): Promise<MemoCache> => {
+    const master = masterRef.current;
+    if (memosRef.current) return memosRef.current;
+    if (!master) return new Map();
+    const stored = await loadRecord<[string, string[]][]>(
+      dbId(`${name}:memos`),
+      localVaultKey(master),
+    );
+    memosRef.current = new Map(stored ?? []);
+    return memosRef.current;
+  }, []);
+
   /**
    * Fills in the memos of received payments, which sync can't see
    * (features/zcash/memos): cached ones from the vault, new ones fetched and
-   * decrypted once.
+   * decrypted once, a few at a time.
    */
   const readMemos = useCallback(
     async (name: string, history: WalletTx[]): Promise<WalletTx[]> => {
       const master = masterRef.current;
       if (!master) return history;
-      const key = localVaultKey(master);
-      const id = dbId(`${name}:memos`);
-      let cache = memosRef.current;
-      if (!cache) {
-        const stored = await loadRecord<[string, string[]][]>(id, key);
-        cache = new Map(stored ?? []);
-        memosRef.current = cache;
-      }
+      const cache = await memoCache(name);
       const missing = txidsNeedingMemos(history, cache);
       if (missing.length) {
         const { rawTransaction } = await import("../lib/zcash/lightwalletd");
         const { discloseOutputs } = await import("../lib/zcash/wallet");
         const mnemonic = mnemonicFromMaster(master);
         let read = 0;
-        for (const txid of missing) {
-          try {
-            const raw = await rawTransaction(lightwalletdUrl, txid);
-            if (!raw) continue;
-            const disclosures = await discloseOutputs({
-              mnemonic,
-              tx: raw.data,
-              height: raw.height,
-            });
-            cache.set(txid, receivedMemos(disclosures));
-            read += 1;
-          } catch {
-            // lightwalletd unreachable: try again on the next sync
+        const queue = [...missing];
+        const worker = async () => {
+          for (let txid = queue.shift(); txid; txid = queue.shift()) {
+            try {
+              const raw = await rawTransaction(lightwalletdUrl, txid);
+              if (!raw) continue;
+              const disclosures = await discloseOutputs({
+                mnemonic,
+                tx: raw.data,
+                height: raw.height,
+              });
+              cache.set(txid, receivedMemos(disclosures));
+              read += 1;
+            } catch {
+              // lightwalletd unreachable: try again on the next sync
+            }
           }
-        }
-        if (read) await saveRecord(id, memoCacheEntries(cache), key);
+        };
+        await Promise.all(
+          Array.from({ length: MEMO_FETCH_CONCURRENCY }, worker),
+        );
+        if (read)
+          await saveRecord(
+            dbId(`${name}:memos`),
+            memoCacheEntries(cache),
+            localVaultKey(master),
+          );
       }
       return withMemos(history, cache);
     },
-    [],
+    [memoCache],
   );
 
   const runSync = useCallback(
@@ -429,16 +448,22 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           wallet.status(),
           wallet.history(1000),
         ]);
-        const history = await readMemos(name, synced);
+        // Show the synced balance and history now; memos that still have to
+        // be fetched fill in below, without holding the screen on "Syncing".
+        const known = withMemos(synced, await memoCache(name));
         if (session !== sessionRef.current) return;
         setZcash((z) => ({
           ...z,
           status: "ready",
           balances,
-          history,
+          history: known,
           sync,
           lastSyncedAt: Date.now(),
         }));
+        const history = await readMemos(name, synced);
+        if (session !== sessionRef.current) return;
+        if (history.some((tx, i) => tx.memos !== known[i]?.memos))
+          setZcash((z) => ({ ...z, history }));
         await saveWalletDb(
           dbId(name),
           await wallet.export(),
@@ -458,7 +483,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         syncingRef.current = false;
       }
     },
-    [announceNew, readMemos, settleInvoices, topUpAddressPool],
+    [announceNew, memoCache, readMemos, settleInvoices, topUpAddressPool],
   );
 
   /** Opens (or creates) the wallet for an unlocked master and profile. */
@@ -482,9 +507,24 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const address = expectedUa ?? (await wallet.address());
       if (session !== sessionRef.current) return;
       setZcash((z) => ({ ...z, address }));
+      // A cached wallet already knows the balance and history as of its last
+      // sync: show them while it catches up with the chain.
+      if (cached) {
+        try {
+          const [{ sync, balances }, local] = await Promise.all([
+            wallet.status(),
+            wallet.history(1000),
+          ]);
+          const history = withMemos(local, await memoCache(name));
+          if (session === sessionRef.current)
+            setZcash((z) => ({ ...z, balances, history, sync }));
+        } catch {
+          // the sync below fills it in
+        }
+      }
       void runSync(name);
     },
-    [runSync],
+    [memoCache, runSync],
   );
 
   // Periodic sync while unlocked: every 30 s in view, every few seconds while

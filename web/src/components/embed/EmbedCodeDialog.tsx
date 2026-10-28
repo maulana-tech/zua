@@ -3,6 +3,7 @@
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
 import { type EmbedConfig, embedSnippet } from "../../features/embed/snippet";
+import { Segmented } from "../dashboard/Segmented";
 import { dashButtonPrimary, dashButtonSecondary } from "../dashboard/styles";
 import {
   Dialog,
@@ -50,28 +51,30 @@ export function EmbedCodeDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="grid gap-1.5 text-sm font-medium">
-            Style
-            <select
-              className="min-h-11 rounded-(--dash-radius-sm) border border-(--dash-line-strong) bg-transparent px-3 text-sm"
+          <div className="grid gap-1.5 text-sm font-medium">
+            <span id="embed-style-label">Style</span>
+            <Segmented
+              aria-labelledby="embed-style-label"
               value={mode}
-              onChange={(e) => setMode(e.target.value as "button" | "inline")}
-            >
-              <option value="button">Button that opens a dialog</option>
-              <option value="inline">Inline checkout</option>
-            </select>
-          </label>
-          <label className="grid gap-1.5 text-sm font-medium">
-            Theme
-            <select
-              className="min-h-11 rounded-(--dash-radius-sm) border border-(--dash-line-strong) bg-transparent px-3 text-sm"
+              onChange={setMode}
+              options={[
+                { value: "button", label: "Button + dialog" },
+                { value: "inline", label: "Inline" },
+              ]}
+            />
+          </div>
+          <div className="grid gap-1.5 text-sm font-medium">
+            <span id="embed-theme-label">Theme</span>
+            <Segmented
+              aria-labelledby="embed-theme-label"
               value={theme}
-              onChange={(e) => setTheme(e.target.value as "dark" | "light")}
-            >
-              <option value="dark">Dark</option>
-              <option value="light">Light</option>
-            </select>
-          </label>
+              onChange={setTheme}
+              options={[
+                { value: "dark", label: "Dark" },
+                { value: "light", label: "Light" },
+              ]}
+            />
+          </div>
         </div>
         <pre className="max-h-48 overflow-auto rounded-(--dash-radius-sm) border border-(--dash-line) bg-(--dash-tint) p-3 font-mono text-xs whitespace-pre-wrap break-all">
           {code}

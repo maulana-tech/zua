@@ -12,7 +12,9 @@ import type { Recurrence } from "../../features/invoices/recurrence";
 import type { InvoiceView } from "../../features/invoices/types";
 import { zatToZec } from "../../lib/zcash/units";
 import { api } from "../../trpc/client";
+import { Segmented, type SegmentOption } from "../dashboard/Segmented";
 import { Button } from "../ui/button";
+import { DatePicker } from "../ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +23,7 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { Input } from "../ui/input";
+import { OptionSelect, type SelectOption } from "../ui/select";
 import { useWallet } from "../WalletProvider";
 
 const emptyLine = () => ({
@@ -29,6 +32,15 @@ const emptyLine = () => ({
   quantity: "1",
   unitPrice: "",
 });
+const CURRENCY_OPTIONS: SegmentOption<Currency>[] = [
+  { value: "ZEC", label: "ZEC" },
+  { value: "USD", label: "USD" },
+];
+const REPEAT_OPTIONS: SelectOption<Recurrence>[] = [
+  { value: "none", label: "Does not repeat" },
+  { value: "weekly", label: "Every week" },
+  { value: "monthly", label: "Every month" },
+];
 const defaultDue = () =>
   new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
 
@@ -259,49 +271,48 @@ export function CreateInvoiceDialog({
                 required
               />
             </label>
-            <label className="grid gap-2 text-sm" htmlFor="invoice-due">
-              Due date (UTC)
-              <Input
+            <div className="grid gap-2 text-sm">
+              <span id="invoice-due-label">Due date (UTC)</span>
+              <DatePicker
                 id="invoice-due"
-                appearance="linen"
+                aria-labelledby="invoice-due-label"
                 className="min-h-11"
-                type="date"
                 value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                required
+                onChange={setDueDate}
               />
-            </label>
-            <label className="grid gap-2 text-sm" htmlFor="invoice-currency">
-              Priced in
-              <select
-                id="invoice-currency"
-                className="min-h-11 rounded-(--dash-radius-sm) border border-(--dash-line-strong) bg-transparent px-3 text-sm"
+            </div>
+            <div className="grid gap-2 text-sm">
+              <span id="invoice-currency-label">Priced in</span>
+              <Segmented<Currency>
+                aria-labelledby="invoice-currency-label"
+                className="h-11"
                 value={currency}
-                onChange={(e) => setCurrency(e.target.value as Currency)}
-              >
-                <option value="ZEC">ZEC</option>
-                <option value="USD">USD (paid in ZEC at a locked rate)</option>
-              </select>
-            </label>
-            <label className="grid gap-2 text-sm" htmlFor="invoice-repeat">
-              Repeat
-              <select
+                onChange={setCurrency}
+                options={CURRENCY_OPTIONS}
+              />
+              {currency === "USD" ? (
+                <span className="text-xs text-(--dash-ash)">
+                  Paid in ZEC at a rate locked for 30 minutes when the client
+                  opens the invoice.
+                </span>
+              ) : null}
+            </div>
+            <div className="grid gap-2 text-sm">
+              <span id="invoice-repeat-label">Repeat</span>
+              <OptionSelect<Recurrence>
                 id="invoice-repeat"
-                className="min-h-11 rounded-(--dash-radius-sm) border border-(--dash-line-strong) bg-transparent px-3 text-sm"
+                aria-labelledby="invoice-repeat-label"
                 value={recurrence}
-                onChange={(e) => setRecurrence(e.target.value as Recurrence)}
+                onValueChange={setRecurrence}
+                options={REPEAT_OPTIONS}
                 disabled={Boolean(editing)}
                 title={
                   editing
                     ? "Use Stop repeating in the list to end a series"
                     : undefined
                 }
-              >
-                <option value="none">Does not repeat</option>
-                <option value="weekly">Every week</option>
-                <option value="monthly">Every month</option>
-              </select>
-            </label>
+              />
+            </div>
             <label className="grid gap-2 text-sm" htmlFor="invoice-email">
               Client email (optional)
               <Input
