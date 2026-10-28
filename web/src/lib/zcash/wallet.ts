@@ -70,6 +70,10 @@ export type Proposed = {
 const big = (v: unknown) =>
   v == null ? 0n : BigInt(v as string | number | bigint);
 
+// The chain tip moves ~every 75s; one probe per this window is plenty.
+const TIP_TTL_MS = 5 * 60_000;
+let tipCache: { at: number; height: number } | null = null;
+
 function txKind(raw: unknown): WalletTx["kind"] {
   if (raw === 0 || raw === "Received") return "received";
   if (raw === 1 || raw === "Sent") return "sent";
@@ -90,20 +94,25 @@ export class ZcashWallet {
   }): Promise<ZcashWallet> {
     const z = await loadWebZjs();
     if (opts.db) {
+      let cached: WebZjs.WebWallet | null = null;
       try {
-        const inner = new z.WebWallet(
+        cached = new z.WebWallet(
           network,
           lightwalletdUrl,
           minConfirmations,
           1,
           opts.db,
         );
-        const summary = await inner.get_wallet_summary();
+        const summary = await cached.get_wallet_summary();
         const id = firstAccountId(summary);
-        if (id !== null) return new ZcashWallet(inner, id);
+        if (id !== null) return new ZcashWallet(cached, id);
       } catch {
         // Corrupt or incompatible cache: fall through to a fresh account.
       }
+      // Drop the unusable wallet instead of leaving its own DB and workers alive.
+      try {
+        cached?.free();
+      } catch {}
     }
     const inner = new z.WebWallet(
       network,
@@ -121,8 +130,16 @@ export class ZcashWallet {
     return new ZcashWallet(inner, id);
   }
 
-  /** Current chain tip from lightwalletd (used to pick a birthday). */
+  /**
+   * Current chain tip from lightwalletd (used to pick a birthday). Every
+   * WebWallet boot applies the wallet's SQLite migrations to a fresh DB, so the
+   * probe is cached: opening a second wallet just for the height is expensive
+   * and floods the console.
+   */
   static async latestBlock(): Promise<number> {
+    if (tipCache && Date.now() - tipCache.at < TIP_TTL_MS) {
+      return tipCache.height;
+    }
     const z = await loadWebZjs();
     const probe = new z.WebWallet(
       network,
@@ -132,7 +149,9 @@ export class ZcashWallet {
       null,
     );
     try {
-      return Number(await probe.get_latest_block());
+      const height = Number(await probe.get_latest_block());
+      tipCache = { at: Date.now(), height };
+      return height;
     } finally {
       probe.free();
     }
