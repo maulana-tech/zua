@@ -103,8 +103,19 @@ const nextConfig = {
           headers: isolation("credentialless"),
         },
       ]),
-      // Wallet workers (public/webzjs) must match the isolated page's COEP.
-      { source: "/webzjs/:path*", headers: isolation("credentialless") },
+      // Wallet workers (public/webzjs) must carry the same COEP as the page:
+      // a document isolated with require-corp refuses a worker served with
+      // credentialless ("Worker load was blocked by COEP").
+      {
+        source: "/webzjs/:path*",
+        has: [webkit],
+        headers: isolation("require-corp"),
+      },
+      {
+        source: "/webzjs/:path*",
+        missing: [webkit],
+        headers: isolation("credentialless"),
+      },
       {
         source: "/i/:path*",
         headers: [

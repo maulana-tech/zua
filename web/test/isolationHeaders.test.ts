@@ -25,7 +25,7 @@ async function isolationRules() {
   const coep = (rule: Rule) =>
     rule.headers.find((header) => header.key === "Cross-Origin-Embedder-Policy")
       ?.value;
-  return { forDashboard, coep };
+  return { rules, forDashboard, coep };
 }
 
 describe("cross-origin isolation headers", () => {
@@ -49,5 +49,17 @@ describe("cross-origin isolation headers", () => {
       expect(pattern.test(ua)).toBe(true);
     for (const ua of [MAC_CHROME, ANDROID_CHROME, MAC_FIREFOX])
       expect(pattern.test(ua)).toBe(false);
+  });
+
+  it("gives the wallet workers the same COEP as the page", async () => {
+    const { rules, coep } = await isolationRules();
+    const workers = rules.filter((rule) => rule.source === "/webzjs/:path*");
+    expect(workers).toHaveLength(2);
+    expect(coep(workers.find((rule) => rule.has?.length) as Rule)).toBe(
+      "require-corp",
+    );
+    expect(coep(workers.find((rule) => rule.missing?.length) as Rule)).toBe(
+      "credentialless",
+    );
   });
 });
