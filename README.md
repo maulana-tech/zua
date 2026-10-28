@@ -223,5 +223,5 @@ modules so its thread workers resolve.
 
 ## License
 
-The app is unlicensed for now. `webzjs/` keeps ChainSafe's MIT/Apache-2.0
+MIT — see [`LICENSE`](LICENSE). `webzjs/` keeps ChainSafe's MIT/Apache-2.0
 licenses (`webzjs/LICENSE-MIT`, `webzjs/LICENSE-APACHE`).
